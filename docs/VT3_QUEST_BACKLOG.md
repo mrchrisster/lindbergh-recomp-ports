@@ -6,7 +6,7 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## In progress
 
-- [ ] Extra cameras at the start of a match (see Bugs).
+- [ ] Extra cameras at the start of a match (see Bugs; fly-by done, two left).
 
 ## To do
 
@@ -14,13 +14,18 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 - [ ] **Serve strength meter not showing correctly in immersive mode.**
 - [ ] **Extra cameras at the start of a match.** Three cameras before the
       normal broadcast one; the first serve is on a different camera than the
-      rest. Found so far (`LINDBERGH_VT3_CAMLOG=1`): the first is the fly-by
-      intro, `camera::initUva` (also between games) - `LINDBERGH_VT3_SKIP_UVA=1`
-      skips it cleanly (opt-in for now). Two remain: a high overhead view, then
-      a high camera for the first serve, both inside `camera::gameRoutine`,
-      before the game switches to the broadcast camera ~3 s in. Next: find what
-      gameRoutine keys those on (first point of the match) and skip to the
-      broadcast camera.
+      rest.
+      - Done: the first, the fly-by intro (`camera::initUva`, also between
+        games), is now skipped by default in immersive mode
+        (`LINDBERGH_VT3_SKIP_UVA=0` keeps it).
+      - Still there: a sweeping overview, then a top-down view for the first
+        serve; the broadcast camera takes over ~3 s in (frame ~2139 in the
+        `forty` scene). Ruled out: the camera routine's frame counter
+        (camera+0x1e8 resets every point; starting it at 240 changed nothing).
+        No other field of the camera object changes in that window
+        (`LINDBERGH_VT3_CAMFIELDS=<a>-<b>`), so the choice is held elsewhere:
+        next, watch the match manager (0x85061a4) and the game routine's
+        mode flag (camera+0x1c8 bit 0).
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
