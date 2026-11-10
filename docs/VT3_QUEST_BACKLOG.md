@@ -6,14 +6,21 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## In progress
 
-- [ ] Court overview camera glitch at the start of a match (capturing now).
+- [ ] Extra cameras at the start of a match (see Bugs).
 
 ## To do
 
 ### Bugs
 - [ ] **Serve strength meter not showing correctly in immersive mode.**
-- [ ] **Court overview camera glitchy when a match first starts.** Capture the
-      first seconds after the menus to see what happens.
+- [ ] **Extra cameras at the start of a match.** Three cameras before the
+      normal broadcast one; the first serve is on a different camera than the
+      rest. Found so far (`LINDBERGH_VT3_CAMLOG=1`): the first is the fly-by
+      intro, `camera::initUva` (also between games) - `LINDBERGH_VT3_SKIP_UVA=1`
+      skips it cleanly (opt-in for now). Two remain: a high overhead view, then
+      a high camera for the first serve, both inside `camera::gameRoutine`,
+      before the game switches to the broadcast camera ~3 s in. Next: find what
+      gameRoutine keys those on (first point of the match) and skip to the
+      broadcast camera.
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
