@@ -6,26 +6,12 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## In progress
 
-- [ ] Extra cameras at the start of a match (see Bugs; fly-by done, two left).
+(nothing)
 
 ## To do
 
 ### Bugs
 - [ ] **Serve strength meter not showing correctly in immersive mode.**
-- [ ] **Extra cameras at the start of a match.** Three cameras before the
-      normal broadcast one; the first serve is on a different camera than the
-      rest.
-      - Done: the first, the fly-by intro (`camera::initUva`, also between
-        games), is now skipped by default in immersive mode
-        (`LINDBERGH_VT3_SKIP_UVA=0` keeps it).
-      - Still there: a sweeping overview, then a top-down view for the first
-        serve; the broadcast camera takes over ~3 s in (frame ~2139 in the
-        `forty` scene). Ruled out: the camera routine's frame counter
-        (camera+0x1e8 resets every point; starting it at 240 changed nothing).
-        No other field of the camera object changes in that window
-        (`LINDBERGH_VT3_CAMFIELDS=<a>-<b>`), so the choice is held elsewhere:
-        next, watch the match manager (0x85061a4) and the game routine's
-        mode flag (camera+0x1c8 bit 0).
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
@@ -53,6 +39,12 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-10)
 
+- [x] Start of a match goes straight to the normal camera: the fly-by intro is
+      skipped (`LINDBERGH_VT3_SKIP_UVA=0` keeps it), and the "overview" and
+      "top-down" views were world mode's own fault - for the first ~3 s the game
+      draws through the broadcast camera without setting it the way world mode
+      reads it, so world mode guessed. It is now built from the game's camera
+      routine until the game sets it (`LINDBERGH_VT3_FEEDCAM=0` turns it off).
 - [x] Floating crowd behind the far baseline hidden: crowd cards with no seating
       under them (end away from the camera, beyond the side stands, above the
       far tier's top, ~5.5 m) are left out (`LINDBERGH_VT3_CROWD_CUT`).
