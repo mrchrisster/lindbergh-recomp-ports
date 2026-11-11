@@ -200,7 +200,7 @@ lindberghrecomp runtime:
 ### Open issues
 
 1. ~~Replay camera / pre-match intro flat colour~~ — fixed, see Section 5.
-2. ~~Audio~~ — works (confirmed by ear). SEGAAPI is answered by `hle_segaapi.c`; it starts muted, M toggles (or `LINDBERGH_MUTE=0`). `LINDBERGH_SEGA_METER=1` logs the mix peak and voice count every two seconds.
+2. ~~Audio~~ — works (confirmed by ear). SEGAAPI is answered by `hle_segaapi.c`; it starts muted, M toggles (or `LINDBERGH_MUTE=0`). `LINDBERGH_SEGA_METER=1` logs the mix peak and voice count every two seconds. **Music skipping fixed 2026-11-11:** VT3's music comes from CRI ADX through `lbrna` into a 341 ms SEGAAPI ring (16384 frames, refilled up to the play position by ADX's own 16.67 ms thread, not the game loop). The mixer left a looping voice's position on its loop end when a 1024-frame block ended exactly there (every lap for this ring). `lbrna` then read "ring size", took the ring for empty and overwrote the queued lap. So 341 ms of music was lost every lap (written / played 2.38 on macOS, 2.19 on the Quest). Now wrapped at once (`LINDBERGH_SEGA_POS_WRAP=0` gives the old behaviour). Diagnostics: the `[sega-api] health:` line, `LINDBERGH_AUDIO_DUMP=<wav>` (`_STREAMS=1`, `_WRITES=1`), `[io] slow read`, `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1` (unattended Quest runs), `scripts/wav_glitches.py`. Full write-up: `ai_docs/research/audio-music-skipping.md`.
 3. **Quest 3 (gl4es + OpenXR)** — playable: boots, menus and matches run at a steady **60 fps** with textured 3D, controls work. See Section 7 for what was fixed and how to test without a person. Still open on the headset:
    - **The match is shown on a flat panel**, not as a 3D world (see Section 8).
    - The menu-to-court transition shows one tilted frame (world mode starting a frame early).
@@ -320,6 +320,9 @@ The script drives the menus, runs for a set time, and leaves the log and frames 
 | `LINDBERGH_SHADOW_PCF=0/1` | The in-shader shadow compare filtered over 2x2 texels (default on with `vr.depth_tex_shadow`) |
 | `LINDBERGH_FORCE_SHADOW=1 LINDBERGH_SHADER_COMPARE=1` (desktop) | The Quest's in-shader shadow compare on macOS, to check it against the driver's |
 | `LINDBERGH_COPY_LOG=1` | Each distinct copy from the framebuffer into a texture |
+| `LINDBERGH_AUDIO_DUMP=<wav>` (+ `LINDBERGH_AUDIO_DUMP_STREAMS=1`, `_WRITES=1`) | The final mix as a 48 kHz WAV (after the limiter, before mute); the streamed rings alone; what the decoder wrote into each ring. `[sega-api] health:` (starvation, lead, late device blocks, limiter load) is always on, logged when something went wrong |
+| `LINDBERGH_IO_SLOW_MS=<ms>`, `LINDBERGH_IO_DELAY=<ms>[,<every>]`, `LINDBERGH_IO_LOG=1` | `[io] slow read` threshold (default 50); a simulated slow disk; reads of 4 KB+ logged |
+| `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1` | Quest: SDL keeps the audio device running while the Activity is paused (an unworn headset), so unattended runs have a mixer |
 | `LINDBERGH_VT3_SERVELOG=1` | VT3: every frame a serve meter shows (player, state, power, latched, game vs re-anchored screen position), each `getScreenPosFrom3DPos` answer, each pixel-camera draw whose lens read is off the camera's |
 | `LINDBERGH_VT3_SERVESHOT=<n>[,<from>]` | Quest, VT3: full-size game shots through 1P's next n serves (from that frame): power 0.3...0.95, then every 3rd frame for 45 |
 | `LINDBERGH_SHOT_BOTH=1` | Quest: `GAME_SHOT` / `XR_SHOT` also save the right eye (`game_<frame>_r.ppm`, `xrshot_<frame>_r.ppm`) |

@@ -5,6 +5,23 @@ testing), then this. This file holds what the README does not: the session's
 summary, the owner's decisions, the to-do queue in order, and two designs that
 exist nowhere else (live mode switch, in-scene scoreboards).
 
+Research reports in `ai_docs/research/` (read the relevant one before
+working on its area):
+- `audio-music-skipping.md` - SEGAAPI / ADX / lbrna audio path, the
+  loop-end position bug (music skipped every 341 ms lap; fixed),
+  audio diagnostics and the headset procedure.
+- `crowd-and-upper-stands.md` - upper bleachers exist but `field::draw`
+  hides group `GAME_NO` on the court camera; crowd cards float; crowd
+  texture LOD bias lost in gl4es.
+- `shadow-resolution.md` - the low-res shadow is the screen-space ground
+  mask (1360x768), not the 2048 map; self-shadow tiles use 1/16 of the map.
+- `replay-paths.md` - the single replay gate (`replay::isReplay_point`),
+  replay loop modes, match end with Replays off.
+- `serve-meter-hud-anchors.md` - serve meter / 1P marker anchoring in
+  Immersive.
+- `two-mode-menu-design.md` - Classic / Immersive panel design and code map
+  (HANDOFF section 4 supersedes its Phase B steps).
+
 ## 1. State of the tree
 
 Branch `vt3-quest` in both repos, clean, **nothing pushed**.
@@ -13,7 +30,8 @@ Branch `vt3-quest` in both repos, clean, **nothing pushed**.
 |---|---|---|---|
 | Steady camera between points, clean cuts; Quest shot buttons; splash map | `1b1988b` | `c82ec03` | macOS + Quest unattended |
 | Replays-off bug closed; live Replays-off skip; setMode wrap independent of FORCE_REPLAY; labels | `dca91c9` | `bfc19cd` | macOS + Quest unattended (final regression owed, see 3.1) |
-| Live mode switch groundwork (off, no behaviour change) | `3a713ff` | `2525e67` | macOS Classic + unit tests; APK builds, **not installed** |
+| Live mode switch groundwork (off, no behaviour change) | `3a713ff` | `2525e67` | macOS Classic + unit tests; installed with the audio fix below |
+| Music skipping fixed (loop-end position), audio diagnostics, keep-on-pause test switch | `fa83fd6`, `77875a4` | see `git log` | macOS + Quest unattended; Classic and Immersive `prize` regression on the Quest; **installed** |
 
 Push rule (owner): push to `fork` only after the owner has confirmed progress
 worn. Never push to or PR against lialan's upstream. Workers never push.
@@ -83,15 +101,45 @@ The headset dropped off adb mid-session (`adb devices` empty). Everything
 below except where noted needs it; ask the owner to reconnect, do not work
 around it.
 
-### 3.1 First, when the headset is back
-1. `adb shell wc -c /sdcard/VirtuaTennis3/env.txt` – a run was starting when
-   the headset dropped, so it may hold leftover test settings. Empty it.
-2. Confirm `vr.cfg` is as the owner left it: `mode immersive`, `replays on`,
-   `classic.cutaways on`, `immersive.replays off`, `immersive.cutaways off`.
-3. Build + install the current APK (it contains `3a713ff`, never installed).
-4. Owed regression: Classic `prize` and Immersive `prize`
-   (`LINDBERGH_VT3_IMMERSIVE=1`, `LINDBERGH_VT3_FLOWLOG=1`) reaching slate
-   (~600 frames) -> next round, same `[world]` / `[sega]` start lines.
+### 3.1 Headset state and the owed checks
+1.-4. Done 2026-11-11 (audio worker): env.txt was emptied by the conductor;
+   vr.cfg checked unchanged before and after (`mode immersive`, `replays on`,
+   `classic.cutaways on`, `immersive.replays off`, `immersive.cutaways off`,
+   `refresh 120`); the APK with `3a713ff` + `fa83fd6` + `77875a4` is
+   **installed**; regression passed: Classic `prize` slates 3988 -> 4589,
+   8994 -> 9594, 13979 -> 14580 and Immersive `prize` 7534 -> 8135 (601
+   frames each; Immersive's first slate 3173 -> 3533 is cut by the menu
+   script's `z` taps to 3600), next rounds start, `[world]` / `[sega]` lines
+   as before.
+
+**Music: what the owner should listen for (worn, this APK).** Music in
+menus and between points should now play continuously. Before, it jumped
+about every third of a second. If it still sounds wrong, run this with the
+owner wearing the headset at their settings (120 Hz). Nothing changes vr.cfg:
+```
+D=/sdcard/VirtuaTennis3/vt3_Lindbergh
+printf 'LINDBERGH_SEGA_METER=1\nLINDBERGH_AUDIO_DUMP=%s/mix.wav\nLINDBERGH_AUDIO_DUMP_STREAMS=1\n' $D | adb shell "cat > /sdcard/VirtuaTennis3/env.txt"
+adb logcat -c; adb shell am start -n org.lindbergh.vt3.vr/org.lindbergh.vt3.VirtuaTennis3VR
+# owner plays a match (~5 min), then:
+adb shell am force-stop org.lindbergh.vt3.vr
+adb pull /sdcard/VirtuaTennis3/vt3.log; adb pull $D/mix.wav; adb pull $D/mix.wav.streams.wav
+adb shell "printf '' > /sdcard/VirtuaTennis3/env.txt; rm -f $D/mix.wav $D/mix.wav.streams.wav"
+grep -E 'mixing at|health|slow read|\[perf\]' vt3.log
+.venv/bin/python scripts/wav_glitches.py mix.wav.streams.wav --from 30
+```
+Pass: every `health:` line `starved 0 events`, `device 0 late` (an
+occasional late block with gap max < 43 ms is inaudible: OpenSL holds two
+blocks), `stream lead min` >= ~250 ms, no `[io] slow read`; streams clicks
+well under ~150 / min (the decoder's own transients give ~100). Fail and
+where to look: `starved > 0` -> refill stalled (slow reads -> the file
+thread; none -> the ADX vsync thread's CPU time under the worn load);
+`late > 0` with gap > 43 ms -> the SDL audio thread is starved (try a
+2048-frame block for Android in `open_output`, or AAudio via
+`SDL_AUDIODRIVER=aaudio`); limiter `% over 1.0` high while the owner hears
+distortion -> lower VT3's `sound_gain` (game profile; LGJ uses 0.4).
+`LINDBERGH_SEGA_POS_WRAP=0` brings the old skipping back for an A/B by ear.
+Unattended runs need `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1` (else the mixer stops
+~2 s in) and are paced at 60 by the clock, so they say nothing about 120 Hz.
 
 5. Owner's report after a full match worn on 2026-11-11 (on the build
    *before* `1b1988b`; "we are getting close to a first release"; all
@@ -105,8 +153,10 @@ around it.
      worker.
    - Shadows look low resolution (Immersive, High 2048) - OPEN, research
      worker.
-   - Music plays skipping / not clean - OPEN, see the audio procedure below
-     once it is written.
+   - Music plays skipping / not clean - skipping FIXED (`fa83fd6`, the
+     loop-end position bug; measured on macOS and Quest), owner to confirm by
+     ear; possible limiter distortion in loud moments left for his ears.
+     Procedure below.
 
 ### 3.2 Crowd cards above the side stands (Immersive)
 Crowd cards float in the sky above the side stands' top rows; the existing

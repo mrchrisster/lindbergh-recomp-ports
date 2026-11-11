@@ -9,6 +9,23 @@ section 8. Add to this file whenever a session finds something.
 queue in order, and the designs for the live mode switch and the in-scene
 scoreboards.**
 
+Research reports in `ai_docs/research/` (read the relevant one before
+working on its area):
+- `audio-music-skipping.md` - SEGAAPI / ADX / lbrna audio path, the
+  loop-end position bug (music skipped every 341 ms lap; fixed),
+  audio diagnostics and the headset procedure.
+- `crowd-and-upper-stands.md` - upper bleachers exist but `field::draw`
+  hides group `GAME_NO` on the court camera; crowd cards float; crowd
+  texture LOD bias lost in gl4es.
+- `shadow-resolution.md` - the low-res shadow is the screen-space ground
+  mask (1360x768), not the 2048 map; self-shadow tiles use 1/16 of the map.
+- `replay-paths.md` - the single replay gate (`replay::isReplay_point`),
+  replay loop modes, match end with Replays off.
+- `serve-meter-hud-anchors.md` - serve meter / 1P marker anchoring in
+  Immersive.
+- `two-mode-menu-design.md` - Classic / Immersive panel design and code map
+  (HANDOFF section 4 supersedes its Phase B steps).
+
 ## Ground rules
 
 - Push only to the `fork` remote (mrchrisster/...), branch `vt3-quest`:
@@ -95,6 +112,30 @@ scoreboards.**
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-11 **Music skipping - fixed** (`hle_segaapi.c` `mix`,
+  `h_get_pos`; submodule `fa83fd6`; `ai_docs/research/audio-music-skipping.md`).
+  A looping voice that ended a 1024-frame mix block exactly on its loop end
+  kept `pos == loop end` until its next read. VT3's music ring is 16384
+  frames (65536 bytes, 341 ms) = 16 blocks, so every lap `lbrna` read the
+  ring size, took the ring for empty (free = play - write = 65536) and
+  overwrote the whole queued lap: decoder output written / played 2.38
+  (macOS), 2.19 (Quest, `LINDBERGH_SEGA_POS_WRAP=0`). Now wrapped after the
+  block and never reported: 1.01 / 1.02, "position read as ring size" 0.
+  Also: linear interpolation for voices off 48 kHz (effects at 22/44 kHz;
+  `LINDBERGH_AUDIO_INTERP=0` off). Diagnostics: `[sega-api] health:` line
+  (starvation, stream lead, late device blocks, lock/mix time, limiter
+  load; every 10 s if anything went wrong, 2 s with `LINDBERGH_SEGA_METER=1`),
+  `LINDBERGH_AUDIO_DUMP=<wav>` (+ `_STREAMS=1`, `_WRITES=1`),
+  `LINDBERGH_SEGA_LOG=1` ring `update` lines, `[io] slow read` (>50 ms,
+  `LINDBERGH_IO_SLOW_MS`), `LINDBERGH_IO_DELAY` / `LINDBERGH_IO_LOG`,
+  `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1` (needed unattended on the Quest: the
+  paused Activity pauses SDL's audio ~2 s in), `scripts/wav_glitches.py`.
+  Found nothing else: 0 starvation, 0 late blocks (Quest gap max 27 ms),
+  lead min 320 ms of 341, no slow reads. Measured only unworn (60 fps by
+  the clock, no 120 Hz). The effects drive the mix up to 4x full scale into
+  the soft limiter (up to 11% of samples over 1.0 in a 10 s window): left
+  for the owner's ears.
 
 - 2026-11-11 **"Some replays still play with Replays off" - closed: not
   replays** (`hle_sega.c` `h_vt3_set_mode`, `h_vt3_skip_winner`, the

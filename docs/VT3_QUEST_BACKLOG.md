@@ -22,8 +22,11 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 Reported by the owner after a full match worn on 2026-11-11 (build before
 `1b1988b`); the owner also said "we are getting close to a first release"
 and asked that all progress and research be written to the docs.
-- [ ] **Music plays skipping / not clean** (2026-11-11, Quest). Being
-      investigated (`ai_docs/research/audio-music-skipping.md`).
+- [ ] **Music plays skipping / not clean** (2026-11-11, Quest) - skipping
+      **fixed, owner to confirm by ear** (see Done). Left open for the
+      "not clean" half: in loud moments the effects drive the mix up to 4x
+      full scale into the limiter (measured, not changed - tell us if loud
+      rallies sound distorted).
 - [ ] **Audience looks stretched and low resolution; the upper bleachers
       are missing, so the audience floats in mid air** (2026-11-11,
       Immersive). Owner's question: does a 3D model of the upper stands
@@ -49,6 +52,17 @@ and asked that all progress and research be written to the docs.
       panel (older note).
 
 ## Done (2026-11-11)
+
+- [x] **Music skipping** (owner's report, 2026-11-11): the music lost about
+      a third of a second about three times a second, on every platform. At
+      the end of each lap of the game's 0.34 s music ring, our sound code
+      reported "end of ring" instead of "start of ring". The game then
+      rewrote the whole ring over music still waiting to play. Fixed:
+      macOS and Quest now play exactly what the decoder writes (1.01x / 1.02x,
+      was 2.38x / 2.19x). Effects at 22/44 kHz are now interpolated (less
+      grainy). No device underruns or stream starvation were found
+      (unattended runs; not yet heard worn at 120 Hz).
+      Details: `ai_docs/research/audio-music-skipping.md`.
 
 - [x] "Some replays still play with Replays off" - not replays. The game
       has a single way into a replay (the point's end asks
