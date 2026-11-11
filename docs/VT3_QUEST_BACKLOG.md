@@ -27,11 +27,14 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
       in Immersive's advanced settings.
 - [ ] HUD scoreboards float in the scene at court level instead of a HUD
       panel (older note).
-- [ ] Scene culling is off in world mode (~40 fps in places); widen it to the
-      headset's view instead.
 
 ## Done (2026-11-11)
 
+- [x] Immersive frame rate: the dips were the sky's shader, not the scene
+      culling (which the game hardly uses). The sky is now cheap (same look);
+      in unattended tests a match holds 60 fps where it dropped to ~53.
+      Culling is widened to the headset's view anyway. Not yet checked worn
+      at 72/90 Hz.
 - [x] Result slate after a match (RESULT, prize money, TOTAL MONEY) shown for
       its full ~10 s in Immersive mode too (it ended after a few frames: the
       intro fly-by skip also cut the slate's camera, which times the slate).

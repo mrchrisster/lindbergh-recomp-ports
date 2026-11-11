@@ -41,7 +41,7 @@ section 8. Add to this file whenever a session finds something.
   `LINDBERGH_VT3_CUTAWAYS=0|1` (the close-up after each point skipped / shown),
   `LINDBERGH_REPLAYS=0|1` (now works on macOS too), `LINDBERGH_VT3_FLOWLOG=1`
   (each arcade screen loop the game starts: `[flow] frame N: GameLoop` ...),
-  `LINDBERGH_GAME_SHOT=<first>,<every>` (game picture), `LINDBERGH_XR_SHOT=...`
+  `LINDBERGH_GAME_SHOT=<first>,<every>` (game picture), `LINDBERGH_GPU_TIME=1` (GPU ms per frame, unattended too), `LINDBERGH_XR_SHOT=...`
   (eye image without the compositor's layers).
 - Headset panel tests (unattended; the unworn headset's session stops at
   state 6/1 or sits behind "Finding position in room", so the panel never
@@ -91,6 +91,34 @@ section 8. Add to this file whenever a session finds something.
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-11 **Immersive frame rate: the sky, not the culling** (`stereo.c`
+  `sky_draw`, `hle_sega.c` `h_vt3_is_visible`, `host_xr.c` `gpu_time`; guide
+  section 8). Measured unattended (`prize`, Immersive, replays and cutaways
+  off; the unworn headset's session stops at state 6 -> 1, so the game is
+  paced at 60 by the clock, nothing is composited and `LINDBERGH_XR_PROF`
+  says nothing - these are not 72/90 Hz numbers): new `LINDBERGH_GPU_TIME=1`
+  (GPU time per frame by timer queries, works unpresented) and `[perf]`,
+  match frames 2300-3150 / 4100-5300:
+  before 53.7 fps, 44 frames over 25 ms per 5 s, GPU 4.6 ms (90% 6.8);
+  `LINDBERGH_VT3_SKY=0` 59.6 fps / 2 / 2.8 ms; `LINDBERGH_SHADOW_SCALE=1`
+  55.3 / 33; `LINDBERGH_SKIP_DRAWS=offscreen` 54.9 / 31; eyes at 1440
+  (`LINDBERGH_XR_SET=resolution=1440`) 59.5 / 1; Classic 55.9 / 21.
+  The sky's fragment shader (5 octaves x 4 sine hashes per pixel, full eye
+  resolution) was the cost. Now value noise from a 256x256 random texture
+  (one filtered fetch per octave, lattice wrapped) and no clouds below the
+  horizon: 57.6 fps / 3 / GPU 3.2 ms, rally stretches at 60.0 fps with no
+  late frame. The culling (`_sCamera::isVisible`) turned out not to matter:
+  its only caller, `_sTree::addScene`, tests only trees with their culling
+  flag, from `uva::SceneObject::addScene`; `LINDBERGH_VT3_CULLLOG=1` logged
+  no call in whole runs (menus, match, slate), and `LINDBERGH_FRAMEMAP=2300`
+  shows the same 283 draws with culling off, the game's or widened. The
+  widened test is in anyway (default; eyes' frusta from `eye_projection`,
+  sides pushed out `LINDBERGH_VT3_CULL_MARGIN` degrees, default 20; non-world
+  cameras keep the game's test; `LINDBERGH_VT3_CULL=0` all visible as
+  before, `=1` the game's). Not verified: 72/90 Hz worn, pop-in with
+  `LINDBERGH_XR_FAKE_YAW` (needs a presenting session; moot while the test
+  is never called).
 
 - 2026-11-11 **Result slate in Immersive mode** (`hle_sega.c`
   `h_vt3_init_uva`; guide section 8, "Start-of-match cameras"). The slate
@@ -218,7 +246,7 @@ From `docs/VT3_QUEST_BACKLOG.md`: switching Classic / Immersive live
 (Phase B: hooks always installed, the shader link key's world bit,
 `g_flat` forcing), blocky cloud patch near the top of the sky, one black frame
 at a camera change, camera and stand-height defaults (now adjustable in the
-panel), HUD scoreboards in the scene, culling widened to the headset's view,
+panel), HUD scoreboards in the scene,
 macOS start-up screen.
 
 Seen while testing the panel (2026-11-11), not looked into:
