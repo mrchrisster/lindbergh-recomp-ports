@@ -11,7 +11,11 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-- [ ] **Serve strength meter not showing correctly in immersive mode.**
+- [ ] **Match never ends with Replays off** – after 2 games won it keeps
+      playing new games. Caused by the Replays switch (answers "no replay" even
+      on the match's last point); plain mode too. Notes: `ai_docs/README.md`.
+- [ ] **Serve strength meter not showing correctly in immersive mode** – sometimes
+      fine, then glitches in the last second. Lead in `ai_docs/README.md`.
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
