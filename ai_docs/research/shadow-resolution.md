@@ -17,6 +17,24 @@ Immersive, full-size game shots at frame 2300):
   pose). The low-res ground shadow is the screen-space mask, not the shadow
   map. Confirmed.
 
+**T4 - per-eye mask: written, NOT run on the headset (uncommitted)** - the
+headset was unplugged before it could be tried. Design as recommended in 2.1
++ 2.2: at the frame's first whole-screen copy from the eyes (world frames)
+`stereo.c` `mask_copy` also copies both eye layers 1:1 (NEAREST blit) into a
+runtime twin - a 2D texture of eye size whose gl4es array holds both views
+(`gl4es_multiview_copy_layers`, new in `quest/gl4es.patch`); any later copy
+into the game's texture that frame (the depth-of-field chain's) ends the
+twin's use. A fragment program reading a screen copy (`u_scr` units) gets a
+third branch: `u_scr.x < 0` -> `lg_mask(inv)`, 5 taps 1.3 eye pixels apart at
+`gl_FragCoord` in `sl_<K>` at `gl4es_layer`, K the last texture unit gl4es
+has (`vt3_mask_unit`, bound in `upload()` for that draw). The game's 1360x768
+copy still happens (DOF chain, cross-fade, Classic). `LINDBERGH_VT3_MASK=0`:
+the old path. Memory: 2 x 2064 x 2208 x 4 B = 36 MB. Expected GPU cost: one
+2-layer 1:1 blit (~0.2-0.4 ms, to measure). Checks owed: HANDOFF 3.1.
+
+T6 (self-shadow tile zoom, rec. 3): not started - the budget went to T2-T5
+and the headset was away.
+
 **Summary for the owner**
 1. The low-res shadow you most likely see is the players' **ground shadow**. It is not the 2048 shadow map: it is a screen-space mask. The eye's image is squeezed into a 1360x768 texture with one bilinear blit, then stretched back over the court. Each mask texel covers about 1.5 x 2.9 eye pixels, so the edges come out jagged and crawl when you move your head.
 2. The "Shadow quality High = 2048" setting only affects the players' **self-shadowing** (arm on shirt, and so on). Even there the game uses only a centred 128x128 or 256x256 tile of its 1024 map per player (256/512 texels at 2048).

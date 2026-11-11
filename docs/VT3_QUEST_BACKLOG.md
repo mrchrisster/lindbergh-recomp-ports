@@ -27,13 +27,16 @@ and asked that all progress and research be written to the docs.
       "not clean" half: in loud moments the effects drive the mix up to 4x
       full scale into the limiter (measured, not changed - tell us if loud
       rallies sound distorted).
-- [ ] **Audience looks stretched and low resolution; the upper bleachers
-      are missing, so the audience floats in mid air** (2026-11-11,
-      Immersive). Owner's question: does a 3D model of the upper stands
-      exist, or are the game's cameras angled so they never show them?
-      Research under way.
+- [ ] **Audience looks low resolution** (2026-11-11, Immersive) - the
+      stretched / floating half is fixed (see Done). The crowd textures are
+      sampled one mip level blurrier on the Quest than Sega set (the
+      headset's graphics layer dropped the game's sharpening, LOD bias -1);
+      a fix is written but not yet tried on the headset.
 - [ ] **Shadows still look low resolution** (2026-11-11, Immersive, Shadow
-      quality High 2048). Research under way.
+      quality High 2048). Found: it is the players' ground shadow, a
+      screen-sized mask copied from one eye at 1360x768 (it looks the same
+      with the shadow map at 1024 or 4096). A per-eye, full-resolution mask
+      with soft edges is written but not yet tried on the headset.
 - [ ] Confirm worn (fixed in `1b1988b`, not yet tried by the owner):
       "button A is slice and button B is not mapped" -> now trigger top
       spin, A / X slice, B / Y lob; "quick 1 s camera changes after every
@@ -46,12 +49,28 @@ and asked that all progress and research be written to the docs.
       Mode row applies on the next start ("Restart now"). Groundwork: see
       In progress.
 - [ ] Pick the defaults for the camera's forward move (Camera closer, 20 m)
-      and step back (6 m) and the stand height (x1.5) - all adjustable now
-      in Immersive's advanced settings.
+      and step back (6 m) - adjustable in Immersive's advanced settings.
+- [ ] Sky: Immersive now has a Sky row - Stadium (the court's own painted
+      sky from Sega's model, the default), Painted (ours), Off. The stadium
+      sky covers only the directions the TV camera looks; above and behind,
+      our painted sky fills in (written, not yet tried on the headset).
 - [ ] HUD scoreboards float in the scene at court level instead of a HUD
       panel (older note).
 
 ## Done (2026-11-11)
+
+- [x] **Upper bleachers missing, audience floating in mid air, stands
+      stretched** (owner's report, 2026-11-11, Immersive). The upper stands
+      exist on every court: Sega built 2nd and 3rd tiers, roofs, light
+      towers, buildings around the stadium and a sky, and the game hides
+      them while the TV camera is on the court because that camera never
+      shows them - but the spectators on those tiers were still drawn, so
+      they floated. Immersive now draws the whole stadium, including the
+      stand behind you. Our stand-height stretch (and its "Stand height"
+      menu row) and the crowd cut are gone: everything is at Sega's own size.
+      Your saved settings need no change. Checked on the first court
+      unattended; other courts, the frame rate cost and how it looks worn
+      still to check.
 
 - [x] **Music skipping** (owner's report, 2026-11-11): the music lost about
       a third of a second about three times a second, on every platform. At
@@ -144,15 +163,16 @@ and asked that all progress and research be written to the docs.
       draws through the broadcast camera without setting it the way world mode
       reads it, so world mode guessed. It is now built from the game's camera
       routine until the game sets it (`LINDBERGH_VT3_FEEDCAM=0` turns it off).
-- [x] Floating crowd behind the far baseline hidden: crowd cards with no seating
-      under them (end away from the camera, beyond the side stands, above the
-      far tier's top, ~5.5 m) are left out (`LINDBERGH_VT3_CROWD_CUT`).
+- [x] Floating crowd behind the far baseline hidden (`LINDBERGH_VT3_CROWD_CUT`) -
+      replaced 2026-11-11 by drawing the real upper stands (the cut turned
+      out to remove stadium parts, not spectators).
 - [x] HUD (score, speed, 1P marker) and the startup logo screen no longer
       vanish when the head moves.
 - [x] Sky: a procedural blue sky with light clouds, fixed to the world.
 - [x] Shadow map at 2048x2048 in world mode.
 - [x] Ad boards (CITIZEN, Düsseldorf Open, IBM) no longer flicker.
-- [x] Stands raised (stretched up above ~1 m).
+- [x] Stands raised (stretched up above ~1 m) - removed 2026-11-11: they
+      looked low because the upper tiers were not drawn.
 - [x] Blotches on shirts, crowd and banners gone.
 - [x] Player shadows attached to the feet in world mode (both eyes).
 - [x] Replays switch in the headset menu (most replays).

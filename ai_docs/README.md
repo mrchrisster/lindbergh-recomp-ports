@@ -81,8 +81,8 @@ working on its area):
   unknown keys are dropped at the next save): `mode classic|immersive`;
   Classic: `replays`, `overlays`, `classic.cutaways`, `classic.shadow
   1024|2048|4096`; Immersive: `immersive.replays`, `.overlays`, `.cutaways`
-  (on/off), `immersive.stand_y` (1 = off), `.dolly`, `.back` (game units,
-  0.1 m), `.sky`, `.shadow`. A run's env variable wins over each, and is
+  (on/off), `.dolly`, `.back` (game units, 0.1 m), `.sky stadium|painted|off`,
+  `.shadow` (`immersive.stand_y` is gone, ignored when read). A run's env variable wins over each, and is
   never written to vr.cfg (nor are `LINDBERGH_XR_SET` values). The run's
   values are logged at start: `[world] mode immersive (vr.cfg) dolly 200
   (default) ...`.
@@ -112,6 +112,28 @@ working on its area):
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-11 **Whole stadium in Immersive; stand stretch and crowd cut
+  removed** (`hle_sega.c` `h_vt3_field_draw`; submodule `fade8ac`;
+  `ai_docs/research/crowd-and-upper-stands.md` Outcome; guide section 8).
+  Checked first on the Quest (installed `77875a4`): `LINDBERGH_SKIP_FP=158`
+  removes every spectator (158 = crowd cards), `=229,230` the stadium shell
+  (light-mapped stadium meshes; the guide had them swapped), and the crowd
+  cut (fp 230) cut stadium parts (far light masts) not cards. The ground
+  shadow is the screen mask (game texture 45, the frame's first of three
+  whole-screen copies; unchanged at `LINDBERGH_SHADOW_SCALE=1` vs 4).
+  Fix: `field::draw` (0x080FFB86) gets its trees' type bytes zeroed for the
+  call in Immersive (per call; `LINDBERGH_VT3_STANDS=0` off) - GAME_NO
+  (upper tiers, roof, towers, town, upper boards, sky dome vp 129 / fp 180)
+  and both ends drawn. Removed: `LINDBERGH_VT3_STAND_Y/_FROM/_FP`,
+  `LINDBERGH_VT3_CROWD_CUT/_FP`, `lg_world`, `u_stand`, `immersive.stand_y`
+  (ignored when read), the Stand height row. `immersive.sky` is
+  `stadium|painted|off` (old `on` = stadium), `LINDBERGH_VT3_SKY=0|1|2`
+  (`off|on|stadium|painted` also read). Test switch
+  `LINDBERGH_VT3_VIEW_TURN=<yaw>[,<pitch>]` (eyes turned about the viewpoint,
+  for game shots of what an unworn headset cannot look at). Quest round 0:
+  no floating spectators, stand behind present, both eyes. **Owed: GPU cost,
+  rounds 1-2, full `prize` regression** (HANDOFF 3.1).
 
 - 2026-11-11 **Music skipping - fixed** (`hle_segaapi.c` `mix`,
   `h_get_pos`; submodule `fa83fd6`; `ai_docs/research/audio-music-skipping.md`).
@@ -400,6 +422,16 @@ working on its area):
 
 ## In progress
 
+- 2026-11-11 **Uncommitted, never run on the headset** (HANDOFF 3.1 lists
+  the checks): Sky modes drawn (`stereo.c` `sky_on`, `dome_left_out`,
+  `LINDBERGH_VT3_DOME_FP`), the per-eye ground shadow mask (`stereo.c`
+  `mask_copy`, `stereo_mask_twin`; `arbprog.c` `vt3_mask_unit`, `lg_mask`;
+  gl4es `gl4es_multiview_copy_layers`; `LINDBERGH_VT3_MASK=0` off) and the
+  LOD bias on GLES (gl4es keeps `GL_TEXTURE_LOD_BIAS` per texture,
+  `gl4es_texture_lod_bias`; `arbprog.c` `lod_bias_on`, `u_lodb[16]` as
+  texture2D's bias; `LINDBERGH_LOD_BIAS=0` off). `quest/gl4es.patch`
+  regenerated with both gl4es changes (uncommitted).
+
 - 2026-11-11 **Switch Classic / Immersive without a restart (Phase B):
   groundwork landed, nothing live yet** (`world_mode.c/.h`,
   `xr_world_panel.c/.h`, `host_sdl.c`, `host_xr.c`). No behaviour change in
@@ -446,8 +478,11 @@ panel), HUD scoreboards in the scene,
 macOS start-up screen.
 
 Seen 2026-11-11 (VT3 build worker), not looked into:
-- Crowd cards float in the sky above the side stands' top rows in
-  Immersive (visible in any game shot; the crowd cut only covers the far end).
+- ~~Crowd cards float above the side stands~~ - fixed by drawing the stadium (`fade8ac`).
+- Ita3F (round 0), view turned 180 deg: the near end's lower seats have no
+  crowd cards (data, or the audience manager skipping the camera's end?).
+- With the dome (fp 180) skipped and the painted sky off, a blue band of sky
+  remains at one side: a second sky piece, not identified.
 - `tests/test_xr_actions.py` does not compile on this Mac (its OpenXR header
   path under `deps/oxr/...`); not related to these changes.
 

@@ -32,6 +32,9 @@ Branch `vt3-quest` in both repos, clean, **nothing pushed**.
 | Replays-off bug closed; live Replays-off skip; setMode wrap independent of FORCE_REPLAY; labels | `dca91c9` | `bfc19cd` | macOS + Quest unattended (final regression owed, see 3.1) |
 | Live mode switch groundwork (off, no behaviour change) | `3a713ff` | `2525e67` | macOS Classic + unit tests; installed with the audio fix below |
 | Music skipping fixed (loop-end position), audio diagnostics, keep-on-pause test switch | `fa83fd6`, `77875a4` | see `git log` | macOS + Quest unattended; Classic and Immersive `prize` regression on the Quest; **installed** |
+| Crowd / shadow leads checked (docs only) | - | `38b92e1` | Quest unattended |
+| Whole stadium in Immersive (GAME_NO + both ends + dome), stand stretch and crowd cut removed, Sky stadium/painted/off setting, `LINDBERGH_VT3_VIEW_TURN` | `fade8ac` | see `git log` | Quest shots round 0 only; unit tests, macOS; **regression and GPU cost owed** (3.1) |
+| **Uncommitted** in the submodule / outer tree: Sky modes drawn (painted fill behind the dome, dome left out for Painted/Off), per-eye ground shadow mask, LOD bias on GLES (`quest/gl4es.patch` regenerated) | working tree | working tree | **never run on the headset**; macOS build, unit tests, Quest APK build only |
 
 Push rule (owner): push to `fork` only after the owner has confirmed progress
 worn. Never push to or PR against lialan's upstream. Workers never push.
@@ -102,6 +105,53 @@ below except where noted needs it; ask the owner to reconnect, do not work
 around it.
 
 ### 3.1 Headset state and the owed checks
+
+**2026-11-11 (build worker, crowd/stands/shadow/LOD tasks) - read first.**
+The owner unplugged the headset to charge it in the middle of an unattended
+perf run (`P_stands0`). When it comes back, before anything else:
+1. `adb shell cat /sdcard/VirtuaTennis3/env.txt` - it was left holding the cut
+   run's env (`LINDBERGH_AUTOSTART=1`, scripted `LINDBERGH_KEYS`,
+   `LINDBERGH_VT3_IMMERSIVE=1`, `LINDBERGH_VT3_STANDS=0`, ...): empty it
+   (`adb shell "printf '' > /sdcard/VirtuaTennis3/env.txt"`) and
+   `adb shell am force-stop org.lindbergh.vt3.vr`.
+2. vr.cfg: the owner's file (backup of the morning's copy in the worker's
+   scratchpad `vr.cfg.orig`; `mode immersive`, `immersive.stand_y 1.5`,
+   `immersive.sky on`, `refresh 120`, ...). No run changed it.
+3. Installed APK: a **test build** (submodule `fade8ac` state + T3-T5 code is
+   NOT in it; it is the `fade8ac` code with the old `sky_on`), installed for
+   the T2 captures and never regression-run. Either run the regression below
+   and keep it, or put back the last regression-passed APK (`77875a4`;
+   `adb install -r` of a build of `77875a4`, or the pulled copy
+   `installed_77875a4.apk` in the worker's scratchpad).
+Then the owed checks, in order (all unattended, `scripts/vt3-repro.sh`, Immersive
+pinned with `LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0`;
+**pass each LINDBERGH_ variable as its own word** - a zsh `$G` holding two
+assignments reaches env.txt as one line):
+- T2 cost: `prize` 160 s, `LINDBERGH_GPU_TIME=1 LINDBERGH_GAME_SHOT=99999,1`,
+  with `LINDBERGH_VT3_STANDS=0` and without; compare `[gputime]` / `[perf]`
+  over frames 2100-3000 (budget: +1.5 ms, steady 60 unworn). FRAMEMAP and
+  game shots break the GPU timer (5117 ms readings) - leave them out.
+- T2 venues: `LINDBERGH_VT3_ROUND=1` and `=2` (and more if cheap) with
+  `LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1`, plus
+  `LINDBERGH_VT3_VIEW_TURN=180` and `=0,70`: floating cards, stand behind,
+  doubles / z-fighting, roofs at the far plane.
+- T3 (uncommitted code): `LINDBERGH_VT3_SKY=1|2|0` each with
+  `LINDBERGH_VT3_VIEW_TURN=0,70` and `=180`: Stadium = painted sky filling
+  above / behind the dome, the seam where the dome's top edge meets it;
+  Painted = no dome; Off = neither (a blue band seen with fp 180 skipped -
+  find which draw that is if Off must be clean). Side by side for the owner.
+- T4 (uncommitted): `LINDBERGH_VT3_MASK=0` vs default, crops of the near
+  player's shadow both eyes (`LINDBERGH_SHOT_BOTH=1`), `[stereo] ... ground
+  shadow mask per eye` and `[arbprog] ... unit N` lines; GPU ms; replays and
+  cutaways on (`LINDBERGH_REPLAYS=1 LINDBERGH_VT3_CUTAWAYS=1`) - the cut's
+  cross-fade and depth of field unchanged; Classic unchanged.
+- T5 (uncommitted): `LINDBERGH_LOD_BIAS=0` vs default, crop of the far-end
+  crowd and the ad boards; check board text does not shimmer
+  (`LINDBERGH_GAME_SHOT=<f>,1,1` several consecutive frames).
+- Regression before keeping any build installed: `prize` Classic and
+  Immersive to the slate (~600 frames) and the next round, `LINDBERGH_BLACK_LOG=1`
+  (no new black frames at cuts), `[sega-api] health` clean, then env.txt empty.
+
 1.-4. Done 2026-11-11 (audio worker): env.txt was emptied by the conductor;
    vr.cfg checked unchanged before and after (`mode immersive`, `replays on`,
    `classic.cutaways on`, `immersive.replays off`, `immersive.cutaways off`,
@@ -149,21 +199,22 @@ Unattended runs need `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1` (else the mixer stops
    - "quick 1s camera changes after every point" - addressed in `1b1988b`
      (steady camera with Point cutaways off). Owner to confirm worn.
    - Audience stretched and low resolution; upper bleachers missing, crowd
-     floats in mid air (does an upper-stand model exist?) - OPEN, research
-     worker.
-   - Shadows look low resolution (Immersive, High 2048) - OPEN, research
-     worker.
+     floats in mid air - the upper stands exist and are now drawn
+     (`fade8ac`), stretch removed; the low resolution part is the LOD bias
+     (uncommitted T5). Owner to see worn once 3.1 is done.
+   - Shadows look low resolution (Immersive, High 2048) - it is the ground
+     shadow's screen mask (confirmed: unchanged at 1024 vs 4096); per-eye
+     mask written, uncommitted (T4), owed on the headset.
    - Music plays skipping / not clean - skipping FIXED (`fa83fd6`, the
      loop-end position bug; measured on macOS and Quest), owner to confirm by
      ear; possible limiter distortion in loud moments left for his ears.
      Procedure below.
 
-### 3.2 Crowd cards above the side stands (Immersive)
-Crowd cards float in the sky above the side stands' top rows; the existing
-crowd cut (`LINDBERGH_VT3_CROWD_CUT`, fragment 230) only covers the far end
-(|z| > 190, y > 55). Side upper tier seating tops out at y = 91 (unstretched).
-Extend the discard to cards above the side stands' top; measure with
-`LINDBERGH_VERT_DUMP` (stretch off) first.
+### 3.2 Crowd cards above the side stands (Immersive) - fixed by the real stands
+Superseded (2026-11-11): the floaters stood on the hidden `GAME_NO` tiers;
+`fade8ac` draws them, and the crowd cut (which cut stadium meshes, not
+cards) is removed. Owed: other venues (3.1). Open: the near end's empty
+lower seats seen with the view turned 180 deg on Ita3F (crowd doc, Outcome).
 
 ### 3.3 Live mode switch – Quest-side steps (design in section 4)
 
@@ -182,8 +233,8 @@ first person, umpire). Needs the owner's direction on which cameras first.
   close replay camera. Not confirmed.
 - Attract demo: after the first demo match, later ones show no `usrAc*` flow
   lines (other loops?).
-- Defaults for Camera closer (20 m), Step back (6 m), Stand height (x1.5):
-  owner's call, worn.
+- Defaults for Camera closer (20 m), Step back (6 m): owner's call, worn.
+  (Stand height is gone: the real stands are drawn.)
 - macOS start-up screen; `tests/test_xr_actions.py` does not compile on this
   Mac (OpenXR header path).
 - Not verified worn, ever: 72/90 Hz frame rate, `LINDBERGH_XR_FAKE_YAW`

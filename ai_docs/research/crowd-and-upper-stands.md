@@ -22,6 +22,34 @@ Immersive, replays and cutaways off, full-size game shots both eyes at frame
 Raw images (not committed, game content): scratchpad `runs/A_base`,
 `B_skip158`, `C_skip229`, `D_nocut`.
 
+**T2 - the real stands in Immersive (submodule `fade8ac`)**: 2.1 implemented
+as recommended (`h_vt3_field_draw`, hle_sega.c; tree count from
+`0x081A7718(field+0x2c)`, 5 trees on Ita3F; per call, Immersive only;
+`LINDBERGH_VT3_STANDS=0` off). Owner's decision applied: the stand stretch
+and the crowd cut are **removed** (not defaulted): shader code, env switches,
+panel row, `immersive.stand_y` (an old file's key is ignored, not written
+back). Quest shots (`prize`, round 0, frame 2300): every spectator sits on a
+real seat, side upper tiers, far stand, light towers and the town drawn; the
+stand behind the viewer is there (`LINDBERGH_VT3_VIEW_TURN=180`, new test
+switch); left and right eye agree. Frame: 364 draws instead of 261 (fp 230
++86, 229 +11, 111/112 +4, 111/118 +1, the dome 129/180 +1).
+Found on the way:
+- **The sky dome** is the single draw vp 129 / fp 180 (`LINDBERGH_SKIP_FP=180`
+  removes it). It is a painted backdrop for the broadcast camera's
+  directions, not a full dome: pitched up 70 deg it ends in a hard straight
+  edge with nothing above, and turned 180 deg there is no sky behind the
+  viewer (black with the painted sky off). With fp 180 skipped and the painted
+  sky off a blue band still showed at one side - another sky piece (maybe
+  111/112 or 111/118), not identified.
+- Turned 180 deg (round 0, Ita3F) the near end's lower seats were **empty** -
+  no crowd cards there. Either Ita3F has no 1F crowd at that end (its 1F card
+  file spans z -160..306) or the audience manager leaves out the camera's
+  own end. Not looked into (headset unplugged).
+**Not verified** (headset unplugged mid-session): GPU cost, other venues
+(round 1, 2), a full `prize` match with the wrap, z-fighting at the far
+plane, culling of the new geometry at the widened frustum (the culling test
+is never called by the game, see guide 8, so it cannot clip it).
+
 **Summary for the owner**
 1. Yes, the upper bleachers exist. Every venue ships full 2nd and 3rd tiers, plus roof, walls, ducts, upper scoreboards and a sky dome, in its stadium model. They are loaded every match.
 2. The game hides them on purpose. `field::draw` skips the model's `GAME_NO` group (and the stand behind the camera) while the camera is the court camera (modes 1 and 2). The broadcast camera never frames them; replays and close-ups do draw them.
