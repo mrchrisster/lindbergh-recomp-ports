@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **Hang fix committed and installed.** Submodule `373c5ae`, outer `2b7d4fe`
+  (local, not pushed). Installed: the fix build (fade8ac + 373c5ae, committed
+  code only; copy `.../786966e7-.../scratchpad/VirtuaTennis3VR_fade8ac_glqfix.apk`,
+  unstripped lib `libmain_glqfix_unstripped.so` beside it). Afterwards the
+  T3-T5 WIP was put back on top (stereo.c, arbprog.c, quest/gl4es.patch,
+  `../deps/gl4es` re-applied and libGL rebuilt; build-mac rebuilt) and checked
+  byte-identical to `ai_docs/wip/` (the diffs did not move: the fix touches
+  other files). Headset: app stopped, env.txt 0 bytes, vr.cfg = the morning's
+  copy, battery 74% charging. Next for whoever has the headset: the T3-T5
+  run list above (section B on), now on top of `373c5ae`.
 - **Phase 2, group 1 (installed clean fade8ac, A2's env: Immersive pinned,
   GPU_TIME, KEEP_ON_PAUSE, `prize` 90 s; `/tmp/vt3q/P2/C*`)**: owner's hung
   pid 17044 force-stopped after a last logcat / vt3.log
