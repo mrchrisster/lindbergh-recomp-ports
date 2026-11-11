@@ -168,6 +168,75 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **V2** (unpinned, `LINDBERGH_VT3_VIEW_TURN=180`, `/tmp/vt3q/V2_unpinned_turn180`):
+  behind the viewer the near-end stand is drawn (lower seats, upper tier with
+  covered boxes, Düsseldorf Open boards, light mast) - the near-end lower
+  seats have no crowd cards (the known open item). Stopped here for the
+  conductor: app force-stopped, env.txt 0 bytes, vr.cfg identical to the
+  morning's, battery 33% charging. Installed: clean `fade8ac`. Run list
+  position: A1 done (pass), A2 crashed twice (see below), A3 done; continue
+  at A2 (investigate the crash) / A4. Working tree still holds the T3-T5 WIP
+  (identical to `ai_docs/wip/`), `../deps/gl4es` at the WIP patch.
+- On the clean `fade8ac` install: **V1** (`round0`, `LINDBERGH_VT3_IMMERSIVE=1`
+  only, script defaults otherwise; `/tmp/vt3q/V1_imm_r0`): `[sega] ...
+  stadium draw wrapped (Immersive: upper stands, both ends and the sky dome
+  drawn)`, `[vt3] frame 1765: the whole stadium drawn (5 trees ...)`; shot
+  2600 (clay court) shows the red upper tiers both sides, light masts,
+  buildings at the far end (2300 was a point close-up - cutaways pinned on).
+  **V3 unpinned** (`LINDBERGH_VT3_IMMERSIVE=` and the other three pins empty,
+  so the owner's vr.cfg decides; `/tmp/vt3q/V3_unpinned_r0`): `[world] mode
+  immersive (vr.cfg) ... sky stadium (vr.cfg) ... replays off cutaways off
+  (vr.cfg)`, the same two stadium lines; shot 2300 (grass court) shows the
+  far-end upper stand with crowd, the light towers and the side stands. Code:
+  the only gates are `LINDBERGH_VT3_STANDS` and `world_mode_immersive()`
+  (`h_vt3_field_draw`); `immersive.stand_y` is ignored, `immersive.sky on`
+  reads as stadium - nothing in the owner's vr.cfg can hide the stands.
+  Battery 30 -> 32%. V2 (unpinned, turned 180) running.
+- Owner wore the headset during A3 and saw no upper stands - A3 was the
+  `LINDBERGH_VT3_STANDS=0` run (stands off on purpose). A3 itself (STANDS=0,
+  same env as A2): ran through, no crash, GPU 2.6-3.8 ms in the match.
+  Installed APK was from 12:55 headset time (PST) = 13:55 MST, before the
+  `fade8ac` commit (14:12): an earlier iteration. **Now installed: a clean
+  build of submodule `fade8ac` / outer HEAD** (WIP stashed, `../deps/gl4es`
+  put back to the committed `quest/gl4es.patch` and rebuilt; installed 14:20
+  PST; copy `.../786966e7-.../scratchpad/VirtuaTennis3VR_fade8ac_clean.apk`).
+  Afterwards the WIP was popped and checked byte-identical to `ai_docs/wip/`,
+  and `../deps/gl4es` put back to the WIP patch and rebuilt. Next:
+  verification runs V1 (Immersive pinned, round0, shots), V2 (turned 180),
+  V3 (unpinned: vr.cfg decides).
+- A2 (STANDS=1, GPU_TIME, KEEP_ON_PAUSE, `prize` 170 s; `/tmp/vt3q/A2_stands1`)
+  **hung at frame 2003** (54 frames into the first match, just after a
+  scripted `z` tap and a link of fp 184): `[watchdog] frame 2003 has not
+  advanced for 10 s`; the game's main thread waits in `glq_wait` (from guest
+  0x08191DEC), i.e. the GL thread never finished the frame - the GL thread's
+  own stack is not dumped by the watchdog; logcat had rolled. First hang seen
+  with `fade8ac` (R2 / R3 had the same switches and ran through). Retrying
+  once as A2b to tell a flake from a pattern.
+  **A2b (same env): crashed at the same place** - SIGSEGV on the GL thread
+  (`no CPU registered`) inside libc `calloc` (heap corruption), frame ~2003,
+  right after `[arb] frame 2002: fragment program 184 (vertex 185) linked`;
+  just before it `[arbprog] game projection:` printed garbage (50689.5 /
+  40256.8 ..., zeros, and the integers 0,1,2,... read as floats) - memory
+  that holds program parameters was already overwritten. So: a memory
+  corruption at the first match's ~frame 2000 (the menu script's `z` tap at
+  2000), 2 of 2 with STANDS on, no BLACK_LOG, KEEP_ON_PAUSE on. R2 (same plus
+  BLACK_LOG, which makes the GL thread wait for the GPU every frame) ran
+  through. Not new with `fade8ac` alone: in the old scratchpad `D_nocut`
+  (77875a4, CROWD_CUT=0, SHADOW_SCALE=4) hung at 4241 and `F_skip180`
+  (`fade8ac` test build, SKIP_FP=180) took a SIGSEGV - both ignored at the
+  time. Looks like a race between the game thread (running a frame ahead) and
+  the GL thread over memory a queued GL call still points at; the wider
+  stadium may only make it likelier. **The `fade8ac` build is not
+  regression-clean until this is understood.** Next: A3 (STANDS=0, same env).
+- A1 done (installed `fade8ac`, `/tmp/vt3q/A1_classic`, battery 20 -> 21%):
+  Classic `prize` 330 s **passes**: `[world] mode classic (env)`, Winlose 2695,
+  Replay 3463, Gamesetmatch 3532, Stats 3770 -> Load 4372 (602), Stats 8763 ->
+  Load 9363 (600), third match running; no `health` line with
+  KEEP_ON_PAUSE on, 0 slow reads. Black: 0, 1947, 4372 / 4614, 9365 / 9607
+  (LoadLoop and load -> match, the game's own) **plus 9612** (4 frames into
+  the third match's EntranceLoop, Classic's fly-by; not at a cut in play). No
+  older Classic BLACK_LOG run exists to compare - check on the next Classic
+  BLACK_LOG run (F1) whether 9612-like frames recur.
 - Review of the uncommitted T3-T5 code (no headset). One defect fixed: the
   LOD bias (T5) was on for every gl4es game (hotd4, lgj, gse would have had
   their fragment shaders changed and the bias applied); now default on only
