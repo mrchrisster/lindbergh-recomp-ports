@@ -292,6 +292,17 @@ at a camera change, camera and stand-height defaults (now adjustable in the
 panel), HUD scoreboards in the scene,
 macOS start-up screen.
 
+Seen 2026-11-11 (VT3 build worker), not looked into:
+- Crowd cards float in the sky above the side stands' top rows in
+  Immersive (visible in any game shot; the crowd cut only covers the far end).
+- For a few frames after each camera cut, until the close-up's long lens has
+  held 6 frames (`g_zoom_frames`) and the frame goes flat, the close-up is
+  drawn as world (a distorted wide view) with the game's capture cross-fade
+  (`fade::execCapture`) shown as a small flat picture in the middle.
+- The serve close-ups (StartLoop) are shown flat (zoom lens) in Immersive.
+- `tests/test_xr_actions.py` does not compile on this Mac (its OpenXR header
+  path under `deps/oxr/...`); not related to these changes.
+
 Seen while testing the panel (2026-11-11), not looked into:
 - The menu script's `z` taps (to frame 3600) also skip the game's own
   screens: a shot button skips the point close-up after 15 frames, and the
