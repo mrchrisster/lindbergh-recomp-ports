@@ -1,5 +1,27 @@
 # Crowd and upper stands in Immersive mode (research, 2026-11-11)
 
+## Outcome (build worker, 2026-11-11)
+
+**T1 - leads checked on the Quest** (installed build `77875a4`, `prize`,
+Immersive, replays and cutaways off, full-size game shots both eyes at frame
+2300/2600; `LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1`):
+- `LINDBERGH_SKIP_FP=158`: **every spectator gone** (seated and standing),
+  the stadium untouched - fp 158 is the crowd cards. Confirmed.
+- `LINDBERGH_SKIP_FP=229,230`: **the stadium shell gone** (stands, walls, ad
+  boards, umpire chair, net), the court surface, people and every crowd card
+  left floating over an empty plane - fp 229/230 are the light-mapped stadium
+  meshes. The guide's "158 seating, 230 crowd cards" was reversed (corrected in
+  the guide).
+- The crowd cut (`LINDBERGH_VT3_CROWD_CUT`, applied to fp 230) therefore cut
+  **stadium geometry**, not cards: with it off (`=0`) the far end's light masts
+  above y 55 come back (they are missing in the default shot); the floating
+  cards are the same with it on or off.
+- Round 0 (Ita3F) shows the floaters exactly as described: the upper-tier
+  cards (2F) and the standing spectators hang above the side stands' tops and
+  the far stand.
+Raw images (not committed, game content): scratchpad `runs/A_base`,
+`B_skip158`, `C_skip229`, `D_nocut`.
+
 **Summary for the owner**
 1. Yes, the upper bleachers exist. Every venue ships full 2nd and 3rd tiers, plus roof, walls, ducts, upper scoreboards and a sky dome, in its stadium model. They are loaded every match.
 2. The game hides them on purpose. `field::draw` skips the model's `GAME_NO` group (and the stand behind the camera) while the camera is the court camera (modes 1 and 2). The broadcast camera never frames them; replays and close-ups do draw them.

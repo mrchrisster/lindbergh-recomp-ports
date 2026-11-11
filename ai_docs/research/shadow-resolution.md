@@ -1,5 +1,22 @@
 # Shadow resolution in Immersive mode (research, 2026-11-11)
 
+## Outcome (build worker, 2026-11-11)
+
+**T1 - leads checked on the Quest** (installed build `77875a4`, `prize`,
+Immersive, full-size game shots at frame 2300):
+- **Which texture is the mask:** `LINDBERGH_COPY_LOG=1` + `LINDBERGH_FRAMEMAP=2300`.
+  In a match the game copies the whole screen **three times per frame, all
+  into game texture 45** (1360x768). The first copy comes right after the
+  planar shadow draws (vp 0x8d/0x89 = 141/137, fp 0x72 = 114) and before
+  the frame's first stadium draw - that is the ground mask; the later two
+  (after the stadium) feed the depth-of-field / glare chain. Textures 33/34
+  are copied only at cuts (the cross-fade capture, `fade::execCapture`);
+  texture 40 in the menus.
+- **`LINDBERGH_SHADOW_SCALE=1` vs `4`** (1024 vs 4096 map): the player's
+  ground shadow is **identical** in sharpness and edge steps (3x crop, same
+  pose). The low-res ground shadow is the screen-space mask, not the shadow
+  map. Confirmed.
+
 **Summary for the owner**
 1. The low-res shadow you most likely see is the players' **ground shadow**. It is not the 2048 shadow map: it is a screen-space mask. The eye's image is squeezed into a 1360x768 texture with one bilinear blit, then stretched back over the court. Each mask texel covers about 1.5 x 2.9 eye pixels, so the edges come out jagged and crawl when you move your head.
 2. The "Shadow quality High = 2048" setting only affects the players' **self-shadowing** (arm on shirt, and so on). Even there the game uses only a centred 128x128 or 256x256 tile of its 1024 map per player (256/512 texels at 2048).
