@@ -13,10 +13,9 @@ skipping fix, live-switch groundwork (off), all research in `ai_docs/research/`.
   (`h_vt3_field_draw`, `LINDBERGH_VT3_STANDS=0` off); stand stretch and crowd cut
   REMOVED (owner's decision); Sky setting stadium|painted|off. Seen on round 0
   Quest: Immersive `prize` regression PASSED (flow, slates 600 frames, next
-  rounds, black frames only the game's own). Still owed: Classic `prize`, the
-  stands' GPU cost (R2 was confounded by BLACK_LOG's readback, ~33 fps on any
-  build; needs a STANDS=1 run matched to R3's 3.4-3.7 ms / 60 fps), audio
-  health with KEEP_ON_PAUSE, rounds 1 and 2, turned 180 / pitched 70.
+  rounds, black frames only the game's own). Done with the hang fix: Classic
+  `prize`, stands GPU cost (+0.2 ms, 60 fps), no audio `health` line with
+  KEEP_ON_PAUSE. Still owed: rounds 1 and 2, turned 180 / pitched 70.
   Ready-to-paste run list: HANDOFF 3.1.
 - Written, uncommitted or WIP, never run on the headset: court sky backdrop +
   painted sky behind it (T3), per-eye eye-sized ground shadow mask
@@ -25,6 +24,16 @@ skipping fix, live-switch groundwork (off), all research in `ai_docs/research/`.
   for VT3 only) (T5). Safety copy + README in `ai_docs/wip/`. Self-shadow
   tile zoom (T6) not started. Details: `ai_docs/research/crowd-and-upper-stands.md`,
   `shadow-resolution.md`.
+
+## Match-start hang - FIXED (2026-11-11, local)
+Submodule `373c5ae` (on top of `fade8ac`): Immersive's camera feed queued GL
+jobs from one of the game's worker threads, a second writer on the
+single-writer GL queue (crash in calloc / hang in glq_wait at match start).
+Verified on the Quest: 5 of 5 match starts, full `prize` both modes, stands
+GPU cost +0.2 ms. **Installed: that build (fade8ac + 373c5ae, committed code
+only).** The T3-T5 WIP is back in the working tree on top of it (unchanged
+from `ai_docs/wip/`). Rule learnt: anything queued for the GL thread must
+come from the game's main thread.
 
 ## Headset (check first)
 `adb shell wc -c /sdcard/VirtuaTennis3/env.txt` must be 0; the installed APK may

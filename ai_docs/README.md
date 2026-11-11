@@ -8,6 +8,8 @@ section 8. Add to this file whenever a session finds something.
 **Next agent: `ai_docs/HANDOFF.md` has the 2026-11-11 session summary, the to-do
 queue in order, and the designs for the live mode switch and the in-scene
 scoreboards.**
+The day's history (what was done, in order, with commit hashes):
+`ai_docs/SESSION_LOG_2026-11-11.md`.
 
 Research reports in `ai_docs/research/` (read the relevant one before
 working on its area):
@@ -42,7 +44,10 @@ working on its area):
 - Quest build: `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ANDROID_NDK=$HOME/Library/Android/sdk/ndk/28.2.13676358 sh quest/build.sh vt3 > /tmp/qb.log; grep error: /tmp/qb.log; adb install -r quest/VirtuaTennis3VR.apk`
   ("1 errors" in the log is the old target-SDK lint notice; the APK is built.)
 - macOS build: `ninja -C build-mac`. Game data: `~/code/quest_games/vt3`.
-  **Immersive mode does not run on macOS** (the window closes right after start).
+  Immersive runs on macOS too (`LINDBERGH_VT3_IMMERSIVE=1`, a flat window; checked
+  2026-11-11 through two `prize` matches). `LINDBERGH_GL_THREAD=1` puts the GL on its
+  own thread as on the Quest. Sanitizer builds of the runtime only (the lifted code
+  reused): see the 2026-11-11 match-start hang entry under Done.
 - Unattended runs: `scripts/vt3-repro.sh <scene> quest <secs>` or
   `... <scene> mac ~/code/quest_games/vt3 <secs>`. Extra `LINDBERGH_*` variables
   in the environment are passed through. The headset's **env.txt is empty by
@@ -112,6 +117,31 @@ working on its area):
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-11 **Immersive hang / crash at match start - fixed** (`gl_thread.c`,
+  `crash_report.c`; submodule `373c5ae`; HANDOFF 3.1). The game runs
+  `camera::gameRoutine` on one of its worker threads, and world mode's camera
+  feed (`h_vt3_game_routine`, `LINDBERGH_VT3_FEEDCAM`) called `glq_job` from
+  there every frame from the match's start: a second writer on the
+  single-writer ring, records overwritten, the worker replaying old ones
+  (freed camera jobs -> SIGSEGV in calloc; or spinning -> the main thread
+  forever in `glq_wait`). Jobs from other threads are now held and queued by
+  the game thread at its next GL call (`[glq] job ... handed to the game
+  thread's next call`, once per run); worker wakes the game when idle (lost
+  wakeup with a full ring); `[glq] FATAL: bad record` instead of replaying;
+  `[glq] WARNING` for GL calls from other threads; the watchdog prints the
+  queue and the GL worker's stack. Quest: clean fade8ac 1 of 3 crashed (worker
+  in `cls()` on a garbage record), `LINDBERGH_VT3_FEEDCAM=0` 3 of 3 clean; with
+  the fix 5 of 5 match starts clean, full `prize` Immersive (4 matches, slates
+  600) and Classic; stands cost +0.2 ms GPU (3.6 vs 3.3-3.7 ms, 60 fps).
+  **Rule: anything queued for the GL thread must come from the game's main
+  thread** - VT3 runs game code on worker threads too. macOS sanitizer builds:
+  `build-mac-asan` / `-tsan` (runtime only instrumented, configured through a
+  `CMAKE_PROJECT_INCLUDE` file setting `-fsanitize` on `src/runtime/*.c`; the
+  lifted objects and `.ninja_log` / `.ninja_deps` copied from build-mac so
+  they are not recompiled). TSan dies at load. Found, not fixed: gl4es
+  `mv_copy` dangling texture pointer; GPU page faults in every Quest run
+  (both modes) - backlog.
 
 - 2026-11-11 **Whole stadium in Immersive; stand stretch and crowd cut
   removed** (`hle_sega.c` `h_vt3_field_draw`; submodule `fade8ac`;

@@ -168,6 +168,152 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **Phase 2, group 1 (installed clean fade8ac, A2's env: Immersive pinned,
+  GPU_TIME, KEEP_ON_PAUSE, `prize` 90 s; `/tmp/vt3q/P2/C*`)**: owner's hung
+  pid 17044 force-stopped after a last logcat / vt3.log
+  (`.../scratchpad/owner-crash/*_final*`); installed libmain sha 49935863 =
+  clean fade8ac; battery 72%, env.txt 0, vr.cfg = morning's. C1 ok (to
+  4390), **C2 SIGSEGV on the GL worker at frame ~2009 in `cls()`
+  (gl_thread.c:417) called from `worker` with a garbage record id - a
+  corrupted ring record**, C3 ok (to 4201): 1 of 3. GPU page faults in all
+  three logcats. Next: FEEDCAM=0 x3.
+  **Group 2, `LINDBERGH_VT3_FEEDCAM=0`, same build/env (`P2/F*_nofeed`)**:
+  3 of 3 clean (to 4500 / 4700 / 4580), no feed lines. **Fix build**
+  (fade8ac + `glq-second-writer-fix.diff` only; WIP backed up in
+  `.../scratchpad/wip_backup/`, `../deps/gl4es` reset to the committed
+  patch and libGL rebuilt; libmain has `foreign_job`, no WIP gl4es symbols;
+  copies `.../scratchpad/VirtuaTennis3VR_fade8ac_glqfix.apk`,
+  `libmain_glqfix_unstripped.so`) **installed**. Next: 5 verification runs.
+  **Group 3, fix build, Immersive stands on, no BLACK_LOG, `prize` 80 s
+  (`P2/V*_fix_*`)**: V1-V3 owner-style (no GPU_TIME, no KEEP_ON_PAUSE), V4-V5
+  A2's env (GPU_TIME + KEEP_ON_PAUSE): **5 of 5 clean**, each to ~4450-4580,
+  no watchdog / signal / `[glq] FATAL` / WARNING, each with the one `[glq]
+  job ? from thread ...: handed to the game thread's next call` (Android's
+  dladdr names no static function). GPU page faults in every logcat. Next:
+  GPU pair (G1 stands on / G0 off, GPU_TIME, 170 s), full `prize` Immersive
+  and Classic.
+  **Group 4, fix build (`P2/G*`, `P2/P_*`), all with the one handoff line,
+  no watchdog / signal / FATAL / WARNING.** Stands GPU cost (the owed
+  matched pair, GPU_TIME + KEEP_ON_PAUSE, no shots / black log), frames
+  2100-3000: stands on 2.7 / 3.6 / 3.7 / 3.6 ms (90% 4.2-5.1), off 2.7 / 3.3 /
+  3.7 / 3.3 ms (90% 4.7-4.8; one 38.7 ms timer artefact) - **about +0.2 ms,
+  inside the +1.5 ms budget**; `[perf]` 59.5-60.0 fps both. **Immersive
+  `prize` 330 s** (FLOWLOG, KEEP_ON_PAUSE): Game 1979 -> Gamesetmatch 3108 ->
+  Stats 3173 -> Load 3532 (first slate cut by the script's `z` taps), three
+  more matches with slates 7042 -> 7642, 11208 -> 11809, 15295 -> 15896 (600
+  each), round 5 at 16652; 18,020 frames; no `health` line. **Classic
+  `prize` 330 s** (FLOWLOG, BLACK_LOG): Winlose 2794, Replay 4804,
+  Gamesetmatch 4860, Stats 4915 -> Load 5120, next round. The slate was 205
+  frames because someone handled the controller during the run (it opened
+  the panel, clicked Mode - "pinned by env.txt" - and pulled the trigger,
+  `[cab] buttons 0x10` 5017-5117: a shot button skips the slate, as in the
+  original). Black frames only the game's own (0-1, 1947-52, 5120-21,
+  5362-63). vr.cfg afterwards had been re-saved in normalised form
+  (`immersive.stand_y` dropped, `sky on` -> `stadium`: the same settings),
+  put back byte for byte from the morning's copy. GPU page faults
+  (hypothesis 3) in **every** logcat - clean build, FEEDCAM=0, fix build and
+  **Classic** - not Immersive-specific; not chased. Battery 71%, env.txt 0,
+  app stopped. Next: commit, then restore the T3-T5 WIP.
+- **ROOT CAUSE FOUND (macOS, by the new writer check): a second thread writes
+  the GL queue.** Virtua Tennis 3 runs `camera::gameRoutine` on one of its
+  own worker threads (not the main thread). In Immersive, world mode's camera
+  feed (`hle_sega.c` `h_vt3_game_routine`, LINDBERGH_VT3_FEEDCAM, on by
+  default) calls `vt3_note_projection` -> `glq_job(vt3_cam_job)` from there,
+  **every frame from the match's first frame (~1897) on** while the game has
+  not set the world camera itself - concurrently with the main thread's
+  ~17,000 GL records a frame. `gl_thread.c`'s ring is single-writer
+  (`g_head_mine`, `ring_take`/`ring_put` unlocked): two writers overwrite each
+  other's records / sizes, the worker then takes a wrong size and runs old
+  records again (A2b: its camera jobs' freed Vt3Cams printed as garbage in
+  a repeating cycle, double frees -> SIGSEGV in calloc; owner / A2: the
+  worker spinning through stale records at 100% CPU, main thread waiting in
+  `glq_wait` forever). Backtrace (ASan build, macOS Immersive):
+  `glq_job <- h_vt3_game_routine <- dispatch <- L_080A992A <- L_080A529E <-
+  L_08176EA0 ...`, thread != the queue's writer, 20+ times in the first 20
+  frames of the match. Classic: 0 (the feed is Immersive only) - why Classic
+  never crashed. Stands on only made a collision likelier (more records per
+  frame); A3 (stands off) fed 40 x 60 frames and got lucky. Predates fade8ac
+  (the feed exists in 77875a4: D_nocut hung too).
+  **Fix (working tree, `gl_thread.c`, uncommitted, not yet on the headset):**
+  `glq_job` from any thread but the queue's writer no longer touches the
+  ring: the job is kept in a small locked list (`foreign_job`, 256) and the
+  writer queues it at its next GL call or job (`FOREIGN_FLUSH` at the top of
+  `glq_hook` / `glq_job`; one acquire load per call); such a job returns 0
+  (cannot be waited for). A job queued from the worker itself runs inline.
+  GL calls from another thread are still only warned about (`[glq] WARNING`;
+  none seen). Also fixed: lost wakeup - the worker going idle now wakes the
+  game (`wake_game()`), which could otherwise sleep forever in `ring_take`
+  waiting for room when the ring filled with plain calls (big uploads).
+  **Checked on macOS** (ASan, Immersive, GL thread, 200 s): one line `[glq]
+  job vt3_cam_job from thread ... handed to the game thread's next call`, no
+  WARNING / FATAL, the feed still works (`world camera built` each 60
+  frames, projections arrive), flow Load -> Game 1928 -> change of ends ->
+  Gamesetmatch 3124 -> Stats 3212 -> Load 3573 -> next match 3848, 11,611
+  frames at 60 fps, ASan clean. Safety copy of the fix + diagnostics:
+  `ai_docs/wip/glq-second-writer-fix.diff` (gl_thread.c, crash_report.c;
+  separate from the T3-T5 WIP, which is unchanged). `build-mac` was rebuilt
+  with the working tree (WIP + fix). **Phase 2 (headset):** build fade8ac +
+  this diff only (stash stereo.c / arbprog.c / gl4es.patch WIP), reproduce on
+  the installed clean fade8ac first, then >= 5 Immersive stands-on runs to
+  ~2600 (the fix build should print the `[glq] job vt3_cam_job ... handed`
+  line once and no `[glq] FATAL`), `LINDBERGH_VT3_FEEDCAM=0` on the clean
+  build as the discriminating test (should not hang), full `prize` both modes.
+  Other findings, not this bug: gl4es multiview patch keeps `gltexture_t*`
+  in `mv_copy[64]` after `glDeleteTextures` frees it (dangling read in
+  `mv_framebuffer_left`, the texture's `mvarray` leaks, slots never freed);
+  GPU page faults (UCHE BR_SP) from boot frame ~1070 in every Quest log.
+- **Crash investigation (worker "match-start hang"), Phase 1, step 1 - evidence.**
+  Copies: `/private/tmp/claude-501/-Users-chrishelms-Desktop-Claude/786966e7-92df-442c-b205-476a682b88a2/scratchpad/owner-crash/`
+  (owner's worn hang: vt3.log, logcat.txt, `logcat_live_*.txt` taken with the
+  process still hung). Unstripped lib of the installed clean `fade8ac` APK:
+  `build-quest/vt3/libmain.so` (build id c3bfd3f4..., same as the APK's).
+  (1) A2b's SIGSEGV symbolizes to GL thread `worker -> stereo exec -> th_glBegin
+  -> gl4es_glBegin -> alloc_renderlist -> calloc` (heap already corrupt).
+  (2) A2b's garbage `[arbprog] game projection` lines come from `vt3_cam_job`
+  (the Vt3Cam the game thread mallocs, the GL thread prints and frees): the
+  garbage words are 64-bit tagged host heap pointers (`0xb4000078_471d40cd`
+  ...), zeros, and int runs 0..20 - other host allocations' contents - and the
+  10 lines repeat a fixed cycle (garbage, zeros, ints, pixel camera, world
+  camera, garbage, zeros, pixel, world): the GL thread ran the same set of
+  camera jobs again and again with pointers to freed blocks - the pattern of
+  the worker replaying old ring records (use-after-free + double free ->
+  calloc crash), not of one block overwritten once.
+  (3) Owner's worn hang (no env, vr.cfg immersive) hung at frame **2328**, not
+  2003 (so not the scripted `z` tap): main thread in `glq_wait` from
+  `mirror_call` (gl_thread.c:922, the first map's size job) from
+  `TScene::Batch::updateDynamic`; guest threads idle on conditions. Live
+  process (pid 17044, read-only, no root, not debuggable - no stacks):
+  thread **17180 = the GL worker** (it made the OpenXR BeginFrame calls) is
+  **state R, ~1 CPU (55% user / 45% kernel), no page faults, RSS flat** -
+  spinning, not blocked or dead. VrApi FPS lines stop 14:34:56.
+  (4) **GPU page faults** (`kgsl-3d0: GPU PAGE FAULT ... FAULTING BLOCK: UCHE:
+  BR_SP`, ~900/s, rate-limited to 10 lines / 5 s) in every VT3 process with
+  a saved logcat (A2b pid 12571, V2 pid 16039, owner pid 17044), starting at
+  boot frame ~1070 (right after `fragment program 21/22 ... units 0x8000
+  compare depth`), long before the match - a shader reading an unmapped GPU
+  address. Separate pre-existing fault; whether Classic has it is unknown.
+  (5) macOS sanitizer builds (`build-mac-asan`, `build-mac-tsan`: runtime
+  `src/runtime/*.c` + `games/vt3/src` instrumented, the lifted code reused
+  from build-mac's objects; config via CMAKE_PROJECT_INCLUDE
+  `.../786966e7-.../scratchpad/san/san.cmake`, runner `san/mac_run.sh`).
+  `LINDBERGH_GL_THREAD=1` (the Quest's queue) **ASan clean**: Classic `prize`
+  240 s (13,700 frames, several matches) and **Immersive with the whole
+  stadium** 120 s (6,860 frames; 17,324 queued calls and 29 mirrored maps
+  per frame - the Quest's numbers). Immersive does run on macOS now. So the
+  shared host code (queue, mirror, hle_sega hooks, arbprog/stereo desktop
+  paths) does not overrun the host heap there: the fault is in Quest-only
+  code (gl4es + its multiview patch, stereo.c/arbprog.c `LINDBERGH_GL4ES`
+  paths, host_xr.c) or timing that only the Quest has. TSan build dies at
+  load (SIGKILL, before the queue starts; only benign stats races in
+  `guest_trace_dispatch` / `gmalloc` reported) - not pursued.
+  (6) Diagnostics added (working tree, `gl_thread.c`, `crash_report.c`): the
+  worker checks every record (size, kind, inside the ring, not past the head)
+  and aborts with `[glq] FATAL: bad record ...` and its last 16 records
+  instead of replaying old ones; GL calls / jobs from any thread but the
+  queue's writer are logged `[glq] WARNING: ... from thread` (0 on macOS
+  Classic and Immersive); the hang watchdog now prints `[glq] hang: head ...
+  tail ...` + the record the worker is in, and signals the GL worker for its
+  host stack.
 - **V2** (unpinned, `LINDBERGH_VT3_VIEW_TURN=180`, `/tmp/vt3q/V2_unpinned_turn180`):
   behind the viewer the near-end stand is drawn (lower seats, upper tier with
   covered boxes, Düsseldorf Open boards, light mast) - the near-end lower

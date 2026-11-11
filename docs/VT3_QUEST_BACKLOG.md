@@ -37,6 +37,16 @@ and asked that all progress and research be written to the docs.
       screen-sized mask copied from one eye at 1360x768 (it looks the same
       with the shadow map at 1024 or 4096). A per-eye, full-resolution mask
       with soft edges is written but not yet tried on the headset.
+- [ ] gl4es multiview patch (`quest/gl4es.patch`, `multiview.c`): `mv_copy[64]`
+      keeps a `gltexture_t*` after `glDeleteTextures` frees it - a dangling
+      read in `mv_framebuffer_left`, the texture's two-layer array leaked, the
+      slot never freed (found 2026-11-11 reading the code; no symptom tied to
+      it yet).
+- [ ] GPU page faults on the Quest (`kgsl-3d0: GPU PAGE FAULT ... FAULTING
+      BLOCK: UCHE: BR_SP` in logcat, ~900 a second, rate-limited) in every VT3
+      run, from the boot screens (frame ~1070, right after `fragment program
+      21/22 ... units 0x8000 compare depth`) on, Classic and Immersive: a shader
+      reading outside its memory. Nothing visibly wrong; not looked into.
 - [ ] Confirm worn (fixed in `1b1988b`, not yet tried by the owner):
       "button A is slice and button B is not mapped" -> now trigger top
       spin, A / X slice, B / Y lob; "quick 1 s camera changes after every
@@ -58,6 +68,14 @@ and asked that all progress and research be written to the docs.
       panel (older note).
 
 ## Done (2026-11-11)
+
+- [x] **Immersive froze or crashed at the start of a match** (the owner hit
+      it worn; unattended 2 of 2, later 1 of 3). The game updates its camera on
+      one of its own worker threads, and Immersive's camera feed queued its
+      camera for the GL thread from there, at the same moment as the game
+      thread queued its draws: the queue got scrambled. Jobs from other threads
+      are now handed to the game thread. 5 of 5 match starts clean on the
+      Quest, full matches in both modes.
 
 - [x] **Upper bleachers missing, audience floating in mid air, stands
       stretched** (owner's report, 2026-11-11, Immersive). The upper stands
