@@ -11,8 +11,7 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-- [ ] **Some replays still play with Replays off.** The current switch
-      answers `replay::isReplay_point`; some replays come through another path.
+(none open)
 
 ### Features
 - [ ] **Switch Classic / Immersive without a restart** (Phase B of the
@@ -26,6 +25,19 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
       panel (older note).
 
 ## Done (2026-11-11)
+
+- [x] "Some replays still play with Replays off" - not replays. The game
+      has a single way into a replay (the point's end asks
+      `replay::isReplay_point`, which the Replays switch answers), and with
+      Replays off no replay played in long runs (macOS and Quest, two whole
+      matches each, attract demo). What looked like replays were the point
+      close-ups: the winner's close-up after each point and the server's
+      close-up on big points - those are the **Point cutaways** row (both
+      off by default in Immersive). Also: a replay already playing when
+      Replays is switched off now ends at once (as a shot button skips
+      it), and the desktop Controls menu / start-up screen labels are
+      up to date (button 2 slice, button 3 no shot; "mode, replays,
+      cutaways").
 
 - [x] Quest controls match the cabinet's two shot buttons: trigger = top
       spin, A / X = slice, B / Y = lob (on the cabinet: both buttons

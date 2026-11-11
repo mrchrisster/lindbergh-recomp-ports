@@ -92,6 +92,38 @@ section 8. Add to this file whenever a session finds something.
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **"Some replays still play with Replays off" - closed: not
+  replays** (`hle_sega.c` `h_vt3_set_mode`, `h_vt3_skip_winner`, the
+  `isReplay_point` / `setMode` install; guide section 8, "The only way into
+  a replay"). Facts (static analysis, confirmed by runs): replay playback
+  (`usrAcReplayLoop`, camera mode 6) is entered only from
+  `usrAcPassLoop::exec`'s `mtrLoopManager::setMode` at return **0x08086B17**,
+  gated solely by `replay::isReplay_point` (0x0810E18E). Replay mode per loop
+  manager: arcade 7, attract 6, challenge 9 (unreachable). Other return
+  addresses: pass loop mode 8 0x08086C6D, replay loop's exit 0x0808A6A7,
+  replay loop's skip check 0x0808A850 (win/lose's 0x0808E6CB). Runs with
+  Replays off: macOS `round0` + `WIN=1` 400 s - 0 ReplayLoop, two matches
+  (game set and match 7642 / StatsLoop 7879 -> LoadLoop 8480); baseline
+  Replays on - ReplayLoop only at match point (7495, 17614; WIN=1 points
+  rarely earn one); Quest Immersive `round0` 330 s both off - 0 ReplayLoop,
+  camera mode 1 from 1949 to game set and match 7856 (and the next match
+  likewise); macOS attract 5 min - no ReplayLoop, the demo cycles (matches
+  start ~6400, ~12100, ~16300). The reported replays were the point
+  close-ups (Point cutaways). Changes: (a) a replay already playing when
+  Replays goes off ends via the game's own skip (answer yes at 0x0808A850;
+  card waits still hold) - Quest `prize` Immersive, scripted Replays click
+  at 3030 in a replay started at 3015: ended 3032 -> Gamesetmatch ->
+  Stats -> next round; (b) the `setMode` wrap is installed with
+  `LINDBERGH_FORCE_REPLAY=1` too (`replay` scene + cutaways off: Replay ->
+  Start directly); (c) log-only `[vt3] ... replay requested with Replays
+  off` and WARNING lines if the overrides fail. Also: desktop Controls
+  labels (button 2 slice, button 3 no shot) and the splash's Menu
+  sub-label ("mode, replays, cutaways").
+  **Testing note:** a scripted panel click needs the env pin empty
+  (`LINDBERGH_REPLAYS=`); frames of a replay vary between runs (the first
+  `prize` replay came at 3012, 3015 and 3540) - toggle in a window
+  (`LINDBERGH_XR_MENU_CLICKS` up to 32 clicks). Back up vr.cfg first.
+
 - 2026-11-11 **One steady camera between points; clean cuts** (`hle_sega.c`
   `h_vt3_set_mode`, `h_vt3_is_heatup`, `vt3_note_projection`; `stereo.c`
   `stereo_vt3_camera`, `screen_copy_stale`; guide section 8). With Point
@@ -351,9 +383,6 @@ Seen 2026-11-11 (verifying the steady camera), not looked into:
   likely the board (fed by the per-frame screen copies 33/34, so
   `screen_copy_stale` does not apply) seen from a close replay camera - not
   confirmed.
-- The desktop Controls menu (`host_settings.c`) still labels button 2
-  "lob" and button 3 "slice"; the splash's "Menu SETTINGS" sub-label
-  ("replays, overlays, screen size") predates the Mode row.
 
 Seen while testing the panel (2026-11-11), not looked into:
 - The menu script's `z` taps (to frame 3600) also skip the game's own
