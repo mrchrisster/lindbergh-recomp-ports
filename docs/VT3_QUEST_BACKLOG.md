@@ -11,8 +11,6 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-- [ ] In Immersive mode the result slate after a match ends after a few
-      frames (Classic: ~10 s). Seen in tests, not looked into.
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
@@ -34,6 +32,10 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-11)
 
+- [x] Result slate after a match (RESULT, prize money, TOTAL MONEY) shown for
+      its full ~10 s in Immersive mode too (it ended after a few frames: the
+      intro fly-by skip also cut the slate's camera, which times the slate).
+      A shot button still skips it.
 - [x] Headset menu around two modes. Main page: **Mode** Classic (2D screen)
       / Immersive (3D world) - applies on the next start, with a **Restart
       now** row until then - and **Advanced settings** for the chosen mode.

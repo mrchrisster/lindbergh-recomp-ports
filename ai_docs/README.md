@@ -92,6 +92,23 @@ section 8. Add to this file whenever a session finds something.
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **Result slate in Immersive mode** (`hle_sega.c`
+  `h_vt3_init_uva`; guide section 8, "Start-of-match cameras"). The slate
+  (`usrAcStatsLoop`, mode 0xb) lasted ~4 frames in Immersive, 600 in
+  Classic. Not this session's switches: `usrAcStatsLoop::init` sets camera
+  mode 0xa and `camera::reset` starts a fly-by for it (`initUva(-1)`); the
+  slate's `exec()` ends when `camera::isUvaFinished()` (no animation at
+  `camera+0x224` counts as finished). World mode's intro skip
+  (`LINDBERGH_VT3_SKIP_UVA`, on by default since 88e86e8) answered every
+  `initUva`, so the slate ended at once. `camera::reset` starts fly-bys for
+  modes 4 (entrance), 8 (change of ends), 0xa (StatsLoop, usrChResultLoop,
+  usrChTotalResultLoop), 0xe (usrAcEndingLoop), 0x10 (usrPlayerintroLoop);
+  only 4 and 8 are skipped now. Flow log (`prize`, Quest): Immersive
+  StatsLoop 7367 -> LoadLoop 7371 before, 3262 -> 3863 and 7764 -> 8364
+  after (= Classic 8577 -> 9176); GamesetmatchLoop 237 frames in both modes
+  (unchanged; the first match's is shorter while the menu script's `z` taps
+  run). A shot button still skips the slate as in the original.
+
 - 2026-11-11 **Two-mode headset panel, Phase A** (guide 7.5 and 8). The
   mode is the panel's main-page **Mode** row (Classic / Immersive), saved as
   `mode` in vr.cfg and applied **on the next start** ("(on restart)" and a
@@ -205,9 +222,6 @@ panel), HUD scoreboards in the scene, culling widened to the headset's view,
 macOS start-up screen.
 
 Seen while testing the panel (2026-11-11), not looked into:
-- In Immersive mode the result slate (`StatsLoop`) ends after ~4 frames and
-  the next round loads; in Classic it stays 600 frames. Same with the mode
-  from env or vr.cfg, so not the settings change; not checked on an older build.
 - `tests/test_xr_settings.py` `test_invalid_sizes_restore_existing_defaults`
   and `tests/test_xr_panel.py` (the resolution cycle) fail on the code before
   this change too: they expect the old 2064x2280 default / cycle length.
