@@ -19,10 +19,6 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 - [ ] One black frame at a camera change (older note).
 
 ### Features
-- [ ] **Startup screen:** on black, a countdown with the title
-      "Virtua Tennis 3 (VR edition)" (original artwork – not Sega's logo) and
-      a picture of the Quest controllers showing the button mapping, while the
-      game loads (~30 s of black today before the first screen).
 - [ ] **Redesign the headset menu around two modes:**
       - **Classic mode** – the game as it is, all overlays, on a 2D screen.
       - **Immersive mode** – the world around you; replays **off** and arcade
@@ -39,6 +35,12 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-10)
 
+- [x] Start-up screen: instead of ~30 s of black, a panel 2 m ahead with the
+      title "Virtua Tennis 3 (VR edition)" (original artwork), the controller
+      map and a countdown with a bar. It shows from the headset session's start
+      (~1 s after launch) until the game's first bright screen; the countdown
+      is the last start's time (`startup_seconds` beside the game).
+      `LINDBERGH_SPLASH=0` turns it off. The macOS build still starts on black.
 - [x] Start of a match goes straight to the normal camera: the fly-by intro is
       skipped (`LINDBERGH_VT3_SKIP_UVA=0` keeps it), and the "overview" and
       "top-down" views were world mode's own fault - for the first ~3 s the game
