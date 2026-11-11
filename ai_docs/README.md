@@ -355,7 +355,41 @@ section 8. Add to this file whenever a session finds something.
 
 ## In progress
 
-(nothing)
+- 2026-11-11 **Switch Classic / Immersive without a restart (Phase B):
+  groundwork landed, nothing live yet** (`world_mode.c/.h`,
+  `xr_world_panel.c/.h`, `host_sdl.c`, `host_xr.c`). No behaviour change in
+  either mode (macOS Classic `prize` flow log identical to the run before).
+  What is in: three latches - `g_target` (atomic; the panel via
+  `world_mode_update`, or the test switch), the game thread's mode
+  (`world_mode_immersive()`, latched by the new `world_mode_frame(g_frame)`,
+  called in `host_swap` just before the frame's `glq_job(frame_gl)`), and the
+  GL thread's (`world_mode_drawing_immersive()`, set by
+  `world_mode_gl_latch()`; nothing calls it yet, so it stays the start mode).
+  Also `world_mode_target()`, `world_mode_live()`, `world_mode_on_switch(fn)`
+  (the game's part of a switch, a callback because `host_sdl.c` is also the
+  Vulkan host's, which has no `stereo.c`). **Live = a switch callback is
+  registered and `LINDBERGH_VT3_LIVE_SWITCH` is not 0; no callback is
+  registered yet**, so `world_mode_update` keeps the started mode as before.
+  Live, it takes the env pin, else vr.cfg `mode` (capable game only), else
+  the start - only a *change* of that request moves the target, so other
+  rows' clicks keep a test switch's mode; values are resolved for both modes
+  and the latched mode's become current at the latch; the shadow size stays
+  as started. At the latch: `[world] frame N: mode -> immersive (panel|test)`
+  and the callback, once. Test switch `LINDBERGH_VT3_MODE_AT=<frame>:<0|1>,...`
+  (a frame passed counts; over an env pin and the kill switch; never saved;
+  honoured only while a callback is registered, i.e. inert today). Panel:
+  `XwState.live` (host_xr.c sets 0): live, no Restart now row, Mode without
+  "(on restart)", the Mode click adds `XW_LIVE_CHANGED`. Tests:
+  `tests/test_world_mode.py` (latch, callback once, MODE_AT, kill switch /
+  env pin / incapable game keep the start), `tests/test_xr_world_panel.py`
+  (live block). **Remaining (need the headset):** world-mode hooks installed
+  always and gated per frame in `hle_sega.c` (which registers the callback:
+  `g_replays` / `g_cutaways` / overlays / camera hooks for the new mode),
+  `stereo_frame_begin` calling `world_mode_gl_latch` with the mode **carried
+  through the GL queue** (the game thread runs up to a frame ahead, so the GL
+  side must not read the game's latch directly), the shader link key's world
+  bit, `g_flat` forced in Classic, `host_xr.c` `wpanel.live = world_mode_live()`;
+  then Quest runs with `MODE_AT` both ways.
 
 ## Other open items
 

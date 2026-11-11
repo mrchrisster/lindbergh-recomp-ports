@@ -6,7 +6,15 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## In progress
 
-(nothing)
+- [ ] **Switch Classic / Immersive without a restart** - groundwork in
+      (2026-11-11), not switched on: the mode now has a target / game /
+      drawing latch and a per-frame switch point (`world_mode_frame`), a
+      kill switch `LINDBERGH_VT3_LIVE_SWITCH=0` and a test switch
+      `LINDBERGH_VT3_MODE_AT=<frame>:<0|1>,...`; the panel can show Mode
+      without "Restart now". Nothing changes for the player yet - the Mode
+      row still applies on the next start. Left: the game and drawing side
+      (hooks gated per frame, shader world bit, flat frames in Classic),
+      which needs headset runs.
 
 ## To do
 
@@ -17,7 +25,8 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 - [ ] **Switch Classic / Immersive without a restart** (Phase B of the
       menu): world-mode hooks installed always and gated per frame, the
       shader link key's world bit, flat frames forced in Classic. Today the
-      Mode row applies on the next start ("Restart now").
+      Mode row applies on the next start ("Restart now"). Groundwork: see
+      In progress.
 - [ ] Pick the defaults for the camera's forward move (Camera closer, 20 m)
       and step back (6 m) and the stand height (x1.5) - all adjustable now
       in Immersive's advanced settings.
