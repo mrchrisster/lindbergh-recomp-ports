@@ -106,9 +106,22 @@ around it.
 
 ### 3.1 Headset state and the owed checks
 
+**Checkpoint log (build worker, newest first):**
+- Headset back (24% battery, USB charging slowly - stop below ~12%); the
+  conductor emptied env.txt; vr.cfg unchanged. Running on the installed
+  `fade8ac` build: R2 Immersive `prize` 330 s (BLACK_LOG, FLOWLOG, GPU_TIME),
+  R3 `LINDBERGH_VT3_STANDS=0` 170 s (GPU baseline), R1 Classic `prize` 330 s.
+  Static finding: `CAudience2DManager::draw` (0x08090096) has no camera-end
+  rule (trees 0..level-1, then the standing tree), so the empty near-end
+  seats on Ita3F are most likely data (the broadcast camera sits at z ~ -324,
+  Ita3F's 1F cards span z -160..306). Next: venues rounds 1/2 incl. turned
+  180, then install the working-tree build (T3-T5) for sky / mask / LOD runs.
+  The working-tree code (stereo.c, arbprog.c, quest/gl4es.patch) is
+  described below and under "Uncommitted" in the state table.
+
 **2026-11-11 (build worker, crowd/stands/shadow/LOD tasks) - read first.**
 The owner unplugged the headset to charge it in the middle of an unattended
-perf run (`P_stands0`). When it comes back, before anything else:
+perf run (`P_stands0`). When it comes back, before anything else (done by the conductor at reconnect):
 1. `adb shell cat /sdcard/VirtuaTennis3/env.txt` - it was left holding the cut
    run's env (`LINDBERGH_AUTOSTART=1`, scripted `LINDBERGH_KEYS`,
    `LINDBERGH_VT3_IMMERSIVE=1`, `LINDBERGH_VT3_STANDS=0`, ...): empty it
