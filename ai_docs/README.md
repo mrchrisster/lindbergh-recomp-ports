@@ -92,6 +92,14 @@ section 8. Add to this file whenever a session finds something.
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **Stale XR settings tests fixed** (`lindberghrecomp/tests`).
+  `ec78b3b` (the eye's default = the headset panel, `LG_XR_NATIVE_*`; the
+  panel's sizes 1216/1440/1680/1920/native, 5 not 6) was deliberate and
+  documented; the tests still expected `0x2280` for invalid sizes and a
+  6-step cycle. They now expect the build's native size (host: 2064x2280 on
+  macOS, 2160x2160 on Linux) and the 5-step cycle, wrapping back to 1216.
+  `python3 -m unittest tests.test_xr_settings tests.test_xr_panel` passes.
+
 - 2026-11-11 **Blocky cloud patch in the sky** (`stereo.c` `sky_draw`).
   The cloud noise hashed each lattice corner with
   `fract(sin(dot(p, (127.1, 311.7))) * 43758.5)`; by the fifth octave p is
@@ -285,9 +293,6 @@ panel), HUD scoreboards in the scene,
 macOS start-up screen.
 
 Seen while testing the panel (2026-11-11), not looked into:
-- `tests/test_xr_settings.py` `test_invalid_sizes_restore_existing_defaults`
-  and `tests/test_xr_panel.py` (the resolution cycle) fail on the code before
-  this change too: they expect the old 2064x2280 default / cycle length.
 - The menu script's `z` taps (to frame 3600) also skip the game's own
   screens: a shot button skips the point close-up after 15 frames, and the
   game-set-and-match and result screens - measure screen lengths after 3600.
