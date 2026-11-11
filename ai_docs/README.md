@@ -5,6 +5,10 @@ test, so nothing gets researched twice. The user-facing tracking list is
 `docs/VT3_QUEST_BACKLOG.md`; how each fix works is in `docs/VT3_PORTING_GUIDE.md`
 section 8. Add to this file whenever a session finds something.
 
+**Next agent: `ai_docs/HANDOFF.md` has the 2026-11-11 session summary, the to-do
+queue in order, and the designs for the live mode switch and the in-scene
+scoreboards.**
+
 ## Ground rules
 
 - Push only to the `fork` remote (mrchrisster/...), branch `vt3-quest`:

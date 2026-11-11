@@ -19,7 +19,22 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-(none open)
+Reported by the owner after a full match worn on 2026-11-11 (build before
+`1b1988b`); the owner also said "we are getting close to a first release"
+and asked that all progress and research be written to the docs.
+- [ ] **Music plays skipping / not clean** (2026-11-11, Quest). Being
+      investigated (`ai_docs/research/audio-music-skipping.md`).
+- [ ] **Audience looks stretched and low resolution; the upper bleachers
+      are missing, so the audience floats in mid air** (2026-11-11,
+      Immersive). Owner's question: does a 3D model of the upper stands
+      exist, or are the game's cameras angled so they never show them?
+      Research under way.
+- [ ] **Shadows still look low resolution** (2026-11-11, Immersive, Shadow
+      quality High 2048). Research under way.
+- [ ] Confirm worn (fixed in `1b1988b`, not yet tried by the owner):
+      "button A is slice and button B is not mapped" -> now trigger top
+      spin, A / X slice, B / Y lob; "quick 1 s camera changes after every
+      point" -> now one steady camera with Point cutaways off.
 
 ### Features
 - [ ] **Switch Classic / Immersive without a restart** (Phase B of the
