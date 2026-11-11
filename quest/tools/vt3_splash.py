@@ -104,18 +104,17 @@ def controller(cx, cy, left):
     names = ('X', 'Y') if left else ('A', 'B')
     pos = [(bx - s * 4, cy + 2), (bx + s * 14, cy - 50)]
     for (x, y), n in zip(pos, names):
-        used = n != 'Y'
+        used = True
         d.ellipse([x - 21, y - 21, x + 21, y + 21], fill=(24, 26, 32, 255), outline=(ACCENT if used else EDGE) + (255,), width=3)
         d.text((x, y), n, font=btn_f, fill=(WHITE if used else GREY) + (255,), anchor='mm')
     marks = {'stick': (sx, cy - 20, 36), 'trigger': (cx, cy - 120, 0), names[0]: (*pos[0], 23)}
+    marks[names[1]] = (*pos[1], 23)
     if left:
         marks['menu'] = (cx + 6, cy + 35, 13)
         d.ellipse([cx - 6, cy + 24, cx + 18, cy + 46], fill=(24, 26, 32, 255), outline=ACCENT + (255,), width=2)
         d.line([(cx + 1, cy + 31), (cx + 11, cy + 31)], fill=WHITE + (255,), width=2)
         d.line([(cx + 1, cy + 35), (cx + 11, cy + 35)], fill=WHITE + (255,), width=2)
         d.line([(cx + 1, cy + 39), (cx + 11, cy + 39)], fill=WHITE + (255,), width=2)
-    else:
-        marks[names[1]] = (*pos[1], 23)
     return marks
 
 def label(mark, tx, ty, head, sub, right_side):
@@ -136,14 +135,15 @@ L = controller(560, cy, True)
 R = controller(976, cy, False)
 d.text((560, cy + 222), 'LEFT', font=small_f, fill=GREY + (255,), anchor='mm')
 d.text((976, cy + 222), 'RIGHT', font=small_f, fill=GREY + (255,), anchor='mm')
-label(L['trigger'], 400, 312, 'Trigger  LOB', None, False)
-label(L['stick'], 400, 392, 'Thumbstick  MOVE', 'press: Start', False)
-label(L['X'], 400, 486, 'X  SLICE', None, False)
-label(L['menu'], 400, 552, 'Menu  SETTINGS', 'replays, overlays, screen size', False)
+label(L['trigger'], 400, 316, 'Trigger  TOPSPIN', None, False)
+label(L['stick'], 400, 382, 'Thumbstick  MOVE', 'press: Start', False)
+label(L['Y'], 400, 456, 'Y  LOB', None, False)
+label(L['X'], 400, 512, 'X  SLICE', None, False)
+label(L['menu'], 400, 570, 'Menu  SETTINGS', 'replays, overlays, screen size', False)
 label(R['trigger'], 1136, 312, 'Trigger  TOPSPIN', 'and confirm in menus', True)
 label(R['stick'], 1136, 392, 'Thumbstick  MOVE', 'press: Start', True)
-label(R['B'], 1136, 476, 'B  SLICE', None, True)
-label(R['A'], 1136, 540, 'A  LOB', None, True)
+label(R['B'], 1136, 476, 'B  LOB', 'top spin + slice together', True)
+label(R['A'], 1136, 550, 'A  SLICE', None, True)
 
 # the countdown's frame: "STARTING IN" [digits] "s", a bar under it
 BAR = (468, 800, 1068, 816)            # the bar's trough, x0 y0 x1 y1

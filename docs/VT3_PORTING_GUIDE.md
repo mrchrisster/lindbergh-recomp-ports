@@ -137,7 +137,7 @@ All HLE stream and string implementations in `lindberghrecomp/src/runtime/hle_cx
 
 ---
 
-### 3.4 JVS Input Mapping (8-Way Lever + 3 Shot Buttons) — DONE
+### 3.4 JVS Input Mapping (8-Way Lever + 2 Shot Buttons) — DONE
 
 `hle_sega.c` (`jvs_switch_byte`) reports VT3's switches:
 
@@ -146,16 +146,26 @@ All HLE stream and string implementations in `lindberghrecomp/src/runtime/hle_cx
 | 0 | `0x80` | Start | `CAB_P1_START` |
 | 0 | `0x40` | Service | `CAB_SERVICE` |
 | 0 | `0x20` / `0x10` / `0x08` / `0x04` | Up / Down / Left / Right | `CAB_P1_UP/DOWN/LEFT/RIGHT` (bits 12-15) |
-| 0 | `0x02` | Button 1 (topspin) | `CAB_P1_TRIGGER` |
-| 0 | `0x01` | Button 2 (lob) | `CAB_P1_BUTTON2` (bit 16) |
-| 1 | `0x80` | Button 3 (slice) | `CAB_P1_BUTTON3` (bit 17) |
+| 0 | `0x02` | Button 1 (left: top spin) | `CAB_P1_TRIGGER` |
+| 0 | `0x01` | Button 2 (right: slice / backspin) | `CAB_P1_BUTTON2` (bit 16) |
+| 1 | `0x80` | Button 3 (no shot - see below) | `CAB_P1_BUTTON3` (bit 17) |
 | 1 | `0x40` | Button 4 | `CAB_P1_FIREMODE` |
+
+**The cabinet has two shot buttons (corrected 2026-11-11).** The game's How
+to Play text (`language/I_ADV_HowToPlay_TK_txtDB_US.bin`): "Press Left button
+for top spin", "Press Right button for backspin", "Press Left and right
+buttons together to lob". `pad::init` reads only switches 0x02000000 (button 1)
+and 0x01000000 (button 2) for its button bits (0x2000 / 0x4000, both also
+0x400 "decide"); switch byte 1 0x80 becomes pad bit 0x80000, which no shot
+code reads. So a lob is buttons 1 and 2 at once; the old "button 2 = lob,
+button 3 = slice" was wrong (on the Quest A gave a slice and B nothing).
 
 Player 2's lever and buttons 2-3 are the same bits shifted by `CAB_P2_JOY_SHIFT` (8).
 
-- **Keyboard** (defaults in `host_settings.c`, rebindable from the Controls menu): arrows = lever, Z / X / C = topspin / lob / slice, 5 = coin, 1 = start, M = mute (starts muted), Esc = quit.
+- **Keyboard** (defaults in `host_settings.c`, rebindable from the Controls menu): arrows = lever, Z / X / C = buttons 1-3, i.e. top spin / slice / nothing (Z + X together = lob; the Controls menu's own labels, "Button 2 (lob)" / "Button 3 (slice)", are still the old, wrong ones), 5 = coin, 1 = start, M = mute (starts muted), Esc = quit.
 - **Game controllers** (`host_sdl.c`): the first pad is P1, the second P2. D-pad or left stick = lever (8 sectors), A/B/X = buttons 1-3, Y = button 4, Start, Back = coin.
-- **Quest** (`xr_controls.c`, when the profile sets `joystick`): either thumbstick = lever; right trigger = topspin; A or left trigger = lob; B or left X = slice. Untested on a headset.
+- **Quest** (`xr_controls.c` `lever_buttons`, when the profile sets `joystick`): either thumbstick = lever; trigger = top spin (button 1), A / X = slice (button 2), B / Y = lob (buttons 1 and 2 together), the same on both hands. On a lever cabinet holding Y no longer opens the settings panel (it is the lob); the left Menu button does.
+- Keyboard and pads on the desktop still send button 3 for keyboard C / pad X: that is no shot there either (not changed; press Z and X, or pad A and B, together for a lob).
 - `game_profile.h` `joystick = 1` (VT3's `host.c`) also stops "pointer left the window" from pressing reload (which is button 2 here).
 
 Menus: on the player-select and tournament screens press **Z**; on court select press **Enter**. Waiting for the timers costs about a minute per screen.
@@ -330,7 +340,7 @@ Capture frames, then binary-search the pipeline with readbacks: which draw, whic
 - The APK holds translated game code: keep it private.
 
 ### 7.2 Controls (lever cabinet)
-Right trigger = confirm / topspin, A = lob, B = slice, left stick = 8-way lever, stick click = start. Lever mode turns off the gun, laser, sight and recoil rumble (`xr_controls.c` `lever_buttons`, profile `.joystick = 1`).
+Right trigger = confirm / top spin, A = slice, B = lob (top spin + slice together, as on the cabinet), the left hand's trigger / X / Y the same, either stick = 8-way lever, stick click = start. Lever mode turns off the gun, laser, sight and recoil rumble (`xr_controls.c` `lever_buttons`, profile `.joystick = 1`).
 
 ### 7.3 Testing without a person
 The headset sleeps and will not show an app when nobody wears it. What works over adb (USB debugging authorised):
@@ -447,6 +457,9 @@ For Virtua Tennis 3 (`g_world_capable`: `hle_sega.c` sets it when `_sRender::set
   - Tools: `LINDBERGH_VT3_SERVELOG=1` (per frame of a meter: player, state, power, latch, game vs anchored position; each pixel-camera draw whose lens read is off), `LINDBERGH_VT3_SERVESHOT=<n>[,<from>]` (full-size game shots through n serves of 1P, see `ai_docs/README.md`), `VT3_EXTRA_KEYS` in `scripts/vt3-repro.sh`.
 
 - **Black frames at camera cuts: fixed (2026-11-11).** At a cut (win/lose close-up, change of ends, serve camera, game set and match, match intro) the game blends the screen it captured (`fade::execCapture`: a whole-screen 2D draw of a screen copy into fb 0). `stereo.c` classed it HUD, and a HUD draw makes its target `g_hud_fb` for the next frame; with fb 0 as "the HUD's target" none of the next frame's world counted (`g_scene_draws` 0, the draws classed HUD), so no sky was drawn and the colour clear before the depth-of-field composite was kept (it is dropped only after scene draws and a screen copy): two fully black frames, HUD included. In world mode fb 0 never becomes the HUD's target. Found with `LINDBERGH_BLACK_LOG=1` (each frame's left eye averaged from the eye array; a black frame gives the next one the draw log, now with the facts `target/menu/zoom/flat/offscreen`, and a game shot) and `LINDBERGH_CLEAR_LOG=2`.
+
+- **Between points, one steady camera; clean cuts where cuts remain (2026-11-11).** With **Point cutaways off** (Immersive's default) nothing between points changes the camera any more. Before, the win/lose loop still ran ~17 frames (camera 7, the winner's close-up, plus the cross-fade) and on every big point (game / break / set / match point) `usrAcStartLoop::init` put the camera on the server (camera mode 5, ~150 frames, a flat close-up in Immersive). Now (`hle_sega.c`): the `mtrLoopManager::setMode` wrap turns the pass loop's mode 8 (return 0x08086C6D) - and a point replay's end (0x0808A6A7) - into what `usrAcWinloseLoop::exec` picks at its end in the arcade path: change of ends (9) on `match::isTiebreak_changeend()` or the match's change-ends bit (0x400 of match+0x1c, cleared as it does), else the next point (3); a card being written, a versus game asked for (`vs::isReq_vs_game`), the attract demo (`checkMode(1)`) and a decided match (0xa/0xb, handled first) are left to the game. The win/lose loop's init/exit only serve the close-up (camera mode 7 saved at +0x40 and restored, celebration poses, the centre "POINT" plate, the crowd's cheer animation, glare); the score box has the new score. A wrap of `match::isHeatup` answers no for the start loop's questions (0x080856D3, 0x08085775, 0x08085AB2), so a big point starts like any other (`restartPlusAb`, camera 1; no heat-up poses or music). Flow and camera log over a `round0` + `LINDBERGH_VT3_WIN=1` run: Pass -> Start (or Changeend -> Start) at every point, camera mode 1 from the match's start to game set and match, no flat frame. Cutaways on: the original sequence.
+  For the cuts that remain (cutaways or replays on, game set and match, the result slate) three faults made the in-between frames: (1) the world camera was handed to `arb_note_projection` straight from the game thread, which sets it after a frame's draws for the next frame while the GL thread may still be drawing the frame before - the last frame before a cut was taken apart with the new camera (a turned, distorted frame); it now goes through the GL queue (`vt3_note_projection`, `glq_job`; `LINDBERGH_VT3_CAM_QUEUE=0` the old way). (2) Flat or world followed the zoom rule (lens > 8 held 6 frames): ~6 distorted world frames into each close-up, the first court frame after one flat. The game thread now also sends each world camera's mode (camera+0x38) and lens in the queue (`stereo_vt3_camera`): in the two frames after a camera mode change the frame's first draw into the eyes decides (long lens: flat from that draw; short: world), and a lens crossing the limit within a mode (the serve camera zooming in) sets the next frame (`LINDBERGH_VT3_CUTFLAT=0` off, `LINDBERGH_VT3_CUTLOG=1` logs). (3) The cut's cross-fade (`fade::execCapture`: the captured screen drawn back over ~30 frames) hung as a small flat picture in the world; on world frames a 2D draw into the eyes of a whole-screen copy taken in an earlier frame is left out (`screen_copy_stale`; `LINDBERGH_VT3_CAPTURE=1` keeps it), so world cuts are hard cuts. Camera modes in Immersive: see `ai_docs/README.md`.
 
 ### 8.0.1 Open in immersive mode
 scoreboards float in the scene at court level instead of a HUD panel; stadium scale/distance not tuned; panel switch flat / world (Mario Galaxy recomp style) not built yet.

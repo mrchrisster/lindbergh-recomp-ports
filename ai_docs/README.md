@@ -92,6 +92,48 @@ section 8. Add to this file whenever a session finds something.
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **One steady camera between points; clean cuts** (`hle_sega.c`
+  `h_vt3_set_mode`, `h_vt3_is_heatup`, `vt3_note_projection`; `stereo.c`
+  `stereo_vt3_camera`, `screen_copy_stale`; guide section 8). With Point
+  cutaways off (Immersive default) the win/lose loop is not entered at all
+  (Pass -> Start / Changeend directly, the exit choice its `exec()` would
+  make) and big points have no serve close-up (`match::isHeatup` answered no
+  for the start loop) - camera mode stays 1 from serve to game set and match
+  (`LINDBERGH_VT3_CAMMODE_LOG=1`, new; flow log `point cutaway left out`).
+  The remaining cuts (cutaways/replays on, match end, slate): the world camera
+  goes to the GL thread through the queue (it was read a frame early - a
+  turned frame at each cut), flat/world follows the camera mode change and
+  lens at once (was: lens > 8 held 6 frames), and the cut's captured picture
+  is left out of world frames. `LINDBERGH_VT3_CUTLOG=1`, `_CUTFLAT=0`,
+  `_CAM_QUEUE=0`, `_CAPTURE=1` to compare.
+  Camera modes in Immersive (cutaways on): 1 court camera - world; 4 match
+  intro (fly-by skipped) - world; 5 big-point serve close-up - world while
+  its lens is short (~2.3-4), flat once it zooms past 8 (~20 frames in); 6
+  replay - world; 7 point close-up - flat when its (random) camera's lens is
+  past 8 (11.7-16.3 seen), world otherwise (one seen facing the crowd); 8
+  change of ends (fly-by skipped) - stays on the court camera; 9 game set
+  and match - flat once its lens passes 8 (11.2-35.6 seen), world before
+  that (it starts at ~6.4; one cut short by the menu script's taps never
+  zoomed and stayed world); 0xa result slate - flat (a menu state).
+  Checked on the Quest (`prize`, Immersive, flow + camera-mode logs):
+  cutaways and replays off - `point cutaway left out ... straight to change
+  of ends (mode 9)` and `big-point serve close-up left out` at each point,
+  no camera-mode change from the match's start (1949) to game set and match
+  (3013), two matches and the next round's start in 270 s; cutaways and
+  replays on - the original sequence (Winlose 7 flat at 2464, serve
+  close-up 5 world then flat at 2568, Replay 6, Gamesetmatch 9, slate 600
+  frames); Classic `prize` unchanged (Winlose, a 150-frame serve close-up,
+  Replay, Gamesetmatch, StatsLoop 8563 -> 9163).
+
+- 2026-11-11 **Quest shot buttons follow the cabinet** (`xr_controls.c`
+  `lever_buttons`, `host_xr.c`, splash art; guide 3.4 and
+  7.2). The cabinet has two shot buttons (left top spin, right slice, both
+  a lob); "button 3" is no shot. Quest: trigger = top spin, A / X = slice,
+  B / Y = lob (both bits), the same on both hands; on a lever cabinet a
+  held Y no longer opens the panel (left Menu does). Splash art redrawn
+  (`quest/tools/vt3_splash.py` regenerates `games/vt3/src/splash_art.c`
+  byte for byte). `tests/test_xr_controls.py` covers it. Not tried worn.
+
 - 2026-11-11 **Stale XR settings tests fixed** (`lindberghrecomp/tests`).
   `ec78b3b` (the eye's default = the headset panel, `LG_XR_NATIVE_*`; the
   panel's sizes 1216/1440/1680/1920/native, 5 not 6) was deliberate and
@@ -295,13 +337,23 @@ macOS start-up screen.
 Seen 2026-11-11 (VT3 build worker), not looked into:
 - Crowd cards float in the sky above the side stands' top rows in
   Immersive (visible in any game shot; the crowd cut only covers the far end).
-- For a few frames after each camera cut, until the close-up's long lens has
-  held 6 frames (`g_zoom_frames`) and the frame goes flat, the close-up is
-  drawn as world (a distorted wide view) with the game's capture cross-fade
-  (`fade::execCapture`) shown as a small flat picture in the middle.
-- The serve close-ups (StartLoop) are shown flat (zoom lens) in Immersive.
 - `tests/test_xr_actions.py` does not compile on this Mac (its OpenXR header
   path under `deps/oxr/...`); not related to these changes.
+
+Seen 2026-11-11 (verifying the steady camera), not looked into:
+- A light-blue band along the bottom of some Immersive frames (sky showing
+  where the near ground ends): game set and match's short-lens camera
+  (`prize` frame ~3000) and the second round's court near a change of ends
+  (~5200). Not checked whether older builds had it.
+- In one point replay (camera mode 6, world) a large translucent rectangle
+  hung in front of the net showing the live picture (`prize` frame 3200);
+  another replay showed it as the stadium's video board at the far end. Most
+  likely the board (fed by the per-frame screen copies 33/34, so
+  `screen_copy_stale` does not apply) seen from a close replay camera - not
+  confirmed.
+- The desktop Controls menu (`host_settings.c`) still labels button 2
+  "lob" and button 3 "slice"; the splash's "Menu SETTINGS" sub-label
+  ("replays, overlays, screen size") predates the Mode row.
 
 Seen while testing the panel (2026-11-11), not looked into:
 - The menu script's `z` taps (to frame 3600) also skip the game's own

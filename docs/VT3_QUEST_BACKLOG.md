@@ -27,6 +27,19 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-11)
 
+- [x] Quest controls match the cabinet's two shot buttons: trigger = top
+      spin, A / X = slice, B / Y = lob (on the cabinet: both buttons
+      together); before, A gave a slice and B did nothing. Start-up screen's
+      controller map redrawn to match. Holding Y no longer opens the
+      settings panel in VT3 (Y is the lob) - use the left Menu button.
+
+- [x] No camera changes between points in Immersive (with Point cutaways
+      off, the default): no winner close-up, no big-point serve close-up -
+      a whole game plays from the court camera; only game set and match and
+      the result slate cut. With cutaways (or replays) on, each cut goes
+      straight from the court to the flat close-up and back - no distorted
+      frames, no small floating picture of the old view.
+
 - [x] Blocky cloud patch near the top of the sky gone (smooth clouds).
 - [x] Black frames at camera changes in Immersive (two at each cut: point
       close-up, change of ends, serve camera, game set and match, match
