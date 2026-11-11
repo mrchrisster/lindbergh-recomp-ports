@@ -13,8 +13,6 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ### Bugs
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
-- [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
-      precision far out on its plane).
 
 ### Features
 - [ ] **Switch Classic / Immersive without a restart** (Phase B of the
@@ -29,6 +27,7 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-11)
 
+- [x] Blocky cloud patch near the top of the sky gone (smooth clouds).
 - [x] Black frames at camera changes in Immersive (two at each cut: point
       close-up, change of ends, serve camera, game set and match, match
       start) gone.

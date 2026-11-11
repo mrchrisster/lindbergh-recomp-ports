@@ -92,6 +92,19 @@ section 8. Add to this file whenever a session finds something.
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **Blocky cloud patch in the sky** (`stereo.c` `sky_draw`).
+  The cloud noise hashed each lattice corner with
+  `fract(sin(dot(p, (127.1, 311.7))) * 43758.5)`; by the fifth octave p is
+  in the hundreds and the sine's argument ~1e5, beyond the GPU's float
+  (mediump by default in a GLES fragment shader): cells hashed alike in hard
+  rectangles. Fixed by the frame-rate change (one fetch per octave from a
+  256x256 random texture, lattice wrapped at 256, shader `highp`). Checked
+  with the new `LINDBERGH_VT3_SKY_PITCH=<deg>` (test only: the sky turned
+  down that far about the game camera's right, so a game shot shows the
+  zenith): old shader at 60 deg - hard-edged rectangles and bands; new -
+  smooth blue with soft clouds. Unpitched, the sky keeps its look (gradient,
+  fair-weather clouds; the cloud pattern itself is a different random one).
+
 - 2026-11-11 **Black frames at camera cuts in Immersive** (`stereo.c`, where
   `g_hud_fb_next` is set; guide section 8). `LINDBERGH_BLACK_LOG=1` (new: the
   left eye averaged each frame from the eye array, works unattended; logs a
