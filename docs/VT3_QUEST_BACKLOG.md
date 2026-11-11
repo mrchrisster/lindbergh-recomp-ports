@@ -11,9 +11,6 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-- [ ] **Match never ends with Replays off** – after 2 games won it keeps
-      playing new games. Caused by the Replays switch (answers "no replay" even
-      on the match's last point); plain mode too. Notes: `ai_docs/README.md`.
 - [ ] **Serve strength meter not showing correctly in immersive mode** – sometimes
       fine, then glitches in the last second. Lead in `ai_docs/README.md`.
 - [ ] **Some replays still play with Replays off.** The current switch
@@ -39,6 +36,9 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-10)
 
+- [x] Match ends with Replays off: after the last point the game goes
+      straight to GAME SET AND MATCH and the result slate, without the closing
+      replay (before, it kept playing new games). Plain and immersive mode.
 - [x] Start-up screen: instead of ~30 s of black, a panel 2 m ahead with the
       title "Virtua Tennis 3 (VR edition)" (original artwork), the controller
       map and a countdown with a bar. It shows from the headset session's start

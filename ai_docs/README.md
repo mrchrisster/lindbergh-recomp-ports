@@ -28,7 +28,9 @@ section 8. Add to this file whenever a session finds something.
   env.txt** at exit; restore with
   `adb shell "echo LINDBERGH_VT3_IMMERSIVE=1 > /sdcard/VirtuaTennis3/env.txt"`.
 - Scenes: `round0` (normal first match), `forty` (every game starts 40-0 –
-  **unsuitable for match-length tests**, see below), `prize` (1P wins every
+  **unsuitable for match-length tests**: forcing 40-0 at each game start keeps
+  resetting the score when the AI wins, so it is endless even with replays on),
+  `prize` (1P wins every
   point from 40-0: the match is over in two points), `replay`, `splitreplay`.
 - Useful switches: `LINDBERGH_VT3_WIN=1` (1P wins every point),
   `LINDBERGH_REPLAYS=0|1` (now works on macOS too), `LINDBERGH_VT3_FLOWLOG=1`
@@ -53,50 +55,25 @@ section 8. Add to this file whenever a session finds something.
   game's black boot. Startup timing: ~1.5 s to the XR session, ~8 s to the
   game's first frame, ~20 s of the board's own black boot, then the white logo.
   macOS still starts on black (not done).
+- 2026-11-10 **Match ends with Replays off** (`hle_sega.c` `h_vt3_set_mode`,
+  guide section 8). In arcade mode only `usrAcReplayLoop::exec` carries a
+  finished match on (match event bit 0x1000 of `match+0x1c`, set with
+  `match+0xd6` by `match::setEvent(12)`): mode 0xa Gamesetmatch / 0xb Stats.
+  With replays off the pass loop sets mode 8 (Winlose) instead, so a wrap of
+  `mtrLoopManager::setMode` turns that mode 8 (from 0x8086c6d, match bit up)
+  into the replay loop's choice. The closing replay is skipped. Verified with
+  `prize` + `LINDBERGH_REPLAYS=0` + `LINDBERGH_VT3_FLOWLOG=1` on macOS and the
+  Quest: `match over with Replays off - closing replay skipped, game set and
+  match (mode 0xa)` -> `GamesetmatchLoop` -> `StatsLoop` -> next round, no
+  third game; ordinary points still Pass -> Winlose; Replays on unchanged
+  (Pass -> ReplayLoop -> Gamesetmatch). `isReplay_point` is the only way
+  into the replay loop. Also: the override table (64) was full with the
+  diagnostic logs on (JVS entry points went missing and the run never reached a match), now 128.
+  The loser path (0xb + `sound::stopSoundAll`) is untested (`prize` always wins).
 - 2026-11-10 Start-of-match cameras, floating crowd, HUD on head movement, sky,
   shadow map, ad flicker, stands, blotches, shadows – all in the guide.
 
 ## In progress
-
-### Match never ends with Replays off (bug, high priority)
-
-User report: after one player wins 2 games the match keeps going endlessly.
-
-**Root cause confirmed:** the headset menu's *Replays off* switch. Not immersive
-mode – plain mode does the same.
-- `prize` scene on the Quest, `LINDBERGH_REPLAYS=1`: game 2 ends, the match ends
-  (closing replays play). With `LINDBERGH_REPLAYS=0`: new games forever
-  (frames 2625, 3566, 5402, 7237, ...).
-- `round0` + `LINDBERGH_VT3_WIN=1`, Replays off (from the user's saved vr.cfg):
-  endless in immersive mode and in plain mode (6 games by frame 17557).
-
-Mechanism: the switch wraps `replay::isReplay_point` and answers 0 always
-(`h_vt3_is_replay`, `hle_sega.c`). Two callers:
-- `usrAcPassLoop::exec` (0x808685a), between points. It sets one of three
-  locals: `[ebp-0xd]` / `[ebp-0xe]` / `[ebp-0xf]`, then branches on them in that
-  order. `ch_match::isFinished` (0x80c6c64) and a byte at
-  `[ch + ch[+8] + 0x1b]` choose; at 0x8086ee7 `isReplay_point` false sets
-  `[ebp-0xe]`. Manager global: `[0x85061A4]`, with +0x1c match, +0x20 ch_match,
-  +0x90 replay, +0x94 vs, +0xf4 mtrLoopManager, +0xfc usrAdvLoop.
-- `usrAcWinloseLoop::init` (the per-point win/lose animation; it runs after
-  every point, not only at match end).
-So the match-end path appears to need the real answer on the match's last point.
-
-Planned fix (not written yet): with Replays off, still answer 0 on ordinary
-points, but run the original `isReplay_point` when the point ends the match.
-Candidates for "the match is over", read from the match object
-`[[0x85061A4] + 0x1c]`:
-- `match::isGame` (0x810c4b4) = `byte [match+0x1d] & 4` (a game ended).
-- `match::isMatch` (0x810c4cc) = `byte [match+0xd6]` – **meaning unconfirmed**;
-  it may be "this is a match (not a challenge)" rather than "match over".
-- `match+0x18` event bits are tested in the pass loop (0x4, 0x8).
-Check which one turns on only on the match-winning point (log them per point
-in a `prize` run), then gate on it. Verify with `prize` + Replays off: the match
-must end after game 2, and ordinary points must still skip replays.
-
-Earlier dead end: the `forty` scene is endless with Replays on as well, because
-forcing 3-0 at each game start keeps resetting the score when the AI wins. Use
-`prize` or `round0` + `LINDBERGH_VT3_WIN=1` instead.
 
 ### Serve strength meter wrong in immersive mode (bug)
 
@@ -123,5 +100,5 @@ blocky cloud patch near the top of the sky, one black frame at a camera change,
 camera and stand-height tuning, HUD scoreboards in the scene, culling widened to
 the headset's view, macOS start-up screen.
 
-Note for the menu redesign: defaulting Immersive to Replays off depends on the
-match-end fix above.
+Note for the menu redesign: defaulting Immersive to Replays off is safe now
+(the match-end fix is done).
