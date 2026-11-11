@@ -42,12 +42,53 @@ section 8. Add to this file whenever a session finds something.
 - Headset logs: `adb logcat -v time -s 'vt3:*'`, or `vt3.log` in
   `/sdcard/VirtuaTennis3/vt3_Lindbergh/`. Start logcat right before launching,
   because the Quest's log buffer rolls over within minutes.
+- **Scripting a serve:** 1P serves on its own when no button is pressed:
+  the meter fills to full (state 2), falls back and the serve goes off. The
+  menu script's `z` taps (to frame 3600) swing the first serves early, so the
+  first untouched 1P serve in `round0` comes at ~frame 5150 and the next at
+  ~6800 (game 2 at ~7300 is COM's serve, 1P then at the far end). Frames
+  through a serve: `LINDBERGH_VT3_SERVESHOT=<n>[,<from frame>]` takes a
+  full-size game shot as 1P's power passes 0.3/0.5/0.7/0.85/0.9/0.95 and
+  every 3rd frame for 45 frames after, for n serves (`LINDBERGH_SHOT_BOTH=1`
+  for the right eye; set `LINDBERGH_GAME_SHOT=99999,1` so the script's
+  default shots stay out of the way). `LINDBERGH_VT3_SERVELOG=1` logs each
+  frame's meter (player, state, power) and each screen position, game vs
+  re-anchored. Extra taps: `VT3_EXTRA_KEYS="frame:z,..."` (repro script; a
+  tap is a press and release in the same frame - press during the meter to
+  hit at that power). E.g.
+  `LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_VT3_SERVELOG=1 LINDBERGH_VT3_SERVESHOT=2,3700 LINDBERGH_SHOT_BOTH=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh round0 quest 165`.
 - Callees/callers of a game function by name: a small script that scans
   `games/vt3/generated/recomp_funcs_*.c` for `call 0x...` and maps addresses
   with `recomp_symbols.h` (keep the longest body when a function appears in
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-10 **Serve meter and 1P marker in immersive mode** (guide section 8,
+  "HUD items at 3D points"). Two faults: (1) the gauge's fill is a sprite
+  scaled along y; `arb_env_projection` took its matrix apart as a camera with
+  a y lens times the scale, rejected below ~0.85 (last good lens: looked
+  right) but **taken** from 0.85 to 1.0 - the bar drawn full height, shifted
+  down out of its frame - and stored as the good lens, so the fall back
+  after full was wrong too. Pixel-camera draws are now matched exactly
+  (`arbprog.c`, `LINDBERGH_VT3_PIXCAM=0` off). (2) `hud::getScreenPosFrom3DPos`
+  places the meter / marker by the game camera, but the eyes see the HUD
+  plane from the dollied viewpoint: they sat below the feet (near end) or
+  ~1.6x too far out (far end). A wrap re-solves the position per eye
+  (`stereo_vt3_hud_anchor`, `LINDBERGH_VT3_HUD_ANCHOR=0` off). The meter is
+  latched once per serve (`hud+0x60`); no drift seen, so it is not re-anchored
+  each frame. Many other HUD sprites with uniform scale pops (x1.1, x0.5,
+  x2) were also drawn unscaled before; now as the game scales them.
+  Verified on the headset with `SERVESHOT` frames both eyes, near and far
+  end, each switch alone, classic mode frame-compared with the previous
+  build. **Not verified:** `LINDBERGH_XR_FAKE_YAW=25` - unattended, the XR
+  session stops before the match (state 6/1), and the fake yaw only applies
+  to located views; needs someone wearing the headset. Also fixed while there
+  (log-only): `LINDBERGH_VT3_ATTACHLOG` and `LINDBERGH_VT3_CAMLOG` read their
+  arguments one slot off (handlers get esp at argument 0, the return address
+  at esp-4); `h_vt3_game_routine` read `this` at esp+4, which a log showed is
+  the caller's saved ebx holding the same camera, now argument 0 (no change
+  in behaviour).
 
 - 2026-11-10 **Start-up screen** (`host_xr.c` splash section, art from
   `quest/tools/vt3_splash.py` -> `games/vt3/src/splash_art.c`). Verified in
@@ -75,22 +116,7 @@ section 8. Add to this file whenever a session finds something.
 
 ## In progress
 
-### Serve strength meter wrong in immersive mode (bug)
-
-User: "sometimes works ok but then glitches last second".
-- Drawn by `hud::drawServePower` (0x810f28e), called from `hud::draw`. It
-  places itself with `hud::getScreenPosFrom3DPos` (projects the player's 3D
-  position through the **game's** camera, `_sSceneManager::getProject`), then
-  plays an AB animation (`TScene::AbHandle::setMatrix/setFrame/play`) as a 2D
-  HUD sprite.
-- Lead: in immersive mode the view is dollied/stepped back and follows the
-  head, so a screen position from the game's camera does not match where the
-  player is drawn. The "last second" glitch may be the end of the animation
-  (branch changes, `finishBranch` x4) or the meter jumping as the camera moves.
-- Not yet captured: the `forty` captures (`LINDBERGH_XR_SHOT=1950,15`) were too
-  small to see it, and 1P may not serve there. Next: capture at full size
-  (`LINDBERGH_XR_SHOT_FULL=1`) during a 1P serve, several frames apart through
-  the toss, and compare with plain mode.
+(nothing)
 
 ## Other open items
 

@@ -11,8 +11,6 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
-- [ ] **Serve strength meter not showing correctly in immersive mode** – sometimes
-      fine, then glitches in the last second. Lead in `ai_docs/README.md`.
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
@@ -35,6 +33,13 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
       headset's view instead.
 
 ## Done (2026-11-10)
+
+- [x] Serve strength meter in immersive mode: the bar no longer jumps to full
+      height below its frame in the last second before full (85-100%) and on
+      the fall back, and the meter and the 1P marker sit beside the player
+      (they were drawn below the feet, further off at the far end), both
+      eyes. `LINDBERGH_VT3_PIXCAM=0` / `LINDBERGH_VT3_HUD_ANCHOR=0` turn the
+      two parts off.
 
 - [x] Match ends with Replays off: after the last point the game goes
       straight to GAME SET AND MATCH and the result slate, without the closing

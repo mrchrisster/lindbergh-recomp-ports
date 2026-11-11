@@ -22,6 +22,8 @@
 # LINDBERGH_FORCE_REPLAY in the runtime (hle_sega.c). Extra LINDBERGH_*
 # switches in the environment are passed through (mac) or added to env.txt
 # (quest), e.g. LINDBERGH_CXX_TRACE=1 or LINDBERGH_GAME_SHOT=3000,300.
+# VT3_EXTRA_KEYS="frame:key,..." adds key taps after the menu script's
+# (LINDBERGH_KEYS itself is the script's), e.g. shot-button taps to serve.
 #
 # mac:   runs the OpenGL build for [seconds] (default 120), frames (every 300
 #        from 1800 unless the scene says) and the log into $OUT (default /tmp/vt3-repro-<scene>).
@@ -61,11 +63,11 @@ keys() {
     local from=1500; [ "$1" = quest ] && from=1550
     for f in $(seq $from 90 3600); do k="$k$f:z,"; done
     for f in 2000 2400 2800 3200; do k="$k$((f+45)):"$'\r'","; done
-    printf '%s' "$k"
+    printf '%s%s' "$k" "${VT3_EXTRA_KEYS:-}"
 }
 
 # LINDBERGH_* already in our environment, as NAME=value lines
-passthrough() { env | grep '^LINDBERGH_' || true; }
+passthrough() { env | grep '^LINDBERGH_' | grep -v '^LINDBERGH_KEYS=' || true; }
 
 mkdir -p "$OUT"
 case "$WHERE" in
