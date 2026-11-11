@@ -275,7 +275,7 @@ Not save states: a full snapshot would have to restore the GL driver's objects, 
 ./scripts/vt3-repro.sh splitreplay quest           # the split-pane replay on the headset, frames pulled back
 ./scripts/vt3-repro.sh round1 mac <disk0> 90       # any round; any LINDBERGH_* in the environment rides along
 ```
-The script drives the menus, runs for a set time, and leaves the log and frames in `$OUT` (default `/tmp/vt3-repro-<scene>`). On the Quest it writes `env.txt`, does the proximity override and wake, and afterwards force-stops the app, undoes the override and **empties `env.txt`**.
+The script drives the menus, runs for a set time, and leaves the log and frames in `$OUT` (default `/tmp/vt3-repro-<scene>`). On the Quest it writes `env.txt`, does the proximity override and wake, and afterwards force-stops the app, undoes the override and **empties `env.txt`**. It pins Classic mode with replays, point cutaways and arcade overlays on (`LINDBERGH_VT3_IMMERSIVE=0`, `LINDBERGH_REPLAYS=1`, `LINDBERGH_VT3_CUTAWAYS=1`, `LINDBERGH_ARCADE_OVERLAYS=1`) unless the caller sets them, so the headset's saved settings cannot change a run; an empty value (`LINDBERGH_VT3_IMMERSIVE=`) leaves it to vr.cfg.
 
 ### Diagnostic switches (all off by default)
 | Switch | What it shows |
@@ -384,9 +384,23 @@ The left controller's menu button (or the other hand's upper button held for a s
 
 The panel is now 20 rows (`XM_ROWS`, `XM_H` 824).
 
+### 7.5.1 Pages for a game with a world mode (2026-11-11)
+
+For Virtua Tennis 3 (`g_world_capable`: `hle_sega.c` sets it when `_sRender::setProjectCameraMatrix` and `camera::gameRoutine` resolve) the panel has three pages; other games' panels are unchanged.
+- **Main:** Mode (Classic (2D screen) / Immersive (3D world); "(on restart)" while it differs from the running mode), Restart now (only then; `reset_game`, the activity's `restartGame`), Advanced settings (Classic) / (Immersive) > (the saved mode's page), then the shared rows without Frame rate counter, Arcade overlays and Replays.
+- **Classic advanced:** < Back, Replays, Point cutaways, Arcade overlays, Shadow quality (Standard 1024 / High 2048 / Very high 4096, on restart), Frame rate counter, Restore Classic defaults (two pulls), Close.
+- **Immersive advanced:** < Back, Stand height (x1.0 off / 1.25 / 1.5 / 1.75 / 2.0), Camera closer (0-30 m = `dolly` 0-300 game units in 50s), Step back (0-12 m = `back` 0-120 in 30s), Replays, Point cutaways, Arcade overlays, Sky, Shadow quality, Frame rate counter, Restore Immersive defaults, Close.
+- On the running mode's page every row but Shadow quality applies at once (`world_mode_update`, then `g_replays` / `g_arcade_overlays` / `g_cutaways`; stand, dolly, back and sky are read per draw); the other mode's page is saved for its next run (hint "Applies when ... mode runs."). A row whose env variable is set (`LINDBERGH_REPLAYS`, `_ARCADE_OVERLAYS`, `_VT3_CUTAWAYS`, `_SHADOW_SCALE`, `_VT3_STAND_Y`, `_VT3_DOLLY`, `_VT3_BACK`, `_VT3_SKY`, `_VT3_IMMERSIVE` for Mode) shows the run's value with "(env.txt)" and ignores clicks.
+- Code: `xr_world_panel.c` (pure, like `xr_panel.c`: `xw_page_rows`, `xw_items`, `xw_choose`, `XW_*` items; tested by `tests/test_xr_world_panel.py`). `host_xr.c` keeps the page in `XwState wpanel` and lists rows in `menu_ids[]` as `XP_` ids or `XP_COUNT + XW_x`; the `XP_` enum stays the shared list the Vulkan host shows (`XP_COUNT == XM_ROWS`). The panel opens on the main page.
+- `cfg` in `host_xr.c` holds only the stored settings; env overrides live in `world_mode.c`. Before, `cfg_load` copied `LINDBERGH_REPLAYS` / `LINDBERGH_ARCADE_OVERLAYS` into `cfg`, and the next click saved them - how a test's `replays off` got into the player's vr.cfg. `LINDBERGH_XR_SET` keys are likewise saved as the file had them.
+- The hint line is now "Point and pull the trigger. Menu: close." - the old one was 47 characters and the panel fits 42 (it was cut off at "cl").
+- Test switches: `LINDBERGH_XR_FAKE_MENU=1`, `LINDBERGH_XR_MENU_PAGE`, `LINDBERGH_XR_MENU_HOVER`, `LINDBERGH_XR_MENU_DUMP=1` (the painted panel as a PPM beside the game), `LINDBERGH_XR_MENU_CLICKS=<frame>:<row>,...` (see `ai_docs/README.md`).
+
 ## 8. Immersive Mode (world mode working, 2026-11-09)
 
-**Status:** `LINDBERGH_VT3_IMMERSIVE=1` (in `env.txt`) draws the match as a 3D stadium in front of the player at the broadcast camera's angle, pushed back in depth (HOTD4-style world mode). Confirmed in the headset. Default is still the flat screen.
+**Status:** Immersive mode draws the match as a 3D stadium in front of the player at the broadcast camera's angle, pushed back in depth (HOTD4-style world mode). Confirmed in the headset. Chosen with the panel's Mode row (vr.cfg `mode immersive`, from the next start) or `LINDBERGH_VT3_IMMERSIVE=1|0` in `env.txt` for a run. Default Classic (the flat screen).
+
+**Mode and its values (`world_mode.c`, 2026-11-11).** Which hooks to install is decided at registration (`hle_register_sega` -> `vt3_jumps`), before the headset host loads vr.cfg (`xr_init` -> `cfg_load`), so `world_mode_init(g_world_capable)` is the first call in `vt3_jumps`: on headset builds it reads vr.cfg itself (the `xr_settings` parser on a scratch copy; desktop: env only) and resolves every value env > vr.cfg > the mode's default, logged once as `[world] mode immersive (vr.cfg) dolly 200 (default) back 60 ... replays off (vr.cfg) overlays off ... cutaways off ...`. `LINDBERGH_VT3_IMMERSIVE=1` pins Immersive, `=0` Classic, unset or empty leaves it to vr.cfg `mode`; a game without the camera symbols is always Classic unless env says otherwise. Classic keeps the old keys (`replays`, `overlays`) plus `classic.cutaways`, `classic.shadow`; Immersive has `immersive.replays/.overlays/.cutaways/.stand_y/.dolly/.back/.sky/.shadow` (defaults off/off/off/1.5/200/60/on/2048). Every former `getenv("LINDBERGH_VT3_IMMERSIVE")` (hle_sega.c, stereo.c, arbprog.c) is `world_mode_immersive()`; `effective_projection`'s dolly and back, the stands' stretch (`upload`) and `sky_on` read live getters, the shadow-map scale is read once at the depth target's creation (1024 = 0, as the game makes it). The mode itself stays as started; switching live is Phase B (backlog).
 
 ### 8.0 What the camera turned out to be
 - **Two cameras per frame**, read with a wrap of `_sRender::setProjectCameraMatrix` (`hle_sega.c`, immersive only), which leaves the current scene manager's projection at `+0x5c` (4x4, row-major) and view at `+0x2c` (3x4):

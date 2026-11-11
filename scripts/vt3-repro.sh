@@ -30,11 +30,14 @@
 # quest: writes env.txt, wakes the headset (proximity override), starts the
 #        app, waits [seconds] (default 150), pulls vt3.log and game_*.ppm,
 #        then stops the app, undoes the override and empties env.txt.
+# Both pin Classic mode, replays, point cutaways and arcade overlays on
+# unless the caller sets LINDBERGH_VT3_IMMERSIVE / _REPLAYS / _VT3_CUTAWAYS /
+# _ARCADE_OVERLAYS (empty: the headset's vr.cfg decides).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 SCENE="${1:-}"; WHERE="${2:-}"
 [ -n "$SCENE" ] && [ -n "$WHERE" ] || usage
@@ -55,6 +58,16 @@ esac
 JUMP="$JUMP
 LINDBERGH_VT3_LOG=1
 LINDBERGH_AUTOSTART=1"
+# The player's saved settings (vr.cfg: Classic/Immersive, replays, overlays,
+# point cutaways) must not change a test run: pinned to Classic with
+# everything shown unless the caller sets them (set one to empty, e.g.
+# LINDBERGH_VT3_IMMERSIVE=, to leave it to vr.cfg).
+PINNED="LINDBERGH_VT3_IMMERSIVE=${LINDBERGH_VT3_IMMERSIVE-0}
+LINDBERGH_REPLAYS=${LINDBERGH_REPLAYS-1}
+LINDBERGH_VT3_CUTAWAYS=${LINDBERGH_VT3_CUTAWAYS-1}
+LINDBERGH_ARCADE_OVERLAYS=${LINDBERGH_ARCADE_OVERLAYS-1}"
+JUMP="$JUMP
+$PINNED"
 
 # frame:key taps through the menus (the Quest needs extra starts first)
 keys() {
@@ -67,7 +80,8 @@ keys() {
 }
 
 # LINDBERGH_* already in our environment, as NAME=value lines
-passthrough() { env | grep '^LINDBERGH_' | grep -v '^LINDBERGH_KEYS=' || true; }
+passthrough() { env | grep '^LINDBERGH_' | grep -v '^LINDBERGH_KEYS=' |
+                grep -Ev '^LINDBERGH_(VT3_IMMERSIVE|REPLAYS|VT3_CUTAWAYS|ARCADE_OVERLAYS)=' || true; }
 
 mkdir -p "$OUT"
 case "$WHERE" in
@@ -75,6 +89,8 @@ mac)
     GAME="${3:-}"; SECS="${4:-120}"
     [ -n "$GAME" ] || die "mac needs the game folder: $0 $SCENE mac /path/to/disk0"
     while IFS= read -r l; do [ -n "$l" ] && export "$l"; done <<<"$JUMP"
+    for v in LINDBERGH_VT3_IMMERSIVE LINDBERGH_REPLAYS LINDBERGH_VT3_CUTAWAYS LINDBERGH_ARCADE_OVERLAYS; do
+        [ -n "${!v}" ] || unset "$v"; done      # empty: left to vr.cfg (the desktop reads env only)
     export LINDBERGH_KEYS="$(keys mac)"
     export LINDBERGH_SHOT="${LINDBERGH_SHOT:-$OUT/f}" LINDBERGH_SHOT_EVERY="${LINDBERGH_SHOT_EVERY:-$SHOT_EVERY}" LINDBERGH_SHOT_FROM="${LINDBERGH_SHOT_FROM:-$SHOT_FROM}"
     echo "vt3-repro: $SCENE on macOS for ${SECS}s -> $OUT"

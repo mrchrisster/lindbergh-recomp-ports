@@ -11,6 +11,8 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
+- [ ] In Immersive mode the result slate after a match ends after a few
+      frames (Classic: ~10 s). Seen in tests, not looked into.
 - [ ] **Some replays still play with Replays off.** The current switch
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
@@ -18,21 +20,30 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 - [ ] One black frame at a camera change (older note).
 
 ### Features
-- [ ] **Redesign the headset menu around two modes:**
-      - **Classic mode** – the game as it is, all overlays, on a 2D screen.
-      - **Immersive mode** – the world around you; replays **off** and arcade
-        overlays **off** by default.
-      - Each with its own *Advanced settings* page to customise (stand height,
-        camera distance, replays, sky, shadow quality, ...).
-- [ ] Tune the camera: forward move (`LINDBERGH_VT3_DOLLY`, 200) and step back
-      (`LINDBERGH_VT3_BACK`, 60) – candidates for the advanced settings.
-- [ ] Tune the stand height (`LINDBERGH_VT3_STAND_Y`, default 1.5).
+- [ ] **Switch Classic / Immersive without a restart** (Phase B of the
+      menu): world-mode hooks installed always and gated per frame, the
+      shader link key's world bit, flat frames forced in Classic. Today the
+      Mode row applies on the next start ("Restart now").
+- [ ] Pick the defaults for the camera's forward move (Camera closer, 20 m)
+      and step back (6 m) and the stand height (x1.5) - all adjustable now
+      in Immersive's advanced settings.
 - [ ] HUD scoreboards float in the scene at court level instead of a HUD
       panel (older note).
 - [ ] Scene culling is off in world mode (~40 fps in places); widen it to the
       headset's view instead.
 
 ## Done (2026-11-11)
+
+- [x] Headset menu around two modes. Main page: **Mode** Classic (2D screen)
+      / Immersive (3D world) - applies on the next start, with a **Restart
+      now** row until then - and **Advanced settings** for the chosen mode.
+      Classic: Replays, Point cutaways, Arcade overlays (all on), Shadow
+      quality (Standard 1024). Immersive: Stand height (x1.5), Camera closer
+      (20 m), Step back (6 m), Replays, Point cutaways, Arcade overlays (all
+      off), Sky (on), Shadow quality (High 2048). Both: Frame rate counter,
+      Restore defaults (pull twice). Everything but the mode and shadow
+      quality changes at once. A setting fixed by env.txt shows "(env.txt)".
+      Test runs no longer save their own replays/overlays choice into vr.cfg.
 
 - [x] Point cutaways switch: the ~2 s close-up of the winner after every
       point (taken for a replay) can be skipped - it then lasts ~0.3 s (the

@@ -24,9 +24,14 @@ section 8. Add to this file whenever a session finds something.
   **Immersive mode does not run on macOS** (the window closes right after start).
 - Unattended runs: `scripts/vt3-repro.sh <scene> quest <secs>` or
   `... <scene> mac ~/code/quest_games/vt3 <secs>`. Extra `LINDBERGH_*` variables
-  in the environment are passed through. The script **empties the headset's
-  env.txt** at exit; restore with
-  `adb shell "echo LINDBERGH_VT3_IMMERSIVE=1 > /sdcard/VirtuaTennis3/env.txt"`.
+  in the environment are passed through. The headset's **env.txt is empty by
+  default** now (Classic / Immersive is the panel's Mode, saved in vr.cfg);
+  the script empties it again at exit. It **pins Classic, replays, point
+  cutaways and arcade overlays on** (`LINDBERGH_VT3_IMMERSIVE=0`,
+  `LINDBERGH_REPLAYS=1`, `LINDBERGH_VT3_CUTAWAYS=1`,
+  `LINDBERGH_ARCADE_OVERLAYS=1`) unless the caller sets them, so the player's
+  vr.cfg cannot change a test; set one to empty (`LINDBERGH_VT3_IMMERSIVE=`)
+  to leave it to vr.cfg.
 - Scenes: `round0` (normal first match), `forty` (every game starts 40-0 –
   **unsuitable for match-length tests**: forcing 40-0 at each game start keeps
   resetting the score when the AI wins, so it is endless even with replays on),
@@ -38,6 +43,28 @@ section 8. Add to this file whenever a session finds something.
   (each arcade screen loop the game starts: `[flow] frame N: GameLoop` ...),
   `LINDBERGH_GAME_SHOT=<first>,<every>` (game picture), `LINDBERGH_XR_SHOT=...`
   (eye image without the compositor's layers).
+- Headset panel tests (unattended; the unworn headset's session stops at
+  state 6/1 or sits behind "Finding position in room", so the panel never
+  shows in the eye or in `screencap`): `LINDBERGH_XR_FAKE_MENU=1` opens it,
+  `LINDBERGH_XR_MENU_PAGE=0|1|2` (main / Classic advanced / Immersive
+  advanced), `LINDBERGH_XR_MENU_HOVER=<row>` (a row highlighted),
+  `LINDBERGH_XR_MENU_DUMP=1` (each painted panel as
+  `vt3_Lindbergh/menu_p<page>_<frame>_<n>.ppm` - pull and look at them),
+  `LINDBERGH_XR_MENU_CLICKS=<frame>:<row>,...` (rows chosen as a trigger pull
+  would, panel open or not; logged `[xr] scripted panel click ... (label)`).
+  A scripted restart writes `vt3_Lindbergh/xr_menu_clicks.done` so the next
+  start does not click again - delete it to rerun. The restart itself
+  (`restartGame`) is blocked by Android when the app is not in front
+  (`BAL_BLOCK` in logcat: the process dies, nothing starts); worn, it works.
+- Settings in `vt3_Lindbergh/vr.cfg` (written by the panel, fixed key list;
+  unknown keys are dropped at the next save): `mode classic|immersive`;
+  Classic: `replays`, `overlays`, `classic.cutaways`, `classic.shadow
+  1024|2048|4096`; Immersive: `immersive.replays`, `.overlays`, `.cutaways`
+  (on/off), `immersive.stand_y` (1 = off), `.dolly`, `.back` (game units,
+  0.1 m), `.sky`, `.shadow`. A run's env variable wins over each, and is
+  never written to vr.cfg (nor are `LINDBERGH_XR_SET` values). The run's
+  values are logged at start: `[world] mode immersive (vr.cfg) dolly 200
+  (default) ...`.
 - `adb exec-out screencap -p` captures the **composited** headset view
   (quad layers, system dialogs), 4128x2208 both eyes.
 - Headset logs: `adb logcat -v time -s 'vt3:*'`, or `vt3.log` in
@@ -64,6 +91,41 @@ section 8. Add to this file whenever a session finds something.
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-11 **Two-mode headset panel, Phase A** (guide 7.5 and 8). The
+  mode is the panel's main-page **Mode** row (Classic / Immersive), saved as
+  `mode` in vr.cfg and applied **on the next start** ("(on restart)" and a
+  **Restart now** row while it differs from the running one); **Advanced
+  settings** opens the saved mode's page. Classic: Replays, Point cutaways,
+  Arcade overlays, Shadow quality, Frame rate counter, Restore Classic
+  defaults. Immersive: Stand height, Camera closer, Step back, the same
+  three, Sky, Shadow quality, Frame rate counter, Restore Immersive
+  defaults. Replays / cutaways / overlays / stand / closer / step back / sky
+  apply live (the running mode's page), shadow quality on restart; a row
+  whose env variable is set shows "(env.txt)" and ignores clicks.
+  Pieces: `world_mode.c` (resolves env > vr.cfg > the mode's default once,
+  first thing in `vt3_jumps` - before any hook is chosen, before xr_init;
+  replaces every `getenv("LINDBERGH_VT3_IMMERSIVE")`, and the dolly, back,
+  stand, sky and shadow-scale reads, which are now live getters),
+  `xr_world_panel.c` (pure: pages, items, clicks; the host shows its rows as
+  `XP_COUNT + XW_x`, the shared `XP_` list and the Vulkan host unchanged),
+  `xr_settings.c` (new keys appended; `LINDBERGH_XR_SET` keys saved as the
+  file had them), `host_xr.c` (`cfg` = stored settings only - the old
+  `cfg_load` wrote `LINDBERGH_REPLAYS` / `_ARCADE_OVERLAYS` into it, so the
+  next click saved a test's choice: that is how the player's vr.cfg got
+  `replays off`), `g_world_capable` (hle_sega.c, the camera symbols resolve).
+  Verified on the Quest: env.txt `IMMERSIVE=1` and empty env.txt + vr.cfg
+  `mode immersive` give the same `[sega]` lines and the same world in
+  `prize` (only `(env)` / `(vr.cfg)` differs in `[world]`); `mode classic` the
+  flat picture; panel images of all three pages (`LINDBERGH_XR_MENU_DUMP`);
+  scripted clicks: Mode -> vr.cfg `mode` changed, Restart now shown, the
+  next start in that mode; Immersive Replays / Point cutaways toggled at
+  frame 2900 -> the match point replayed and the next point's close-up back
+  to 122 frames, saved; `LINDBERGH_REPLAYS=1` -> "On (env.txt)", click
+  ignored, two saves left `immersive.replays off` in vr.cfg; a full `prize`
+  match ends in both modes. Unit tests: `tests/test_world_mode.py`,
+  `tests/test_xr_world_panel.py`, `tests/test_xr_settings.py` (extended).
+  Not done (Phase B): switching the mode live.
 
 - 2026-11-11 **Point cutaways switch** (`hle_sega.c` `h_vt3_skip_winner`,
   `g_cutaways`, `LINDBERGH_VT3_CUTAWAYS=0|1`; guide section 8). After each
@@ -135,11 +197,20 @@ section 8. Add to this file whenever a session finds something.
 
 ## Other open items
 
-From `docs/VT3_QUEST_BACKLOG.md`: two-mode headset menu (Classic / Immersive,
-advanced settings each; Immersive defaults replays and arcade overlays off),
-blocky cloud patch near the top of the sky, one black frame at a camera change,
-camera and stand-height tuning, HUD scoreboards in the scene, culling widened to
-the headset's view, macOS start-up screen.
+From `docs/VT3_QUEST_BACKLOG.md`: switching Classic / Immersive live
+(Phase B: hooks always installed, the shader link key's world bit,
+`g_flat` forcing), blocky cloud patch near the top of the sky, one black frame
+at a camera change, camera and stand-height defaults (now adjustable in the
+panel), HUD scoreboards in the scene, culling widened to the headset's view,
+macOS start-up screen.
 
-Note for the menu redesign: defaulting Immersive to Replays off is safe now
-(the match-end fix is done).
+Seen while testing the panel (2026-11-11), not looked into:
+- In Immersive mode the result slate (`StatsLoop`) ends after ~4 frames and
+  the next round loads; in Classic it stays 600 frames. Same with the mode
+  from env or vr.cfg, so not the settings change; not checked on an older build.
+- `tests/test_xr_settings.py` `test_invalid_sizes_restore_existing_defaults`
+  and `tests/test_xr_panel.py` (the resolution cycle) fail on the code before
+  this change too: they expect the old 2064x2280 default / cycle length.
+- The menu script's `z` taps (to frame 3600) also skip the game's own
+  screens: a shot button skips the point close-up after 15 frames, and the
+  game-set-and-match and result screens - measure screen lengths after 3600.
