@@ -15,7 +15,6 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
       answers `replay::isReplay_point`; some replays come through another path.
 - [ ] **Blocky cloud patch near the top of the sky** (the cloud noise loses
       precision far out on its plane).
-- [ ] One black frame at a camera change (older note).
 
 ### Features
 - [ ] **Switch Classic / Immersive without a restart** (Phase B of the
@@ -30,6 +29,9 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 
 ## Done (2026-11-11)
 
+- [x] Black frames at camera changes in Immersive (two at each cut: point
+      close-up, change of ends, serve camera, game set and match, match
+      start) gone.
 - [x] Immersive frame rate: the dips were the sky's shader, not the scene
       culling (which the game hardly uses). The sky is now cheap (same look);
       in unattended tests a match holds 60 fps where it dropped to ~53.

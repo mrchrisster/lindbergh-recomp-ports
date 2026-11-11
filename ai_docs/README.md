@@ -92,6 +92,28 @@ section 8. Add to this file whenever a session finds something.
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **Black frames at camera cuts in Immersive** (`stereo.c`, where
+  `g_hud_fb_next` is set; guide section 8). `LINDBERGH_BLACK_LOG=1` (new: the
+  left eye averaged each frame from the eye array, works unattended; logs a
+  frame much darker than the last, and gives the next one the draw log and a
+  game shot) found two fully black frames (HUD too) at every cut: 3 frames
+  into the win/lose close-up, at the change of ends, at the serve camera,
+  3 frames into game set and match, and at the match intro - Classic has none
+  of these (only the game's own black at load -> match, frame ~1947, and at
+  LoadLoop, which Immersive shares). Cause: at a cut the game blends the
+  screen it captured (`fade::execCapture`, a whole-screen 2D draw of a
+  screen copy into fb 0), which `stereo.c` took for the HUD, so fb 0 became
+  "the HUD's target" for the next frame: none of that frame's world counted
+  (`g_scene_draws` 0) - no sky, and the depth-of-field composite's colour
+  clear was not dropped (that drop needs scene draws plus a screen copy) -
+  so the eyes ended black, and the frame after likewise. Fix: in world mode
+  fb 0 (the eyes) never becomes the HUD's target. Black log over a full
+  `prize` match: 10 cut black frames before, 0 after; the game's own 3
+  remain as in Classic. `LINDBERGH_GAME_SHOT` takes a 4th field, the last
+  frame (`2455,1,0,2475`); `LINDBERGH_CLEAR_LOG=2` logs without the 60 cap.
+  The menu-to-court tilted frame: likely the intro black pair (frames
+  ~1951-52, now gone), not checked by eye.
+
 - 2026-11-11 **Immersive frame rate: the sky, not the culling** (`stereo.c`
   `sky_draw`, `hle_sega.c` `h_vt3_is_visible`, `host_xr.c` `gpu_time`; guide
   section 8). Measured unattended (`prize`, Immersive, replays and cutaways
