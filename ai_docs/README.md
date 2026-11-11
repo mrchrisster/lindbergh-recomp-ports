@@ -430,7 +430,9 @@ working on its area):
   LOD bias on GLES (gl4es keeps `GL_TEXTURE_LOD_BIAS` per texture,
   `gl4es_texture_lod_bias`; `arbprog.c` `lod_bias_on`, `u_lodb[16]` as
   texture2D's bias; `LINDBERGH_LOD_BIAS=0` off). `quest/gl4es.patch`
-  regenerated with both gl4es changes (uncommitted).
+  regenerated with both gl4es changes (uncommitted). LOD bias default on for
+  VT3 only (`world_mode_capable()`; other games unchanged). Safety copy of
+  both diffs: `ai_docs/wip/` (unverified).
 
 - 2026-11-11 **Switch Classic / Immersive without a restart (Phase B):
   groundwork landed, nothing live yet** (`world_mode.c/.h`,

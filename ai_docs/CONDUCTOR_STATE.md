@@ -12,12 +12,17 @@ skipping fix, live-switch groundwork (off), all research in `ai_docs/research/`.
 - Submodule fade8ac / outer 5f89c0d: Sega's whole stadium drawn in Immersive
   (`h_vt3_field_draw`, `LINDBERGH_VT3_STANDS=0` off); stand stretch and crowd cut
   REMOVED (owner's decision); Sky setting stadium|painted|off. Seen on round 0
-  only. Owed on the Quest: full `prize` in Classic and Immersive, GPU cost,
-  rounds 1 and 2, black-frame and audio-health checks.
+  Quest: Immersive `prize` regression PASSED (flow, slates 600 frames, next
+  rounds, black frames only the game's own). Still owed: Classic `prize`, the
+  stands' GPU cost (R2 was confounded by BLACK_LOG's readback, ~33 fps on any
+  build; needs a STANDS=1 run matched to R3's 3.4-3.7 ms / 60 fps), audio
+  health with KEEP_ON_PAUSE, rounds 1 and 2, turned 180 / pitched 70.
+  Ready-to-paste run list: HANDOFF 3.1.
 - Written, uncommitted or WIP, never run on the headset: court sky backdrop +
   painted sky behind it (T3), per-eye eye-sized ground shadow mask
   (`LINDBERGH_VT3_MASK=0` old path) (T4), GLES texture LOD bias
-  (`LINDBERGH_LOD_BIAS=0`, `quest/gl4es.patch` regenerated) (T5). Self-shadow
+  (`LINDBERGH_LOD_BIAS=0`, `quest/gl4es.patch` regenerated; now default on
+  for VT3 only) (T5). Safety copy + README in `ai_docs/wip/`. Self-shadow
   tile zoom (T6) not started. Details: `ai_docs/research/crowd-and-upper-stands.md`,
   `shadow-resolution.md`.
 

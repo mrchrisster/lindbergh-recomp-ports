@@ -33,8 +33,8 @@ Branch `vt3-quest` in both repos, clean, **nothing pushed**.
 | Live mode switch groundwork (off, no behaviour change) | `3a713ff` | `2525e67` | macOS Classic + unit tests; installed with the audio fix below |
 | Music skipping fixed (loop-end position), audio diagnostics, keep-on-pause test switch | `fa83fd6`, `77875a4` | see `git log` | macOS + Quest unattended; Classic and Immersive `prize` regression on the Quest; **installed** |
 | Crowd / shadow leads checked (docs only) | - | `38b92e1` | Quest unattended |
-| Whole stadium in Immersive (GAME_NO + both ends + dome), stand stretch and crowd cut removed, Sky stadium/painted/off setting, `LINDBERGH_VT3_VIEW_TURN` | `fade8ac` | see `git log` | Quest shots round 0 only; unit tests, macOS; **regression and GPU cost owed** (3.1) |
-| **Uncommitted** in the submodule / outer tree: Sky modes drawn (painted fill behind the dome, dome left out for Painted/Off), per-eye ground shadow mask, LOD bias on GLES (`quest/gl4es.patch` regenerated) | working tree | working tree | **never run on the headset**; macOS build, unit tests, Quest APK build only |
+| Whole stadium in Immersive (GAME_NO + both ends + dome), stand stretch and crowd cut removed, Sky stadium/painted/off setting, `LINDBERGH_VT3_VIEW_TURN` | `fade8ac` | see `git log` | Quest shots round 0; Quest Immersive `prize` regression passed (flow, slates 600, no black frames at cuts; R2 2026-11-11); **owed: Classic `prize`, stands GPU cost (matched pair), audio health, rounds 1-2, turned 180 / pitched 70** (3.1 run list A) |
+| **Uncommitted** in the submodule / outer tree: Sky modes drawn (painted fill behind the dome, dome left out for Painted/Off), per-eye ground shadow mask, LOD bias on GLES (`quest/gl4es.patch` regenerated) | working tree | working tree | **never run on the headset**; reviewed, LOD bias limited to VT3; macOS build, unit tests, macOS Classic `prize`, Quest APK build (not installed); safety copy `ai_docs/wip/` (3.1 run list B-F) |
 
 Push rule (owner): push to `fork` only after the owner has confirmed progress
 worn. Never push to or PR against lialan's upstream. Workers never push.
@@ -106,7 +106,125 @@ around it.
 
 ### 3.1 Headset state and the owed checks
 
+**Run list for whoever has the headset next (ready to paste, in order).**
+Each run: check the battery first (stop at 3%: kill the repro by PID,
+`adb shell am force-stop org.lindbergh.vt3.vr`, empty env.txt), then
+checkpoint below. `vt3-repro.sh` empties env.txt at exit; the `[ ... ]` line
+after each run checks it. Results land in `$R/<name>` (vt3.log, game_*.ppm).
+```
+cd ~/code/quest_games/lindbergh-recomp-ports
+R=/tmp/vt3q; mkdir -p $R
+adb devices
+adb shell dumpsys battery | grep -E 'level|status'
+adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.before
+# --- A. the installed fade8ac build: what is still owed ---
+OUT=$R/A1_classic LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_BLACK_LOG=1 LINDBERGH_AUDIO_KEEP_ON_PAUSE=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 330
+OUT=$R/A2_stands1 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GPU_TIME=1 LINDBERGH_AUDIO_KEEP_ON_PAUSE=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 170
+OUT=$R/A3_stands0 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GPU_TIME=1 LINDBERGH_AUDIO_KEEP_ON_PAUSE=1 LINDBERGH_GAME_SHOT=99999,1 LINDBERGH_VT3_STANDS=0 scripts/vt3-repro.sh prize quest 170
+OUT=$R/A4_r1 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh round1 quest 160
+OUT=$R/A5_r1_turn180 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_VIEW_TURN=180 scripts/vt3-repro.sh round1 quest 160
+OUT=$R/A6_r1_pitch70 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round1 quest 160
+OUT=$R/A7_r2 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh round2 quest 160
+OUT=$R/A8_r2_turn180 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_VIEW_TURN=180 scripts/vt3-repro.sh round2 quest 160
+OUT=$R/A9_r2_pitch70 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round2 quest 160
+# pass for A: A1 Classic flow Winlose/Replay/Gamesetmatch, StatsLoop -> LoadLoop 600 frames, next round, [black] only boot/load (0, ~1100, 1947, LoadLoop);
+#   A2 vs A3 [gputime] frames 2100-3000 within +1.5 ms, A2 [perf] ~60 fps; no '[sega-api] health' line with 'starved' > 0; A4-A9 shots: no floating cards, stand behind, no doubles / z-fighting
+# --- B. install the working-tree build (T3-T5, uncommitted; ai_docs/wip/) ---
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ANDROID_NDK=$HOME/Library/Android/sdk/ndk/28.2.13676358 sh quest/build.sh vt3 > $R/qb.log 2>&1; grep error: $R/qb.log
+adb install -r quest/VirtuaTennis3VR.apk
+# --- T3 sky (Stadium on three venues, Painted / Off on round 0) ---
+OUT=$R/T3_s1_r0_up LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=1 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round0 quest 160
+OUT=$R/T3_s1_r0_180 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=1 LINDBERGH_VT3_VIEW_TURN=180 scripts/vt3-repro.sh round0 quest 160
+OUT=$R/T3_s1_r1_up LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=1 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round1 quest 160
+OUT=$R/T3_s1_r2_up LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=1 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round2 quest 160
+OUT=$R/T3_s2_r0_up LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=2 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round0 quest 160
+OUT=$R/T3_s2_r0_180 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=2 LINDBERGH_VT3_VIEW_TURN=180 scripts/vt3-repro.sh round0 quest 160
+OUT=$R/T3_s0_r0_up LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=0 LINDBERGH_VT3_VIEW_TURN=0,70 scripts/vt3-repro.sh round0 quest 160
+OUT=$R/T3_s0_r0_180 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,300,1,2600 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_SKY=0 LINDBERGH_VT3_VIEW_TURN=180 scripts/vt3-repro.sh round0 quest 160
+# pass: Stadium = dome + painted fill above/behind it (judge the seam); Painted = no dome; Off = neither ('[sky]' line says which)
+# --- T4 ground shadow mask (shots, then GPU without shots, then cuts on) ---
+OUT=$R/T4_mask1 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,1,1,2305 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh prize quest 160
+OUT=$R/T4_mask0 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,1,1,2305 LINDBERGH_SHOT_BOTH=1 LINDBERGH_VT3_MASK=0 scripts/vt3-repro.sh prize quest 160
+OUT=$R/T4_gpu1 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GPU_TIME=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 170
+OUT=$R/T4_gpu0 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GPU_TIME=1 LINDBERGH_GAME_SHOT=99999,1 LINDBERGH_VT3_MASK=0 scripts/vt3-repro.sh prize quest 170
+OUT=$R/T4_cuts LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=1 LINDBERGH_VT3_CUTAWAYS=1 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_BLACK_LOG=1 LINDBERGH_GAME_SHOT=2455,1,0,2475 scripts/vt3-repro.sh prize quest 200
+# pass: '[stereo] ... ground shadow mask per eye' and '[arbprog] ground shadow mask read per eye on unit N' in T4_mask1 only; near player's shadow smoother both eyes; GPU within ~+0.5 ms; cut cross-fade / depth of field as before, no new [black]
+# --- T5 LOD bias (consecutive frames: far crowd, ad boards, no shimmer) ---
+OUT=$R/T5_lod1 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2400,1,1,2405 scripts/vt3-repro.sh prize quest 160
+OUT=$R/T5_lod0 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2400,1,1,2405 LINDBERGH_LOD_BIAS=0 scripts/vt3-repro.sh prize quest 160
+OUT=$R/T5_classic LINDBERGH_GAME_SHOT=2400,1,1,2405 scripts/vt3-repro.sh prize quest 160
+# --- final regression on the working-tree build ---
+OUT=$R/F1_classic LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_BLACK_LOG=1 LINDBERGH_AUDIO_KEEP_ON_PAUSE=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 330
+OUT=$R/F2_imm LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_BLACK_LOG=1 LINDBERGH_AUDIO_KEEP_ON_PAUSE=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 330
+OUT=$R/F3_imm_gpu LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GPU_TIME=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 170
+adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.after
+cmp $R/vr.cfg.before $R/vr.cfg.after
+```
+Look at results with `grep -E '^\[(world|sega|black|flow|gputime|perf|sky|stereo|arbprog)\]|health' $R/<name>/vt3.log`.
+Never compare frame rates of a BLACK_LOG run with one without (the readback
+halves the rate). If any T-run fails, `adb install -r` a build of the
+committed submodule (or keep the `fade8ac` APK) before handing back.
+
 **Checkpoint log (build worker, newest first):**
+- Review of the uncommitted T3-T5 code (no headset). One defect fixed: the
+  LOD bias (T5) was on for every gl4es game (hotd4, lgj, gse would have had
+  their fragment shaders changed and the bias applied); now default on only
+  when `world_mode_capable()` (VT3, both modes), `LINDBERGH_LOD_BIAS=1|0`
+  forces. Checked and fine: the layered copy (`gl4es_multiview_copy_layers`)
+  saves / restores read and draw framebuffers and scissor (a blit needs no
+  more); T3 / T4 are gated on `world_mode_immersive()` (Classic and other
+  games untouched; `mask_copy` returns before any GL call); the new shader
+  text depends only on per-run statics plus the `scr` bit already in the
+  link key, and the disk cache is keyed by the GLSL text, so variants cannot
+  mix; sampler `sl_<mask unit>` gets its unit by name at link; kill switches
+  `LINDBERGH_VT3_MASK=0`, `LINDBERGH_LOD_BIAS=0`, `LINDBERGH_VT3_DOME_FP=0`
+  give back `fade8ac`'s shader text / draws (Stadium sky already drew the
+  painted sky behind the dome in `fade8ac`). Risks left (headset will tell):
+  if the game's program used the mask unit itself (unit 15, or 7 if gl4es
+  reports 8 units) its shader would fail to compile; the twin assumes the
+  frame's first whole-screen copy is the mask in every world frame (replay /
+  slate frames not looked at). Cosmetic: in `multiview.h` the two new
+  declarations sit between `gl4es_multiview_copy`'s comment and itself.
+  Note: Classic logs `stadium draw wrapped (Immersive: ...)` too (fade8ac;
+  the wrap is gated per call, text only). Builds: `ninja -C build-mac` OK;
+  unit tests OK (all but test_xr_actions); macOS Classic `prize` 200 s
+  (FLOWLOG): Winlose 2501, Replay 3322, Gamesetmatch 3392, Stats 3482 ->
+  Load 4083 (601), Stats 8513 -> Load 9114 (601), next rounds - as
+  documented; Quest APK built (14:53, not installed). `quest/gl4es.patch` ==
+  `git -C ../deps/gl4es diff` and applies cleanly to gl4es `1891af3`.
+  Safety copy: `ai_docs/wip/` (README + both diffs). Headset back on adb
+  at 18% charging, env.txt 0 bytes, vr.cfg identical to the morning's backup.
+- Harvest of the cut worker's runs (installed `fade8ac`; outputs in the
+  old scratchpad `.../123aec40-.../scratchpad/runs/`). **R1 Classic `prize`:
+  did not run** (env pushed at 14:44, no vt3.log - the headset dropped; battery
+  had read 24 -> 18 -> 12). **R2 Immersive `prize` 330 s (BLACK_LOG, FLOWLOG,
+  GPU_TIME): completed.** `[world] mode immersive (env) ... sky stadium
+  (vr.cfg) shadow 2048`, `[sega] ... stadium draw wrapped (Immersive: upper
+  stands, both ends and the sky dome drawn)`, the usual other `[sega]` lines.
+  Flow: Load 1703 -> Game 1979 -> change of ends 2464 (cutaway left out) ->
+  Gamesetmatch 3179 -> Stats 3262 -> Load 3864 (**slate 600**) -> round 2
+  match -> Gamesetmatch 7173 -> Stats 7410 -> Load 8010 (**600**) -> round 3
+  match to Gamesetmatch 11286 when the run ended. Black log: frames 0, 1185
+  (boot black after the white logo), 1947 (load -> match), 3865 and 8013
+  (LoadLoop) - the game's own (the same set as pre-`fade8ac` runs: 0, ~1065,
+  1947, LoadLoop); **none at the cuts** (change of ends, game set and match).
+  No `[sega-api] health` line (only printed when something went wrong) - but
+  the run lacked `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1`, so the mixer was paused
+  ~2 s in: audio health is **not** proven by it. **R3 `LINDBERGH_VT3_STANDS=0`
+  170 s (GPU_TIME): completed** (`stadium draw wrapped (... court-camera cut
+  kept)`): match frames 2400-3000 GPU 3.4 / 3.7 / 3.4 ms (90% 4.7-5.0),
+  59.4-59.8 fps. **R2's frame rate (~33 fps, "submit" ~20 ms) and its GPU
+  numbers (5.1 / 7.4 ms) are not usable for the stands cost**: BLACK_LOG reads
+  the eye back every frame (waits on the GPU); a pre-`fade8ac` BLACK_LOG run
+  (old scratchpad `w2/t2_off`) shows the same ~35 fps. So the **stands GPU
+  cost is still owed** (a STANDS=1 run with the same env as R3, no BLACK_LOG).
+  The isolated 40-45 ms single-frame `[gputime]` readings appear in both R2 and
+  R3 (timer artefact, as before). Satisfied for `fade8ac`: Immersive `prize`
+  flow, slate, next rounds, no black frames at cuts. Still owed: Classic
+  `prize` regression, stands GPU cost (matched pair), audio health with
+  KEEP_ON_PAUSE, venues rounds 1 / 2, view turned 180 and pitched 70.
 - Headset back (24% battery, USB charging slowly - stop below ~12%); the
   conductor emptied env.txt; vr.cfg unchanged. Running on the installed
   `fade8ac` build: R2 Immersive `prize` 330 s (BLACK_LOG, FLOWLOG, GPU_TIME),
