@@ -33,6 +33,7 @@ section 8. Add to this file whenever a session finds something.
   `prize` (1P wins every
   point from 40-0: the match is over in two points), `replay`, `splitreplay`.
 - Useful switches: `LINDBERGH_VT3_WIN=1` (1P wins every point),
+  `LINDBERGH_VT3_CUTAWAYS=0|1` (the close-up after each point skipped / shown),
   `LINDBERGH_REPLAYS=0|1` (now works on macOS too), `LINDBERGH_VT3_FLOWLOG=1`
   (each arcade screen loop the game starts: `[flow] frame N: GameLoop` ...),
   `LINDBERGH_GAME_SHOT=<first>,<every>` (game picture), `LINDBERGH_XR_SHOT=...`
@@ -63,6 +64,20 @@ section 8. Add to this file whenever a session finds something.
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-11 **Point cutaways switch** (`hle_sega.c` `h_vt3_skip_winner`,
+  `g_cutaways`, `LINDBERGH_VT3_CUTAWAYS=0|1`; guide section 8). After each
+  point `usrAcWinloseLoop::exec` (mode 8) counts `this+0x20` to 120; it ends
+  early when `playerManager::check_skip_button_winner()` (a shot button) is
+  true and the count is past `playerManager::getCnt_skip_max()` (`+0x78`, 15
+  from the constructor), with the same exit as at 120. Off, the wrap answers
+  yes for the call from the win/lose loop (return 0x0808E6CB) only - start,
+  game-set-and-match and replay loops also ask it. Measured (flow log):
+  WinloseLoop 121-122 frames -> 17; POINT plate shown ~0.3 s, the score box
+  has the new score; ChangeendLoop, GamesetmatchLoop -> StatsLoop -> next
+  round unchanged (macOS `round0` + `LINDBERGH_VT3_WIN=1`, `prize`; Quest
+  `prize`). Card-writing waits and challenge mode (checkMode 4) still hold
+  the loop as the game's own skip does.
 
 - 2026-11-10 **Serve meter and 1P marker in immersive mode** (guide section 8,
   "HUD items at 3D points"). Two faults: (1) the gauge's fill is a sprite

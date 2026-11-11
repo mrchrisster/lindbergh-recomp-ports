@@ -32,6 +32,14 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 - [ ] Scene culling is off in world mode (~40 fps in places); widen it to the
       headset's view instead.
 
+## Done (2026-11-11)
+
+- [x] Point cutaways switch: the ~2 s close-up of the winner after every
+      point (taken for a replay) can be skipped - it then lasts ~0.3 s (the
+      game's own minimum before a skip), the POINT plate flashes and the score
+      box shows the new score; change of ends and the match's end unchanged.
+      `LINDBERGH_VT3_CUTAWAYS=0|1` for a run.
+
 ## Done (2026-11-10)
 
 - [x] Serve strength meter in immersive mode: the bar no longer jumps to full
