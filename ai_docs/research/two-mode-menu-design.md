@@ -352,8 +352,8 @@ All five now have decisions; recorded here for reference.
    the Mode row, and where fresh installs start.** Decided: `env.txt` left
    empty on the headset; fresh installs start in Classic.
 3. **Immersive Replays default before the match-end fix lands.**
-   Recommended: On until the fix is merged, then Off. Check the current
-   default in b711cde.
+   Settled: the match-end fix landed (submodule 3227314) before the menu,
+   so Immersive ships with Replays off (`immersive.replays off`, b711cde).
 4. **Two camera rows or one Near/Mid/Far preset?** Decided: two rows.
 5. **Frame rate counter shared or per mode?** Decided: shared. Replays,
    overlays and cutaways are per mode.
