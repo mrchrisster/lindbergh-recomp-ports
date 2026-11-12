@@ -168,6 +168,13 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 12 - band identified (B1, input 0).** With the view
+  pitched down 35 deg (`/tmp/vt3q/T8b/B1/game_02300.ppm`) the dark band is
+  the near end's front wall / barrier right in front of the viewpoint (its
+  top is the straight edge; a line judge's chair sits below it): geometry,
+  not a mask or texture edge. At 6-8 m back the eye stands just behind it, at
+  5 m it is mostly below the view. Also in the sky build (`9d68719`) at 6 m:
+  not new with T9. Not changed. seq4 continues (L20b, Q_imm, Q_cls).
 - **T8b worker, step 11 - conductor's go (owner: headset off, controllers
   down).** T8+T9 test build installed, device vt3.log removed, seq4.sh
   RUNNING again (`/tmp/vt3q/T8b/seq4.out`, `SEQ4_DONE` / `INPUT_SEEN`).
