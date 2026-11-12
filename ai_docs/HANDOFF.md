@@ -178,6 +178,14 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
   7524 -> Load 8124 (600), round 3 to Stats 11679; black only 0-1, 1085-6,
   1947-8, 3955-6, 8127-8 (the game's own); no FATAL / WARNING / watchdog;
   the sky line and the one `[glq] job ... handed` line present.
+  R_cls (Classic prize 330 s) PASSED flow: Winlose 2551, Replay 3371,
+  Gamesetmatch 3442, Stats 3532 -> Load 4133 (601), Stats 8539 -> Load 9139
+  (600), next rounds; no sky line (inert), no FATAL. BLACK_LOG: 0-1, 1947-8,
+  LoadLoop 4134/9141, load->match 4376/9383 **and 3446-7 / 8306-7 (4 frames
+  into Gamesetmatch)** - Classic code paths are unchanged by `9d68719`, so
+  checking the same on the old `0dbcb6e` build (O_cls, running).
+  R_m0/1/2 (Immersive match starts on Ger3M / Aus1F / Fra1F, 100 s): clean,
+  sky line present, shots fine (`/tmp/vt3q/X/R_m*/game_02300.ppm`).
 - **Sky worker, group 2 (2026-11-11 night) - sky COMMITTED, regression
   of it still owed; PAUSED for the conductor.** Submodule `9d68719` (sky
   dome fix + test switches; T4 left out, kept as
