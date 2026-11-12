@@ -189,6 +189,13 @@ and asked that all progress and research be written to the docs.
       box shows the new score; change of ends and the match's end unchanged.
       `LINDBERGH_VT3_CUTAWAYS=0|1` for a run.
 
+## Done (2026-11-11)
+
+- [x] Court seen from above for a split second at each match's start (both
+      modes), Classic's wrong wide 3D view and black frames at the match's
+      start, and Immersive's "image within an image" before every serve -
+      fixed (owner confirmed worn).
+
 ## Done (2026-11-10)
 
 - [x] Serve strength meter in immersive mode: the bar no longer jumps to full

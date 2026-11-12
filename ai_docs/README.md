@@ -118,6 +118,20 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 late **T8: court from above at a match's start, Classic's stray
+  3D frames, Immersive's "image within an image" before each serve - fixed,
+  owner confirmed worn** (submodule `2c3f4f4`; guide section 8 "The fade
+  before every serve ..."). `host_xr.c` holds the frame after
+  `usrAcEntranceLoop::init` (`LINDBERGH_VT3_HOLD=0` off; GL copies per layer
+  with `glCopyTexSubImage3D` - a blit into layer 1 of an array writes nothing
+  on the Quest), VT3 Classic always flat (`LINDBERGH_FLAT_ALL=0` old rule),
+  the StartLoop cross-fade left out of world frames (`arb_fp_units`;
+  `LINDBERGH_VT3_CAPTURE=1` keeps). Quest: prize Immersive / Classic / cuts
+  on, match starts rounds 0-2, GPU 2.8-3.1 ms (unchanged). **Testing note:
+  `LINDBERGH_BLACK_LOG` sees nothing in Classic now** (the eye array is not
+  the flat picture) - judge Classic by game shots. Strips:
+  `~/Desktop/Claude/vt3-bugs/`.
+
 - 2026-11-11 night **Immersive sky: Sega's own dome all round** (`arbprog.c`
   `vt3_sky_fix`; submodule `9d68719`; guide section 8 "The sky in
   Immersive"). The sky is `GAME_NO_SKY_Polygon`, a full hemisphere (r ~4000)

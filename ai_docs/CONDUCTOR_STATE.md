@@ -127,3 +127,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   where they are and the point replays in the world.** Research worker told to
   design that in depth; implementation is the task after T9.
 - Replay research DONE: `ai_docs/research/immersive-replay-cameras.md` (option A = one extra matrix in `eye_projection`, 7 steps behind `LINDBERGH_VT3_REPLAY_VIEW=flat|follow|world`). **T10 = implement it, after T9.**
+
+## 2026-11-11 ~23:30 (T8b worker)
+- **T8 COMMITTED** (local only): submodule `2c3f4f4`. Exactly the build the
+  owner confirmed worn (APK sha256 0fa1b111..., copy
+  `/tmp/vt3q/T8b/VirtuaTennis3VR_2c3f4f4.apk`). GPU unchanged (2.8-3.1 ms).
+- T9 (step back 5/6/7/8 m, Camera height row) written, on the headset now;
+  see HANDOFF 3.1.

@@ -184,6 +184,16 @@ after it; that build is installed.
 - Stopped on controller input during a run (headset possibly worn):
   env.txt emptied, vr.cfg unchanged, committed fix build re-installed.
 
+## 8. Late night: T8 (T8 and T8b workers)
+
+- Owner's worn reports on `9d68719`: Classic top-down 3D frames at match
+  start; Immersive "image within an image" before each serve; one frame of
+  the court from above at frame ~1949 (both modes). Fixed in submodule
+  `2c3f4f4` (hold of that frame in `host_xr.c`, Classic always flat, the
+  StartLoop fade left out of world frames). Owner confirmed all three worn
+  on the test build (= `2c3f4f4`, APK sha256 0fa1b111...).
+- Found: `LINDBERGH_BLACK_LOG` is blind in Classic now (flat).
+
 ## 7. Night: the sky (sky worker)
 
 - Step 0: the committed build (`0dbcb6e` = fix + T5 + FIXED_HEAD switch)
