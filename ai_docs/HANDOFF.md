@@ -168,6 +168,21 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T12 worker (same session), step 1 - menu changes written.**
+  T10 committed (submodule `2e61a2c`, outer `77a006a`) and its build
+  installed (`/tmp/vt3q/T10/VirtuaTennis3VR_t10b.apk`). T12 uncommitted,
+  safety diff `ai_docs/wip/t12-menu-lindberghrecomp.diff`: Camera closer /
+  Step back rows gone (fixed 200 / 50 units = 5 m back; vr.cfg keys no longer
+  read or written; env `LINDBERGH_VT3_DOLLY` / `_BACK` for tests), Camera
+  height Low / Medium / High (0 / 10 / 20; older negatives = Low), far end =
+  High (`hle_sega.c` `vt3_far_end_note`: human player z vs court camera eye
+  z, latched outside GameLoop after 10 notes, handed with the camera to
+  `stereo_vt3_far_end`; `LINDBERGH_VT3_FAR_HIGH=0` off; an env height wins),
+  Classic / VR buttons on top of every page (`xm_paint_modes`,
+  `xm_row_at_modes`, `XW_MODE_CLASSIC/_VR` as the first two rows, a note line
+  "Classic runs now - VR after a restart"; Restart now first row under them),
+  "Immersive" -> "VR" in labels. Unit tests updated, passing. Running: macOS
+  `round0` cutaways/replays off 230 s (`/tmp/vt3t10/far`) for the far-end latch.
 - **2026-11-12 T10 worker, step 5 - headset runs done, T10 committed.** S1
   and S2 (`/tmp/vt3q/T10/S1`, `S2`; input 0 both), vr.cfg restored
   byte-identical (cmp), env.txt 0. A: stadium exactly where it was in the
