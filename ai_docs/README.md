@@ -121,6 +121,21 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-12 **T10: replays and point cutaways in the world** (guide section
+  8 "Replays and point cutaways in the world"). Immersive rows Replays /
+  Point cutaways: Off / Flat screen / In the world / Camera view (defaults
+  Off). Quest smoke runs S1 (replays world, cutaways follow) and S2 (replays
+  follow, cutaways world, then both follow from frame 3000 with the new test
+  switch `LINDBERGH_VT3_VIEW_AT=<frame>:<replay view>,<cutaway view>`):
+  flow as before (Replay -> Winlose -> Start, each point), no crash, input
+  0, vr.cfg restored. Strips (both eyes): `~/Desktop/Claude/vt3-replay/`.
+  Seen, not fixed: the game's replay intro wipe ("MILAN OPEN" plate, white
+  streaks) shows as a translucent plate in the world for ~20 frames; in
+  replay / close-up frames the near ground below the barrier is washed white
+  (the game's glare, `field::setGlare(1)`?); from the seat the close-up's
+  winner can be small or under the score plate. **macOS desktop stereo is no
+  picture test for VT3** (right eye without world, baseline too).
+
 - 2026-11-12 **T9: Immersive Step back 5 / 6 / 7 / 8 m and a Camera height
   row** (submodule `688a9b9`; guide section 8 "Step back"). `immersive.back`
   50-80 (default 60; a stored value off the list = the nearest),
@@ -501,13 +516,6 @@ working on its area):
   shadow map, ad flicker, stands, blotches, shadows – all in the guide.
 
 ## In progress
-
-- 2026-11-12 **T10: replays and point cutaways in the world (Immersive)** -
-  built and checked on macOS by logs (guide section 8 "Replays and point
-  cutaways in the world"), **uncommitted, waiting for the headset** (HANDOFF
-  3.1 top entry: plan, APK, safety diff `ai_docs/wip/t10-replay-views-lindberghrecomp.diff`).
-  macOS desktop stereo gives no usable pictures of VT3 (right eye without
-  world, baseline too): pictures come from the Quest's `LINDBERGH_GAME_SHOT`.
 
 - (superseded 2026-11-11 night: sky committed `9d68719`, T4 only in
   `ai_docs/wip/t4-on-sky-lindberghrecomp.diff`) 2026-11-11 **Uncommitted, never run on the headset** (HANDOFF 3.1 lists

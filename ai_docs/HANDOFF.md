@@ -168,6 +168,14 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T10 worker, step 5 - headset runs done, T10 committed.** S1
+  and S2 (`/tmp/vt3q/T10/S1`, `S2`; input 0 both), vr.cfg restored
+  byte-identical (cmp), env.txt 0. A: stadium exactly where it was in the
+  rally; B: dip, level view from the corner cameras, players visible;
+  cutaway B: dip clearing over the winner close up. Strips in
+  `~/Desktop/Claude/vt3-replay/`. Known (README Done): the replay intro wipe
+  as a plate in the world, white near ground (glare) in replay frames.
+  Next: install the committed build, force-stop; then T12 (menu changes).
 - **2026-11-12 00:42 T10 worker, step 4 - headset granted (two smoke runs).**
   Owner's game (pid 15602, last real input ~12000 frames earlier, headset
   asleep) force-stopped; owner's vr.cfg backed up
