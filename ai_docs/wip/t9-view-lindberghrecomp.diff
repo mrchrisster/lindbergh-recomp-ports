@@ -1,0 +1,395 @@
+diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
+index c63339c..8c1c552 100644
+--- a/src/runtime/world_mode.c
++++ b/src/runtime/world_mode.c
+@@ -24,12 +24,13 @@
+ 
+ static const char *const ENV_NAME[WM_COUNT] = {
+     "LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+-    "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY" };
++    "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY",
++    "LINDBERGH_VT3_HEIGHT" };
+ static const char *const KEY_CLASSIC[WM_COUNT] = {
+-    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL };
++    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL };
+ static const char *const KEY_IMMERSIVE[WM_COUNT] = {
+     "mode", "immersive.replays", "immersive.overlays", "immersive.cutaways", "immersive.shadow",
+-    "immersive.dolly", "immersive.back", "immersive.sky" };
++    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height" };
+ 
+ const char *world_mode_env_name(int key) { return key >= 0 && key < WM_COUNT ? ENV_NAME[key] : NULL; }
+ const char *world_mode_key(int key, int immersive)
+@@ -70,6 +71,7 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     o->shadow = im ? s->imm_shadow : s->classic_shadow;
+     o->shadow_scale = scale_of(o->shadow);
+     o->dolly = (float)s->imm_dolly; o->back = (float)s->imm_back; o->sky = s->imm_sky;
++    o->height = (float)s->imm_height;
+     if ((v = env(WM_REPLAYS))) { o->replays = *v != '0'; k[WM_REPLAYS] = WM_SRC_ENV; }
+     if ((v = env(WM_OVERLAYS))) { o->overlays = *v != '0'; k[WM_OVERLAYS] = WM_SRC_ENV; }
+     if ((v = env(WM_CUTAWAYS))) { o->cutaways = *v != '0'; k[WM_CUTAWAYS] = WM_SRC_ENV; }
+@@ -79,6 +81,7 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     }
+     if ((v = env(WM_DOLLY))) { o->dolly = (float)atof(v); k[WM_DOLLY] = WM_SRC_ENV; }
+     if ((v = env(WM_BACK))) { o->back = (float)atof(v); k[WM_BACK] = WM_SRC_ENV; }
++    if ((v = env(WM_HEIGHT))) { o->height = (float)atof(v); k[WM_HEIGHT] = WM_SRC_ENV; }
+     if ((v = env(WM_SKY))) { o->sky = world_mode_sky_value(v); k[WM_SKY] = WM_SRC_ENV; }
+     if (src) memcpy(src, k, sizeof k);
+ }
+@@ -133,10 +136,10 @@ void world_mode_init(int capable)
+ #endif
+     world_mode_resolve(&s, -1, capable, present, &g_wm, src);
+     static const char *const SRC[] = { "default", "vr.cfg", "env" };
+-    fprintf(stderr, "[world] mode %s (%s) dolly %.0f (%s) back %.0f (%s) sky %s (%s) shadow %d (%s) "
++    fprintf(stderr, "[world] mode %s (%s) dolly %.0f (%s) back %.0f (%s) height %.0f (%s) sky %s (%s) shadow %d (%s) "
+                     "replays %s (%s) overlays %s (%s) cutaways %s (%s)%s\n",
+             g_wm.immersive ? "immersive" : "classic", SRC[src[WM_MODE]],
+-            g_wm.dolly, SRC[src[WM_DOLLY]], g_wm.back, SRC[src[WM_BACK]],
++            g_wm.dolly, SRC[src[WM_DOLLY]], g_wm.back, SRC[src[WM_BACK]], g_wm.height, SRC[src[WM_HEIGHT]],
+             sky_name(g_wm.sky), SRC[src[WM_SKY]], g_wm.shadow, SRC[src[WM_SHADOW]],
+             g_wm.replays ? "on" : "off", SRC[src[WM_REPLAYS]], g_wm.overlays ? "on" : "off", SRC[src[WM_OVERLAYS]],
+             g_wm.cutaways ? "on" : "off", SRC[src[WM_CUTAWAYS]], capable ? "" : " - this game has no world mode");
+@@ -236,3 +239,4 @@ int world_mode_sky(void) { return wm()->sky; }
+ float world_mode_shadow_scale(void) { return wm()->shadow_scale; }
+ float world_mode_dolly(void) { return wm()->dolly; }
+ float world_mode_back(void) { return wm()->back; }
++float world_mode_height(void) { return wm()->height; }
+diff --git a/src/runtime/world_mode.h b/src/runtime/world_mode.h
+index a01d467..b920bd5 100644
+--- a/src/runtime/world_mode.h
++++ b/src/runtime/world_mode.h
+@@ -18,7 +18,7 @@ extern "C" {
+ #endif
+ 
+ /* the values, for their env variables, sources and pins */
+-enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_COUNT };
++enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_HEIGHT, WM_COUNT };
+ enum { WM_SRC_DEFAULT, WM_SRC_FILE, WM_SRC_ENV };
+ 
+ typedef struct {
+@@ -28,6 +28,7 @@ typedef struct {
+     int shadow;                 /* shadow map size: 1024 (the game's own), 2048, 4096 */
+     float shadow_scale;         /* what stereo.c scales shadow maps by: 0 = as the game makes them */
+     float dolly, back;          /* viewpoint forward / back in game units (immersive) */
++    float height;               /* viewpoint raised (+) / lowered (-) in game units (immersive) */
+ } WmValues;
+ 
+ /* the env variable that pins a value for a run (LINDBERGH_REPLAYS, ...) */
+@@ -48,7 +49,7 @@ const char *world_mode_key(int key, int immersive);
+  * called before it resolves from env alone, as an incapable game. */
+ void world_mode_init(int capable);
+ /* The menu changed a stored setting: the live values again (replays, overlays,
+- * cutaways, dolly, back, sky) for the running mode; the shadow size
++ * cutaways, dolly, back, height, sky) for the running mode; the shadow size
+  * stays as started. The mode stays as started too unless switching is live
+  * (world_mode_live): then the stored mode (an env-pinned one wins; a game
+  * that cannot draw a world keeps its start) becomes the target, which the
+@@ -92,6 +93,7 @@ int world_mode_sky_value(const char *v);
+ float world_mode_shadow_scale(void);
+ float world_mode_dolly(void);
+ float world_mode_back(void);
++float world_mode_height(void);
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/src/runtime/xr_settings.c b/src/runtime/xr_settings.c
+index 75b2a4f..96acd6c 100644
+--- a/src/runtime/xr_settings.c
++++ b/src/runtime/xr_settings.c
+@@ -12,14 +12,16 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+     return snprintf(b, n, "scale %g\nscreen %g\naim %g\nresolution %d\nwidth %d\nrefresh %d\nhand %s\nlaser %s\ncoins %s\n"
+                "sight %s\ncrosshair %s\ngun %s\nhud_pitch %d\ndual %s\nstats %s\nfoveation %s\noverlays %s\nreplays %s\n"
+                "mode %s\nclassic.shadow %d\nclassic.cutaways %s\nimmersive.replays %s\nimmersive.overlays %s\n"
+-               "immersive.cutaways %s\nimmersive.dolly %d\nimmersive.back %d\nimmersive.sky %s\nimmersive.shadow %d\n",
++               "immersive.cutaways %s\nimmersive.dolly %d\nimmersive.back %d\nimmersive.sky %s\nimmersive.shadow %d\n"
++               "immersive.height %d\n",
+             c->scale, c->screen, c->aim, c->resolution, c->width, c->refresh, c->left_handed ? "left" : "right",
+             LASER_NAME[c->laser], c->auto_coins ? "auto" : "manual",
+             SIGHT_NAME[c->sight], c->crosshair ? "on" : "off", c->show_gun ? "on" : "off", c->hud_pitch, c->dual ? "on" : "off", c->show_stats ? "on" : "off",
+             FOVEATION_NAME[c->foveation < 0 || c->foveation > 3 ? 3 : c->foveation], c->arcade_overlays ? "on" : "off", c->replays ? "on" : "off",
+             c->world_mode ? "immersive" : "classic", c->classic_shadow, c->classic_cutaways ? "on" : "off",
+             c->imm_replays ? "on" : "off", c->imm_overlays ? "on" : "off", c->imm_cutaways ? "on" : "off",
+-            c->imm_dolly, c->imm_back, c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow);
++            c->imm_dolly, c->imm_back, c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow,
++            c->imm_height);
+ }
+ 
+ /* LINDBERGH_XR_SET's keys are for its run only: the save writes those keys as
+@@ -84,7 +86,10 @@ void xr_settings_load(LgXrSettings *c)
+     if (c->imm_shadow != 1024 && c->imm_shadow != 2048 && c->imm_shadow != 4096) c->imm_shadow = d.imm_shadow;
+     if (c->imm_sky < LG_SKY_OFF || c->imm_sky > LG_SKY_PAINTED) c->imm_sky = d.imm_sky;
+     if (c->imm_dolly < 0 || c->imm_dolly > 400) c->imm_dolly = d.imm_dolly;
+-    if (c->imm_back < 0 || c->imm_back > 300) c->imm_back = d.imm_back;
++    /* the panel's choices (xr_world_panel.c); any other stored value - an
++     * older panel's 0 / 3 / 9 / 12 m, a hand edit - becomes the nearest one */
++    c->imm_back = xr_settings_nearest(c->imm_back, LG_XR_BACK_STEPS, LG_XR_BACK_NSTEPS);
++    c->imm_height = xr_settings_nearest(c->imm_height, LG_XR_HEIGHT_STEPS, LG_XR_HEIGHT_NSTEPS);
+ }
+ 
+ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+@@ -118,6 +123,7 @@ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+         else if (!strcmp(key, "immersive.back")) c->imm_back = atoi(val);
+         else if (!strcmp(key, "immersive.sky")) c->imm_sky = !strcmp(val, "off") ? LG_SKY_OFF : !strcmp(val, "painted") ? LG_SKY_PAINTED : LG_SKY_STADIUM;   /* "on" (before 2026-11-12): a sky, now the stadium's */
+         else if (!strcmp(key, "immersive.shadow")) c->imm_shadow = atoi(val);
++        else if (!strcmp(key, "immersive.height")) c->imm_height = atoi(val);
+         else if (!strcmp(key, "foveation")) {
+             for (int i = 0; i < 4; i++) if (!strcmp(val, FOVEATION_NAME[i])) c->foveation = i;
+         }
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index 9918d9d..0e39ad3 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -23,6 +23,8 @@ typedef struct {
+     int imm_dolly, imm_back;    /* "immersive.dolly" / ".back": the viewpoint forward / back, game units (0.1 m) */
+     int imm_sky;                /* "immersive.sky stadium|painted|off" (old "on" = stadium): LG_SKY_ */
+     int imm_shadow;             /* "immersive.shadow" */
++    int imm_height;             /* "immersive.height": the viewpoint raised (+) / lowered (-) from the
++                                 * camera's own, game units (0.1 m): -20 / -10 / 0 / 10 / 20 */
+ } LgXrSettings;
+ /* Each eye's image by default: the headset's own panel, pixel for pixel.
+  * OpenXR reports only a runtime-scaled recommendation, so the panel is the
+@@ -40,10 +42,24 @@ typedef struct {
+ #endif
+ /* ... dual off, stats panel on (vr.cfg "stats off" hides it), medium foveation, arcade overlays shown, replays on;
+  * Classic mode, shadows 1024, cutaways on; Immersive: replays, overlays and cutaways off,
+- * 200 units closer, 60 back, the stadium's own sky, shadows 2048. (The stands' stretch,
++ * 200 units closer, 60 back (5 / 6 / 7 / 8 m), the stadium's own sky, shadows 2048, the
++ * camera's own height. (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,60,LG_SKY_STADIUM,2048}
++                                0,1024,1,0,0,0,200,60,LG_SKY_STADIUM,2048,0}
++/* Immersive's Step back (immersive.back) and Camera height (immersive.height)
++ * choices, game units (0.1 m); a stored value off the list is read as the
++ * nearest (xr_settings_nearest; the first of two equally near) */
++#define LG_XR_BACK_NSTEPS 4
++#define LG_XR_HEIGHT_NSTEPS 5
++static const int LG_XR_BACK_STEPS[LG_XR_BACK_NSTEPS] = { 50, 60, 70, 80 };
++static const int LG_XR_HEIGHT_STEPS[LG_XR_HEIGHT_NSTEPS] = { -20, -10, 0, 10, 20 };
++static inline int xr_settings_nearest(int v, const int *steps, int n)
++{
++    int best = steps[0];
++    for (int i = 1; i < n; i++) if ((v > steps[i] ? v - steps[i] : steps[i] - v) < (v > best ? v - best : best - v)) best = steps[i];
++    return best;
++}
+ void xr_settings_load(LgXrSettings *settings);
+ void xr_settings_set(LgXrSettings *settings,const char *key,const char *value);
+ void xr_settings_save(const LgXrSettings *settings);
+diff --git a/src/runtime/xr_world_panel.c b/src/runtime/xr_world_panel.c
+index f457429..d28d3bd 100644
+--- a/src/runtime/xr_world_panel.c
++++ b/src/runtime/xr_world_panel.c
+@@ -5,8 +5,9 @@
+  * now (only while the saved mode is not the running one), Advanced settings
+  * (the saved mode's page), then the shared rows. Classic advanced: replays,
+  * point cutaways, arcade overlays, shadow quality. Immersive advanced: camera
+- * closer, step back, the same three, sky (Stadium / Painted / Off), shadow
+- * quality. Replays, cutaways, overlays, closer, step back and sky are live for
++ * closer, step back (5 / 6 / 7 / 8 m), camera height (2 m lower .. 2 m higher),
++ * the same three, sky (Stadium / Painted / Off), shadow quality. Replays,
++ * cutaways, overlays, closer, step back, camera height and sky are live for
+  * the running mode; shadow quality and the mode apply on restart. A row whose
+  * env variable is set shows "(env.txt)" with the run's value and ignores clicks.
+  * With XwState.live (switching live, Phase B; host_xr.c keeps it 0 for now)
+@@ -18,6 +19,13 @@
+ #include <string.h>
+ 
+ static const int SHADOWS[] = { 1024, 2048, 4096 };
++/* the choice after v's nearest, wrapping (Step back 5 -> 6 -> 7 -> 8 -> 5 m) */
++static int next_step(int v, const int *steps, int n)
++{
++    v = xr_settings_nearest(v, steps, n);
++    for (int i = 0; i < n; i++) if (steps[i] == v) return steps[(i + 1) % n];
++    return steps[0];
++}
+ 
+ /* the WM_ value behind an item, -1 for none */
+ static int wm_key(int item)
+@@ -30,6 +38,7 @@ static int wm_key(int item)
+     case XW_SHADOW: return WM_SHADOW;
+     case XW_DOLLY: return WM_DOLLY;
+     case XW_STEPBACK: return WM_BACK;
++    case XW_HEIGHT: return WM_HEIGHT;
+     case XW_SKY: return WM_SKY;
+     default: return -1;
+     }
+@@ -57,7 +66,7 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     case XW_PAGE_IMMERSIVE: {
+-        static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_DOLLY), XW_ROW(XW_STEPBACK),
++        static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_DOLLY), XW_ROW(XW_STEPBACK), XW_ROW(XW_HEIGHT),
+                                  XW_ROW(XW_REPLAYS), XW_ROW(XW_CUTAWAYS), XW_ROW(XW_OVERLAYS), XW_ROW(XW_SKY),
+                                  XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+@@ -96,6 +105,7 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     it[XW_BACK].label = "< Back";
+     it[XW_DOLLY].label = "Camera closer";
+     it[XW_STEPBACK].label = "Step back";
++    it[XW_HEIGHT].label = "Camera height";
+     it[XW_REPLAYS].label = "Replays";
+     it[XW_CUTAWAYS].label = "Point cutaways";
+     it[XW_OVERLAYS].label = "Arcade overlays";
+@@ -106,13 +116,14 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     const WmValues *e = &w->eff;
+     int replays = im ? cfg->imm_replays : cfg->replays, cut = im ? cfg->imm_cutaways : cfg->classic_cutaways;
+     int over = im ? cfg->imm_overlays : cfg->arcade_overlays, sh = im ? cfg->imm_shadow : cfg->classic_shadow;
+-    float dl = (float)cfg->imm_dolly, bk = (float)cfg->imm_back; int sky = cfg->imm_sky;
++    float dl = (float)cfg->imm_dolly, bk = (float)cfg->imm_back, ht = (float)cfg->imm_height; int sky = cfg->imm_sky;
+     if (pinned(w, XW_REPLAYS)) replays = e->replays;
+     if (pinned(w, XW_CUTAWAYS)) cut = e->cutaways;
+     if (pinned(w, XW_OVERLAYS)) over = e->overlays;
+     if (pinned(w, XW_SHADOW)) sh = e->shadow;
+     if (pinned(w, XW_DOLLY)) dl = e->dolly;
+     if (pinned(w, XW_STEPBACK)) bk = e->back;
++    if (pinned(w, XW_HEIGHT)) ht = e->height;
+     if (pinned(w, XW_SKY)) sky = e->sky;
+     snprintf(it[XW_REPLAYS].value, 40, "%s", on_off(replays));
+     snprintf(it[XW_CUTAWAYS].value, 40, "%s", on_off(cut));
+@@ -120,6 +131,9 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     snprintf(it[XW_SKY].value, 40, "%s", sky_label(sky));
+     metres(it[XW_DOLLY].value, dl);
+     metres(it[XW_STEPBACK].value, bk);
++    if (fabsf(ht) < 0.5f) snprintf(it[XW_HEIGHT].value, 40, "Standard");
++    else { metres(it[XW_HEIGHT].value, fabsf(ht)); size_t l = strlen(it[XW_HEIGHT].value);
++           snprintf(it[XW_HEIGHT].value + l, 40 - l, ht > 0 ? " higher" : " lower"); }
+     shadow(it[XW_SHADOW].value, sh);
+     for (int i = 0; i < XW_COUNT; i++) {
+         size_t l = strlen(it[i].value);
+@@ -137,7 +151,7 @@ void xw_restore_defaults(LgXrSettings *c, int immersive)
+     const LgXrSettings d = LG_XR_SETTINGS_DEFAULT;
+     if (immersive) {
+         c->imm_replays = d.imm_replays; c->imm_overlays = d.imm_overlays; c->imm_cutaways = d.imm_cutaways;
+-        c->imm_dolly = d.imm_dolly; c->imm_back = d.imm_back;
++        c->imm_dolly = d.imm_dolly; c->imm_back = d.imm_back; c->imm_height = d.imm_height;
+         c->imm_sky = d.imm_sky; c->imm_shadow = d.imm_shadow;
+     } else {
+         c->replays = d.replays; c->arcade_overlays = d.arcade_overlays;
+@@ -167,7 +181,8 @@ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+         c->imm_sky = c->imm_sky == LG_SKY_STADIUM ? LG_SKY_PAINTED : c->imm_sky == LG_SKY_PAINTED ? LG_SKY_OFF : LG_SKY_STADIUM;
+         fx |= live; break;
+     case XW_DOLLY: if (!im) return 0; c->imm_dolly = c->imm_dolly >= 300 ? 0 : (c->imm_dolly / 50 + 1) * 50; fx |= live; break;
+-    case XW_STEPBACK: if (!im) return 0; c->imm_back = c->imm_back >= 120 ? 0 : (c->imm_back / 30 + 1) * 30; fx |= live; break;
++    case XW_STEPBACK: if (!im) return 0; c->imm_back = next_step(c->imm_back, LG_XR_BACK_STEPS, LG_XR_BACK_NSTEPS); fx |= live; break;
++    case XW_HEIGHT: if (!im) return 0; c->imm_height = next_step(c->imm_height, LG_XR_HEIGHT_STEPS, LG_XR_HEIGHT_NSTEPS); fx |= live; break;
+     case XW_SHADOW: {
+         int *s = im ? &c->imm_shadow : &c->classic_shadow, k = 0;
+         while (k < 3 && SHADOWS[k] <= *s) k++;
+diff --git a/src/runtime/xr_world_panel.h b/src/runtime/xr_world_panel.h
+index b6b9747..2a7451c 100644
+--- a/src/runtime/xr_world_panel.h
++++ b/src/runtime/xr_world_panel.h
+@@ -13,7 +13,7 @@ extern "C" {
+ #endif
+ 
+ enum { XW_MODE, XW_RESTART, XW_ADVANCED, XW_BACK, XW_DOLLY, XW_STEPBACK, XW_REPLAYS, XW_CUTAWAYS,
+-       XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_COUNT };
++       XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_COUNT };
+ enum { XW_PAGE_MAIN, XW_PAGE_CLASSIC, XW_PAGE_IMMERSIVE, XW_PAGES };
+ /* xw_choose's effects, beside XP_SAVE and XP_RESTART */
+ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or, live, the mode) changed: world_mode_update */
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index af79d6c..2cbe388 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -8,7 +8,7 @@ import unittest
+ 
+ ENV_KEYS = ["LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+             "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK",
+-            "LINDBERGH_VT3_SKY", "LINDBERGH_XR_SET", "LINDBERGH_XR_SCALE", "LINDBERGH_VT3_LIVE_SWITCH",
++            "LINDBERGH_VT3_SKY", "LINDBERGH_VT3_HEIGHT", "LINDBERGH_XR_SET", "LINDBERGH_XR_SCALE", "LINDBERGH_VT3_LIVE_SWITCH",
+             "LINDBERGH_VT3_MODE_AT"]
+ 
+ 
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index 8b8a366..50f14b4 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -58,7 +58,8 @@ int main(void) {
+ 
+     MODE_KEYS={"mode":"classic","classic.shadow":"1024","classic.cutaways":"on","immersive.replays":"off",
+                "immersive.overlays":"off","immersive.cutaways":"off","immersive.dolly":"200",
+-               "immersive.back":"60","immersive.sky":"stadium","immersive.shadow":"2048"}
++               "immersive.back":"60","immersive.sky":"stadium","immersive.shadow":"2048",
++               "immersive.height":"0"}
+ 
+     @staticmethod
+     def parse(text):
+@@ -77,7 +78,8 @@ int main(void) {
+     def test_mode_keys_round_trip(self):
+         cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"on",
+              "immersive.overlays":"on","immersive.cutaways":"on","immersive.dolly":"250",
+-             "immersive.back":"90","immersive.sky":"painted","immersive.shadow":"1024"}
++             "immersive.back":"70","immersive.sky":"painted","immersive.shadow":"1024",
++             "immersive.height":"-10"}
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("".join(f"{k} {v}\n" for k,v in cfg.items()))
+             self.run_settings(d)
+@@ -95,6 +97,20 @@ int main(void) {
+             self.assertEqual(saved["mode"],"immersive");self.assertEqual(saved["immersive.shadow"],"2048")
+             self.assertNotIn("immersive.stand_y",saved);self.assertEqual(saved["immersive.dolly"],"200")
+ 
++    def test_step_back_and_height_snap_to_choices(self):
++        # an older panel's Step back (0 / 3 / 9 / 12 m) and odd heights become the nearest choice
++        for back,want in (("0","50"),("30","50"),("90","80"),("120","80"),("65","60"),("-7","50"),("999","80")):
++            with tempfile.TemporaryDirectory() as d:
++                (Path(d)/"vr.cfg").write_text(f"immersive.back {back}\nimmersive.height {int(back)//4}\n")
++                self.run_settings(d)
++                saved=self.parse((Path(d)/"vr.cfg").read_text())
++                self.assertEqual(saved["immersive.back"],want,back)
++                self.assertIn(saved["immersive.height"],("-20","-10","0","10","20"))
++        with tempfile.TemporaryDirectory() as d:
++            (Path(d)/"vr.cfg").write_text("immersive.height 14\n")
++            self.run_settings(d)
++            self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())["immersive.height"],"10")
++
+     def test_old_stand_and_sky_keys(self):
+         # a file from before the stadium sky: the stands' stretch key is dropped, sky on = the stadium's
+         with tempfile.TemporaryDirectory() as d:
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index 10f8460..dd21c8b 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -45,9 +45,10 @@ int main(void) {
+     /* Advanced goes to the saved mode's page */
+     assert(xw_choose(&w, &c, XW_ADVANCED) == XW_PAGE_CHANGED && w.page == XW_PAGE_IMMERSIVE);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 11 && r[0] == XW_ROW(XW_BACK) && r[1] == XW_ROW(XW_DOLLY) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
++    assert(n == 12 && r[0] == XW_ROW(XW_BACK) && r[1] == XW_ROW(XW_DOLLY) && r[3] == XW_ROW(XW_HEIGHT) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
+     xw_items(&w, &c, it);
+     assert(!strcmp(it[XW_DOLLY].value, "20 m") && !strcmp(it[XW_STEPBACK].value, "6 m"));
++    assert(!strcmp(it[XW_HEIGHT].label, "Camera height") && !strcmp(it[XW_HEIGHT].value, "Standard"));
+     assert(!strcmp(it[XW_REPLAYS].value, "Off") && !strcmp(it[XW_CUTAWAYS].value, "Off") && !strcmp(it[XW_OVERLAYS].value, "Hidden"));
+     assert(!strcmp(it[XW_SKY].value, "Stadium") && !strcmp(it[XW_SHADOW].value, "High 2048"));
+     assert(!strcmp(it[XW_SKY].label, "Sky"));
+@@ -63,15 +64,25 @@ int main(void) {
+     xw_choose(&w, &c, XW_SKY); assert(c.imm_sky == LG_SKY_STADIUM);
+     xw_choose(&w, &c, XW_DOLLY); assert(c.imm_dolly == 250);
+     xw_choose(&w, &c, XW_DOLLY); xw_choose(&w, &c, XW_DOLLY); assert(c.imm_dolly == 0);
+-    xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 90);
+-    xw_choose(&w, &c, XW_STEPBACK); xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 0);
++    xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 70);
++    xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 80);
++    xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 50);
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_STEPBACK].value, "5 m"));
++    xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 60);
++    c.imm_back = 120; xw_choose(&w, &c, XW_STEPBACK); assert(c.imm_back == 50);   /* off the list: from its nearest (8 m) */
++    xw_choose(&w, &c, XW_HEIGHT); assert(c.imm_height == 10);
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_HEIGHT].value, "1 m higher"));
++    xw_choose(&w, &c, XW_HEIGHT); assert(c.imm_height == 20);
++    xw_choose(&w, &c, XW_HEIGHT); assert(c.imm_height == -20);
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_HEIGHT].value, "2 m lower"));
++    xw_choose(&w, &c, XW_HEIGHT); assert(c.imm_height == -10);
+     xw_choose(&w, &c, XW_SHADOW); assert(c.imm_shadow == 4096);
+     xw_choose(&w, &c, XW_SHADOW); assert(c.imm_shadow == 1024);
+     /* restore: two pulls */
+     fx = xw_choose(&w, &c, XW_RESTORE); assert(w.restore_armed && !(fx & XP_SAVE));
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_RESTORE].value, "Pull again to restore"));
+     fx = xw_choose(&w, &c, XW_RESTORE); assert((fx & XP_SAVE) && !w.restore_armed);
+-    assert(c.imm_sky == LG_SKY_STADIUM && c.imm_dolly == 200 && c.imm_back == 60 && c.imm_shadow == 2048 && c.imm_replays == 0);
++    assert(c.imm_sky == LG_SKY_STADIUM && c.imm_dolly == 200 && c.imm_back == 60 && c.imm_height == 0 && c.imm_shadow == 2048 && c.imm_replays == 0);
+     xw_choose(&w, &c, XW_RESTORE); xw_choose(&w, &c, XW_SKY); assert(!w.restore_armed);    /* another row disarms */
+     assert(xw_choose(&w, &c, XW_BACK) == XW_PAGE_CHANGED && w.page == XW_PAGE_MAIN);
+     /* the running mode's page: live; a pinned row shows the run's value and ignores clicks */
+# stereo.c part (on top of T8), in eye_projection after the Step back loop:
+#   const float lift = world_mode_height();
+#   for (int i = 0; i < 3; i++) t[i] -= lift * u[i] / ul;

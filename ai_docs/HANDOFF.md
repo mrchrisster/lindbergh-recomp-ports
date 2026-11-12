@@ -168,6 +168,19 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 2 - T9 code written (uncommitted, unbuilt for Quest).**
+  T9 (owner, via conductor): Immersive Step back choices 5/6/7/8 m (was
+  0/3/6/9/12, default 6 m = `immersive.back 60` stays; stored values off the
+  list snap to the nearest, `xr_settings_nearest` in `xr_settings.h`), new
+  row **Camera height** (`immersive.height`, game units, -20/-10/0/10/20 =
+  2 m lower .. 2 m higher, default 0 = the camera's own; env
+  `LINDBERGH_VT3_HEIGHT`; live like Step back; `stereo.c` eye_projection
+  moves the viewpoint along the world's up). Unit tests updated and pass
+  (`tests.test_xr_settings`, `_xr_world_panel`, `_world_mode`, `_xr_panel`).
+  Copy: `ai_docs/wip/t9-view-lindberghrecomp.diff` (+ the 2-line stereo.c
+  note at its end). T8 runs G1 (GPU) / V2 (Immersive 1940-1985) running via
+  `.../786966e7-.../scratchpad/seq1.sh`. Next: T8 commit with
+  `git apply --cached /tmp/t8only.diff` (= the T8 wip diff) so T9 stays out.
 - **T8b worker (2026-11-11 23:00), step 1 - state found.** The T8 worker
   went on after its last checkpoint: hold for frame 1949 written (wip diff
   now refreshed from the working tree, outer `ae51cd3`), APK built 21:10
