@@ -126,3 +126,4 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - **Owner's decision (replays in Immersive): option 1/A - the viewer stays
   where they are and the point replays in the world.** Research worker told to
   design that in depth; implementation is the task after T9.
+- Replay research DONE: `ai_docs/research/immersive-replay-cameras.md` (option A = one extra matrix in `eye_projection`, 7 steps behind `LINDBERGH_VT3_REPLAY_VIEW=flat|follow|world`). **T10 = implement it, after T9.**
