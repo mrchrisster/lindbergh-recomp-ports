@@ -1,5 +1,18 @@
 # VT3 launcher icon (2026-11-12)
 
+**Update 2026-11-12 afternoon (build worker): the owner's brief - "simply VT3
+with a tennis ball behind it, shaded in a similar way as the game" - is
+candidate 5 "VT3 chrome", now the generator's default and INSTALLED (the
+five drawable-*/ic_launcher.png). Original drawing: system font (Avenir
+Next Condensed Heavy Italic), pearl "VT", deep-blue "3", black keyline,
+white rim, bevel, gloss line, soft drop shadow, a glossy ball behind; no
+Sega lettering traced or copied. Variants 6 "VT3 lime" and 7 "VT3 orange"
+(court blue) selectable; 1-4 kept. Pictures: `~/Desktop/Claude/vt3-icon/`
+`vt3_candidate_{5,6,7}_1024.png`, `vt3_contact_sheet.png` (192/96/48 px,
+dark / light, square / rounded / circle), `recommended.png` (= 5).
+Committed; seen on the headset: OWED (smoke run, HANDOFF 3.1).** The text
+below is the earlier worker's (headset candidate), kept for the wiring facts.
+
 Backlog item "Launcher icons are hotd4 placeholders". Done by an icon worker;
 **not built, not committed, not checked on the headset yet**.
 
