@@ -329,3 +329,8 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   released APK embeds CRI `snd_util.so` + `librnalindbergh_jr.so` (146/274 and
   232/265 sampled runs found); HOTD EX lifts the same two. Fix = re-lift with
   the new solib.py + copy the Java check; hotd4, hotd4sp, lgj load none.
+
+## 2026-11-12 (owner: publish)
+- **Published PUBLIC: github.com/mrchrisster/virtuatennis3-vr** (VT3-only, fresh history, MIT, no game files; README states the port is built against `vt3_Lindbergh_HD` and does not emulate/answer the dongle). Owner decided public ("up to the user to supply the game file").
+- Pushed lindberghrecomp fork `vt3-quest` 9d68719..1addfc1 (T8-T19 runtime) - needed by the new repo submodule.
+- From now on VT3 work lands in virtuatennis3-vr; this repo stays for the other games.
