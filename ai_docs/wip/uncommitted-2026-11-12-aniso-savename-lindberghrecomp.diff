@@ -977,7 +977,7 @@ index 6ef93d8..aad192d 100644
          with tempfile.TemporaryDirectory() as d:
              f = Path(d) / "vt3_save.bin"
 diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
-index 1a5b43b..a3de907 100644
+index 1a5b43b..42eb96a 100644
 --- a/tests/test_world_mode.py
 +++ b/tests/test_world_mode.py
 @@ -10,7 +10,8 @@ ENV_KEYS = ["LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OV
@@ -1013,13 +1013,13 @@ index 1a5b43b..a3de907 100644
 +        self.assertEqual(a("aniso 6\n")[1], "4 0 4")                                          # off the list: the nearer below
 +        self.assertEqual(a("aniso 8\n", {"LINDBERGH_ANISO": "16"})[1], "16 1 16")             # env wins, pinned
 +        self.assertEqual(a("aniso 8\n", {"LINDBERGH_ANISO": "0"})[1], "0 1 0")
-+        self.assertEqual(a("save_name chris\n")[2], "CHRIS CHRIS")
-+        self.assertEqual(a("save_name chris\n", {"LINDBERGH_VT3_SAVE_NAME": "Ace"})[2], "ACE ACE")
-+        self.assertEqual(a("save_name chris\n", {"LINDBERGH_VT3_SAVE_NAME": "bad name"})[2], "CHRIS CHRIS")  # a bad env name: vr.cfg's
++        self.assertEqual(a("save_name rally\n")[2], "RALLY RALLY")
++        self.assertEqual(a("save_name rally\n", {"LINDBERGH_VT3_SAVE_NAME": "Ace"})[2], "ACE ACE")
++        self.assertEqual(a("save_name rally\n", {"LINDBERGH_VT3_SAVE_NAME": "bad name"})[2], "RALLY RALLY")  # a bad env name: vr.cfg's
 +        self.assertIn("aniso 8 (vr.cfg)", self.run_wm("aniso 8\n")[1])
 +        # the desktop: only Save progress and its name from vr.cfg (its Game menu writes them)
 +        d = lambda cfg, env=None: self.run_wm(cfg, env, args=("1", "aniso"), binary=self.desk)[0].split(" | ")
-+        self.assertEqual(d("aniso 8\nsave_name chris\n")[1:], ["0 0 0", "CHRIS CHRIS"])
++        self.assertEqual(d("aniso 8\nsave_name rally\n")[1:], ["0 0 0", "RALLY RALLY"])
 +        self.assertEqual(d("aniso 8\n", {"LINDBERGH_ANISO": "8"})[1], "8 1 8")
 +        self.assertEqual(self.run_wm("save on\nmode immersive\n", args=("1", "msaa"), binary=self.desk)[0].split(" | ")[2], "1 0 1")
 +
@@ -1027,7 +1027,7 @@ index 1a5b43b..a3de907 100644
          out, log = self.run_wm()
          self.assertEqual(out, "0 1 1 1 1024 200 50 1 0.0")
 diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
-index 77cf1e4..c916f7b 100644
+index 77cf1e4..29f7aab 100644
 --- a/tests/test_xr_settings.py
 +++ b/tests/test_xr_settings.py
 @@ -58,7 +58,8 @@ int main(void) {
@@ -1046,7 +1046,7 @@ index 77cf1e4..c916f7b 100644
               "immersive.overlays":"on","immersive.cutaways":"camera","immersive.sky":"painted","immersive.shadow":"1024",
 -             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4","save":"on"}
 +             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4","save":"on",
-+             "aniso":"8","save_name":"CHRIS"}
++             "aniso":"8","save_name":"RALLY"}
          with tempfile.TemporaryDirectory() as d:
              (Path(d)/"vr.cfg").write_text("".join(f"{k} {v}\n" for k,v in cfg.items()))
              self.run_settings(d)
@@ -1063,7 +1063,7 @@ index 77cf1e4..c916f7b 100644
 +
 +    def test_save_name_checked(self):
 +        # up to 10 letters / digits, upper-cased; anything else is the default PLAYER
-+        for stored,want in (("Chris","CHRIS"),("P1","P1"),("ABCDEFGHIJ","ABCDEFGHIJ"),("ABCDEFGHIJK","PLAYER"),
++        for stored,want in (("Rally","RALLY"),("P1","P1"),("ABCDEFGHIJ","ABCDEFGHIJ"),("ABCDEFGHIJK","PLAYER"),
 +                            ("no-name","PLAYER"),("caf\u00e9","PLAYER"),("x_y","PLAYER")):
 +            with tempfile.TemporaryDirectory() as d:
 +                (Path(d)/"vr.cfg").write_text(f"save_name {stored}\n")

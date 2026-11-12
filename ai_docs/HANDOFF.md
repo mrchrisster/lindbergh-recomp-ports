@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~15:00 build worker (inherited aniso / save name / lose / Reset
+  save) - reviewed, UNCOMMITTED, macOS runs in progress.** The diff is more
+  than the conductor listed: also a **Reset save** row (both Advanced pages,
+  pull twice; `vt3_save_reset` moves the file + .bak aside, desktop Game menu
+  "Reset Save..."), the card result windows ("Remove Card.") kept shut with
+  Save progress on, a desktop `LINDBERGH_PICK` draw probe. Default save name
+  is the neutral `PLAYER`; the tests' personal name replaced by `RALLY`.
+  Unit tests (save, world_mode, settings, panels, controls: 53) pass. Next:
+  headless runs `/tmp/vt3w/{aniso,aniso0,name,lose}`, then commit; then the
+  release-rule audit, icon, splash.
 - **2026-11-12 T16 COMMITTED locally - macOS-verified, Quest smoke run OWED**
   (Save progress; guide section 8, research Outcome). Default Off. macOS
   evidence: `/tmp/vt3t16/run1..3`, `off`, `corrupt` (vt3.log), pictures
