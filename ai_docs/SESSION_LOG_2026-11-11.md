@@ -167,3 +167,19 @@ after it; that build is installed.
 5. Worn checks by the owner: music, buttons and lob, steady camera, panel
    clicks, serve meter with the head turned, 72 / 90 / 120 Hz frame rate.
 6. Push to `fork` when the owner says so (local only from `fade8ac` on).
+
+## 6. Evening: T3-T5 on the headset (T3-T5 worker)
+
+- WIP build smoke-tested (Immersive `prize`: slates 601 / 600, no compile
+  errors, no `[glq]` FATAL / WARNING).
+- **T5 LOD bias committed** (submodule `8004564`, outer `c07bad8`): crowd and
+  boards sharper, no shimmer seen.
+- **T4 per-eye shadow mask fails**: the players' ground shadows vanish with
+  it on - not committed (`ai_docs/wip/`).
+- **T3**: fp 180 is not the sky backdrop (a sun-glow term); the visible front
+  sky and a lavender wedge stay in Painted / Off. The seam work needs the
+  real backdrop draw found first (skip-bisect queue ready). Not committed.
+- Unattended shots differ per launch (head pose): new test switch
+  `LINDBERGH_XR_FIXED_HEAD=1` (WIP).
+- Stopped on controller input during a run (headset possibly worn):
+  env.txt emptied, vr.cfg unchanged, committed fix build re-installed.
