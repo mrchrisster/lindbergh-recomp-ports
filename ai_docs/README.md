@@ -35,7 +35,14 @@ working on its area):
   fonts, sounds) is read at run time from the player's own game files - never
   copied into the repo, the APK, generated C or committed pictures (Desktop
   pictures outside the repo are fine). Example: the start-up screen's logo
-  (`splash_logo.c`).
+  (`splash_logo.c`). Libraries the game dlopens (VT3's `lib/libCg.so`) are the
+  same (T19, 2026-11-12): their code is lifted, their bytes are read and
+  SHA-256-checked at start-up from the player's file (`solib.c
+  solib_prepare`, guide 3.2 item 5); the generator emits only a relocation
+  table (`recomp_solib_relocs.c`), and CMake / `quest/build.sh` refuse an old
+  `recomp_solib_img.c`. Still embedding until re-lifted: GSE's `snd_util.so` +
+  `librnalindbergh_jr.so` (in its released APK) and HOTD EX's two CRI
+  libraries - re-lift with the current `solib.py` and add the Java check.
 
 - Push only to the `fork` remote (mrchrisster/...), branch `vt3-quest`:
   the `lindberghrecomp` submodule first, then this repo. **No PRs or pushes to

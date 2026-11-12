@@ -92,11 +92,15 @@ and asked that all progress and research be written to the docs.
       may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-12)
+- [x] **libCg.so no longer in the app (T19, 2026-11-12)** - it was embedded
+      byte for byte (`recomp_solib_img.c`); now read from the player's
+      `lib/libCg.so` at start-up, size + SHA-256 checked, clear error when
+      missing (guide 3.2 item 5). macOS-verified, **Quest smoke run OWED**.
+      Same problem left in Ghost Squad Evolution's APK (CRI `snd_util.so`,
+      `librnalindbergh_jr.so`) and HOTD EX: re-lift those with the new
+      `solib.py`.
 - [ ] **Release blockers found by the release-rule audit (2026-11-12)**:
-      the APK embeds `libCg.so` byte for byte (`games/vt3/generated/
-      recomp_solib_img.c`, "Game code - never distribute"; NVIDIA's Cg
-      runtime from the game's disk) - must be loaded from the player's
-      files at run time before any release; the repo carries game
+      the repo carries game
       screenshots (`docs/*/mac-*.jpg`, `lindberghrecomp/docs/attract.png`,
       from upstream) - replace or drop before a release; the splash's and
       icon's text is rendered from Apple system fonts (DIN, Avenir Next) -

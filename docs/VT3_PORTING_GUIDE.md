@@ -108,6 +108,23 @@ VT3 does **NOT** use `libCgGL.so` to load or bind shaders (`cgGLLoadProgram`, `c
 4. In `lindberghrecomp/tools/recomp/solib.py`:
    - Updated `Lib.functions()` to run `Disassembler.find_functions` over `.text` (`[self.base + text.addr, self.base + text.addr + text.size)`), seeded with `.dynsym` functions, `.ctors`/`.dtors` entries, and call targets from `.init`/`.fini`.
    - Relocated and lifted 13,153 functions across 33 C translation units (`recomp_solib_funcs_0000.c` .. `recomp_solib_funcs_0032.c`)!
+5. **libCg.so is read from the player's files at start-up (T19, 2026-11-12, release rule).** The lifted code
+   (`recomp_solib_funcs_*.c`) reads libCg's data, rodata, GOT, PIC switch tables and init arrays from the guest
+   image at 0xB4000000 (the text bytes are there too but never run). That image used to be compiled into the app
+   whole (`recomp_solib_img.c`, 2,211,840 bytes, ~2 MB of libmain.so). Now `solib.py` writes
+   `recomp_solib_relocs.c` instead: per library the path relative to the executable's folder (`../lib/libCg.so`),
+   the file's size and SHA-256 (2,170,374 bytes, `da2f7604...736c`), the SHA-256 of the image it relocated
+   (`2d2a9ee6...7e5c`, identical to the old embedded array), and its 6,721 relocations as (offset, type, resolved
+   address) - no byte of the file. `guest_load` calls `solib_prepare()` (`src/runtime/solib.c`, own SHA-256): it
+   reads the file, checks size and hash, lays out the PT_LOAD segments, applies the table and checks the image hash
+   (a mismatch there is a bug in solib.c, not the player's file); `load_all` copies it into place at the first
+   dlopen as before. Missing / different file: `[solib] ERROR: the game's own libCg.so is needed at <path>
+   (2170374 bytes, SHA-256 da2f7604a1046e84...), but <why>.` and the game exits 1 before anything starts. The Quest
+   app checks the same before starting (`R.string.solib_check` from `generated/recomp_solib.txt`, via
+   `quest/build.sh`): a Toast, HOW-TO-ADD-THE-GAME.txt and the log name `/sdcard/VirtuaTennis3/lib/libCg.so`.
+   `LINDBERGH_SOLIB_DIR=<dir>` reads `<dir>/libCg.so` instead (tests). No embedding switch exists; CMake and
+   `quest/build.sh` refuse to build when an old `recomp_solib_img.c` is still in `generated/`. Tests:
+   `tests/test_solib_relocs.py` (generator), `lindbergh_rt_selftest` (loader: missing, size, hash, each relocation type).
 
 ---
 

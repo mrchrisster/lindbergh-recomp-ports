@@ -168,6 +168,17 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T19 step 2-3: code done (uncommitted in the submodule; safety
+  diffs `ai_docs/wip/t19-libcg-*.diff`).** solib.py now writes
+  `recomp_solib_relocs.c` (6,721 relocations, file size/SHA, image SHA) +
+  `recomp_solib.txt`; re-lift in a scratch stage gave byte-identical
+  `recomp_solib_funcs_*.c` / `recomp_solib.h`, and its image SHA
+  2d2a9ee6...7e5c equals the old embedded array's. Old `recomp_solib_img.c`
+  moved out of generated/ (scratchpad). solib.c reads `../lib/libCg.so`,
+  checks, relocates; selftest + `tests/test_solib_relocs.py` pass. No
+  fallback switch. Mac binary 70,181,888 -> 68,052,576 B, 0 of 328 runs.
+  Quest app: `R.string.solib_check` check in VirtuaTennis3VR.java. Classic
+  `prize` mac run in progress (`/tmp/vt3t19/classic`).
 - **2026-11-12 T19 (libCg.so out of the binary) step 1 - findings.** What the
   embedded image is for: libCg's CODE is already lifted to C
   (`recomp_solib_funcs_*.c`); `recomp_solib_img.c` is the whole loaded image
