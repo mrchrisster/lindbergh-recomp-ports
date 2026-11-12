@@ -244,3 +244,4 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   **no profile picker, always the same player**. Read-only research worker
   writing `ai_docs/research/ic-card-save-emulation.md` (conductor commits).
   Opposite of T15's "card R/W OFF": becomes a setting (Save progress On/Off).
+- Future: versus with a second Quest - read-only research worker writing `ai_docs/research/versus-two-quests.md` (conductor commits). No build planned yet.
