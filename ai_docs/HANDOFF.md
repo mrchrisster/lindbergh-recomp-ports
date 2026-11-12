@@ -168,6 +168,15 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 4 - T8 COMMITTED (submodule `2c3f4f4`, outer
+  `44efc1a`), T9 step back verified.** D50-D80 (`/tmp/vt3q/T8b/D*`): the
+  view steps back as set, both eyes; sheet
+  `~/Desktop/Claude/vt3-view/step_back_5_6_7_8m.png`. At 6-8 m a dark band
+  (the near stand's shadow / near apron) along the bottom; at 8 m the top of
+  something (rail?) at the bottom edge - for the owner to judge. No
+  controller input in any run (cab 0); device vr.cfg still = owner's 22:51
+  (`vr.cfg.owner2251`). seq2 continues (H*, S*); then
+  `.../scratchpad/seq3.sh` (V1 Classic capture, MP panel dump, Q_imm/Q_cls).
 - **T8b worker, step 3 - T8 verified; T9 runs going.** On the T8 build
   (0fa1b111): G1 GPU (prize, Immersive, FIXED_HEAD, VIEW_TURN 0,20) match
   2.8 / 2.8 / 3.1 ms (sky build G_new 3.2 / 3.1 / 3.0) - no cost; slate
