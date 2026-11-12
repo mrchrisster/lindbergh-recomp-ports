@@ -168,6 +168,10 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 13 - slate at +2 m OK** (L20b, input 0: StatsLoop
+  3082, shot 3250 = slate, flat, both eyes; sheet
+  `~/Desktop/Claude/vt3-view/result_slate_at_heights.png` updated). Q_imm /
+  Q_cls running.
 - **T8b worker, step 12 - band identified (B1, input 0).** With the view
   pitched down 35 deg (`/tmp/vt3q/T8b/B1/game_02300.ppm`) the dark band is
   the near end's front wall / barrier right in front of the viewpoint (its
