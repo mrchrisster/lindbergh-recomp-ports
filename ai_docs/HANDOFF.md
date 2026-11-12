@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T12 worker, step 2 - T12 COMMITTED and installed** (submodule
+  `9dd8505`; APK `/tmp/vt3q/T12/VirtuaTennis3VR_t12.apk`, sha256 5f7fa9fe...;
+  app stopped, env.txt 0, owner's vr.cfg byte-identical - note: the first
+  panel click with this build rewrites vr.cfg without `immersive.dolly` /
+  `.back`). Smoke run P1 (Immersive round0, panel open, 120 s, input 0): the
+  panel shows the Classic / VR buttons (VR chosen, hovered), "VR runs (set by
+  env.txt)", no Camera closer / Step back rows; match start 1949, four
+  points, world normal, no FATAL. macOS: far end latched at 6818 (StartLoop
+  after the change of ends at 6815), never in a rally. Not seen worn: the
+  far-end High on the headset, the panel clicks on the buttons (pointer).
+  Picture `~/Desktop/Claude/vt3-view/panel_T12.png` (left: headset dump;
+  right: the VR page from the unit test painter).
 - **2026-11-12 T12 worker (same session), step 1 - menu changes written.**
   T10 committed (submodule `2e61a2c`, outer `77a006a`) and its build
   installed (`/tmp/vt3q/T10/VirtuaTennis3VR_t10b.apk`). T12 uncommitted,
