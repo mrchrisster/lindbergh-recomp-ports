@@ -92,6 +92,15 @@ and asked that all progress and research be written to the docs.
       may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-12)
+- [ ] **Release blockers found by the release-rule audit (2026-11-12)**:
+      the APK embeds `libCg.so` byte for byte (`games/vt3/generated/
+      recomp_solib_img.c`, "Game code - never distribute"; NVIDIA's Cg
+      runtime from the game's disk) - must be loaded from the player's
+      files at run time before any release; the repo carries game
+      screenshots (`docs/*/mac-*.jpg`, `lindberghrecomp/docs/attract.png`,
+      from upstream) - replace or drop before a release; the splash's and
+      icon's text is rendered from Apple system fonts (DIN, Avenir Next) -
+      swap for OFL fonts before a public release.
 - [x] **Texture filtering row** ("Standard / Sharp 4x / Sharp 8x", both
       Advanced pages, on restart; vr.cfg `aniso`, `LINDBERGH_ANISO`) -
       anisotropic filtering of the game's mipmapped textures (court lines,
@@ -107,8 +116,9 @@ and asked that all progress and research be written to the docs.
       headset: owed** (smoke run).
 - [x] **Start-up screen with the game's own logo** (owner): the "Virtua
       Tennis 3" title logo read at start-up from the player's game files,
-      our "VR" beside it, one small row of controls; our own text title when
-      the files cannot be read. Nothing of Sega's in the app. Pictures:
+      our "VR" beside it, thin-line left and right controllers with
+      callouts (DIN labels), a progress line with a ball (no big digits); our own text
+      title when the files cannot be read. Nothing of Sega's in the app. Pictures:
       `~/Desktop/Claude/vt3-splash/`. **Seen on the headset: owed.**
 - [x] **Save progress (IC card as a save game)** (owner, T16; macOS-verified,
       **Quest smoke run owed**, default Off until judged): Advanced pages row

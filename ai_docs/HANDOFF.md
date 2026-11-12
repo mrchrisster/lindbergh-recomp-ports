@@ -168,6 +168,44 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~14:50 build worker: icon + splash COMMITTED - built for the
+  Quest, headset checks OWED; release-rule audit done.** Submodule 4929c07
+  (splash_logo.c: the game's title logo read at start-up from
+  `resource/sprite/I_ADV_titlelogo_us_KB.abr`, own DXT5 decoder, VR badge,
+  our own title as fallback; ball on the progress line, no digits). Outer:
+  icon 9fcb08f (candidate 5 "VT3 chrome"), splash art layout A, DIN labels
+  (owner's picks). APK (= T13-T17 + T16 + aniso/save name/Reset save + icon +
+  splash): `/tmp/vt3q/T18/VirtuaTennis3VR_aniso_icon_splash.apk`.
+  **Owed, folded into the ONE combined smoke run (no extra run):** install
+  that APK, then during the usual `prize` run:
+  ```
+  R=/tmp/vt3q/T18; mkdir -p $R
+  adb install -r $R/VirtuaTennis3VR_aniso_icon_splash.apk
+  OUT=$R/smoke LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ANISO=8 LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_GAME_SHOT=2300,1,1,2301 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh prize quest 150
+  grep -E '\[xr\] splash|texture filtering|FATAL' $R/smoke/vt3.log | head
+  adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+  ```
+  Pass: `[xr] splash: the game's title logo from resource/sprite/I_ADV_titlelogo_us_KB.abr (908x388, shown ...) with VR`
+  (if it says `our own title (...)`, the reason is in the brackets - the file
+  is looked up relative to the game folder vt3_Lindbergh); `[gl] texture
+  filtering: anisotropic 8x`; flow as usual. **Owner, worn (at that start):**
+  the start-up panel shows the Virtua Tennis 3 logo with VR after it, the two
+  thin-line controllers with callouts, the line with the ball moving (no
+  digits); then in the Library ("Unknown Sources") the app's icon is the "VT3
+  in front of a ball" tile (if the old one shows: launcher cache, reinstall
+  or reboot). Advanced pages: "Texture filtering" and "Reset save" rows.
+  **Release-rule audit:** no Sega art in the repo's code / generated C /
+  committed art (splash, icons: ours; other games' icons are drawn
+  crosshairs); VIOLATIONS: (1) the APK embeds `libCg.so` byte for byte
+  (`games/vt3/generated/recomp_solib_img.c`, not committed, but in
+  libmain.so) - NVIDIA's Cg runtime from the game's disk; (2) the repo
+  carries game screenshots `docs/{ghostsquadevolution,hotd4,hotd4sp,hotdex,lgj}/mac-*.jpg`
+  (outer, upstream 6bdb6e2) and `lindberghrecomp/docs/attract.png`
+  (submodule, upstream b675020). Not changed (upstream files; owner to
+  decide). The splash / icon text is rendered from Apple system fonts (DIN,
+  Avenir Next) - swap for OFL fonts before a public release.
+  Unit tests: 80, all pass except `test_xr_actions` (pre-existing: OpenXR
+  header path; xr_actions.c untouched).
 - **2026-11-12 ~14:45 build worker: TASK 1 COMMITTED (submodule 992a066)
   - macOS-verified, Quest smoke run OWED.** Texture filtering (aniso),
   save name (default PLAYER), Reset save, card result windows shut, LOSE,

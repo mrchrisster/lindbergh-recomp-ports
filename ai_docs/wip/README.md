@@ -36,3 +36,11 @@ dropped. T5 (LOD bias) is committed.
   Restore: `git -C lindberghrecomp apply ../ai_docs/wip/t17-antialiasing-lindberghrecomp.diff`.
 - `t16-save-lindberghrecomp.diff` - historical (T16 committed; this copy is
   from before the name fix and the last tests).
+
+- `uncommitted-2026-11-12-aniso-savename-lindberghrecomp.diff`,
+  `uncommitted-2026-11-12-lose-scene-script.diff`,
+  `uncommitted-2026-11-12-aniso-savename-splash-lindberghrecomp.diff`,
+  `uncommitted-2026-11-12-splash-outer.diff` - historical: committed
+  2026-11-12 (submodule 992a066, 4929c07; outer 4c1969d and after). The
+  splash diffs are of a first design the owner replaced.
+- `vt3-icon-notes.md` - the icon (candidate 5 installed; committed).

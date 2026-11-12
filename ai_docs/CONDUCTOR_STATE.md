@@ -297,3 +297,16 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
     screen, read at start-up from the player's data, with "VR" added; a simple
     small controller layout underneath; minimal fonts and style, on brand.
 - Quest smoke runs owed (headset away): T13-T17 combined, then T16 save run.
+
+## 2026-11-12 ~14:50 (build worker: inherited work, icon, splash, release audit)
+- COMMITTED locally (never pushed), macOS-verified / Quest-built, **Quest smoke
+  run OWED** (HANDOFF 3.1 top, folded into the combined run): submodule
+  992a066 (Texture filtering, save name PLAYER, Reset save, card result
+  windows shut, LOSE) and 4929c07 (splash logo read at start-up); outer
+  4c1969d (lose scene, docs, release rule in README), 9fcb08f (icon "VT3
+  chrome"), plus the splash art / docs commit after it.
+- Owner's picks applied: splash layout A, DIN labels; icon candidate 5.
+- Release-rule VIOLATIONS found (not fixed, owner to decide): libCg.so
+  embedded in the APK (recomp_solib_img.c); upstream game screenshots in
+  docs/*/mac-*.jpg and lindberghrecomp/docs/attract.png. Apple system fonts
+  in the rendered splash / icon: swap for OFL before a public release.
