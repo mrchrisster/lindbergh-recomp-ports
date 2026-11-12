@@ -193,6 +193,9 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
   / Stadium / Painted / Off x forward / up 70 / left 90 / behind, ten
   directions of Stadium, seam before/after rounds 0 and 2). Runs:
   `/tmp/vt3q/X/{A,B,C}_r{0,1,2}`, `G_*`, `Q_cuts`.
+  macOS check of `9d68719`: Classic shaders carry no `u_sky` (0 of all
+  programs, `/tmp/vt3q/X/mac_cls`), Immersive 44 (`mac_imm`) - inert outside
+  Immersive (other games are never Immersive).
   **Next (after the conductor's go):** install `w2/VirtuaTennis3VR_skyonly.apk`
   and run the regression (prize Immersive 330 s FLOWLOG + BLACK_LOG, prize
   Classic 330 s, 3 Immersive match starts 80 s), e.g.
