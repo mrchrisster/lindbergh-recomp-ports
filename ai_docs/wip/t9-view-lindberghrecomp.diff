@@ -1,3 +1,19 @@
+diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
+index 1a54054..6631726 100644
+--- a/src/runtime/stereo.c
++++ b/src/runtime/stereo.c
+@@ -436,6 +436,11 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+                 float h[3] = { u[2] / ul * (u[0] / ul), u[2] / ul * (u[1] / ul), -1 + (u[2] / ul) * (u[2] / ul) };   /* (0,0,-1) less its up part */
+                 float hl = sqrtf(h[0] * h[0] + h[1] * h[1] + h[2] * h[2]);
+                 if (hl > 0.1f) for (int i = 0; i < 3; i++) t[i] += back * h[i] / hl;
++                /* ...then raised or lowered along the world's up
++                 * (LINDBERGH_VT3_HEIGHT game units, the panel's Camera
++                 * height; default 0): the scene moved the other way */
++                const float lift = world_mode_height();
++                for (int i = 0; i < 3; i++) t[i] -= lift * u[i] / ul;
+             }
+             for (int r = 0; r < 4; r++) out[12 + r] += t[0] * out[r] + t[1] * out[4 + r] + t[2] * out[8 + r];
+             return;
 diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
 index c63339c..8c1c552 100644
 --- a/src/runtime/world_mode.c
@@ -390,6 +406,3 @@ index 10f8460..dd21c8b 100644
      xw_choose(&w, &c, XW_RESTORE); xw_choose(&w, &c, XW_SKY); assert(!w.restore_armed);    /* another row disarms */
      assert(xw_choose(&w, &c, XW_BACK) == XW_PAGE_CHANGED && w.page == XW_PAGE_MAIN);
      /* the running mode's page: live; a pinned row shows the run's value and ignores clicks */
-# stereo.c part (on top of T8), in eye_projection after the Step back loop:
-#   const float lift = world_mode_height();
-#   for (int i = 0; i < 3; i++) t[i] -= lift * u[i] / ul;
