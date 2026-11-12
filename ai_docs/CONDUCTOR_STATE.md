@@ -261,3 +261,4 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   default unchanged; joins the one combined smoke run.
 - Research running (read-only): card save emulation (T16, option C, single
   player), versus with two Quests (Mac standing in for the second headset).
+- Card save research DONE: `ai_docs/research/ic-card-save-emulation.md` - card = 612-byte per-player record at player+0x490; option C keeps the reader OFF and loads/saves that record (one record per character, `vt3_save.bin`); DES card encryption and the dongle calls are NOT touched. Build = T16, after T17; open: name entry, card-only pages with the reader off, King level.
