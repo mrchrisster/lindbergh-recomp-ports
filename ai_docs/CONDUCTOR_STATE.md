@@ -134,3 +134,13 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   `/tmp/vt3q/T8b/VirtuaTennis3VR_2c3f4f4.apk`). GPU unchanged (2.8-3.1 ms).
 - T9 (step back 5/6/7/8 m, Camera height row) written, on the headset now;
   see HANDOFF 3.1.
+- **Owner (23:10): also experiment with option 2/B** - viewer placed at the
+  replay camera's spot, natural (1:1) field of view, a fade at each cut
+  ("closer to the TV feel"). So T10 builds BOTH as real, selectable choices:
+  `LINDBERGH_VT3_REPLAY_VIEW=world` (A, stay in place) and `follow` (B, at
+  the replay camera; needs: fade out/in at every replay cut and at replay
+  start/end, decide whether the view pans with the camera or snaps per shot
+  with the head free - try both, owner judges worn). Panel row: Replays:
+  Off / Flat screen / In the world / Camera view. Design:
+  `ai_docs/research/immersive-replay-cameras.md` (B is its "follow" step -
+  there only a comparison step; promote it to a full option).
