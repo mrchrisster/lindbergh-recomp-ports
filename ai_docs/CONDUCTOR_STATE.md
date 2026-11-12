@@ -203,3 +203,14 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   Medium / High, High at the far end (the far end exists: after a change of
   ends 1P plays from the far side; latched in the StartLoop after it).
   Status: see HANDOFF 3.1 top entry.
+
+## 2026-11-12 ~01:30 (owner judged the T12 build worn) -> T13 (same worker)
+- Installed + committed locally: submodule 9dd8505 (T10 2e61a2c + T12), outer c04faed.
+- Owner: VR view fine; **Camera height default = Medium**; **delete "In the
+  world"** from Replays / Point cutaways (confusing when the angle does not
+  change) -> Off / Flat screen / Camera view. Fault: on high angled cameras
+  the players are missing in Camera view. Direction: camera angles close to
+  the original, with close-ups of the players (aim like the game camera,
+  viewpoint moved forward along its line of sight to make up for the lens).
+- T13 = the above; Mac first, one headset smoke run when granted.
+- POV camera (T11) waits for the owner's word.
