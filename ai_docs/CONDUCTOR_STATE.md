@@ -69,3 +69,20 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 2. T3 sky seam on three venues; T4 shadow mask; T5 LOD bias; then T6.
 3. Near-end lower seats have no crowd cards when looking behind (round 0).
 4. HANDOFF.md sections 3-5: live mode switch, in-scene scoreboards, cameras.
+
+## Late evening 2026-11-11 (conductor checkpoint, near the usage limit)
+- Sky worker running on the headset (agent a7afa4d451c30bcc6). Step 0 DONE:
+  committed build (submodule 8004564 + 0dbcb6e FIXED_HEAD test switch, outer
+  43b6e93) regressed and installed. It has stadium + hang fix + T5 sharpness.
+- A test run is active (env.txt not empty) - owner must NOT wear the headset
+  until env.txt is 0 bytes and a committed build is installed.
+- Owner asked: "let me know when I should visually confirm a new build".
+  Tell him at (1) the next pause with the committed build installed,
+  (2) after the sky build is committed (images in ~/Desktop/Claude/vt3-sky/).
+- Worker told to checkpoint HANDOFF 3.1 after every step, commit docs at
+  once, keep wip diff current, pause and report before the next run.
+- If cut off: resume from HANDOFF 3.1 top entry; first empty env.txt, check
+  the installed build, then continue the sky backdrop search.
+- After sky: T4 shadow mask debug, rounds 1/2 stadium checks, gl4es mv_copy,
+  GPU page faults, live switch steps 2-8, scoreboards, cameras. Push to
+  `fork` only on the owner's word.
