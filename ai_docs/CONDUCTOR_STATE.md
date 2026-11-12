@@ -214,3 +214,8 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   viewpoint moved forward along its line of sight to make up for the lens).
 - T13 = the above; Mac first, one headset smoke run when granted.
 - POV camera (T11) waits for the owner's word.
+- **Open bug T14 (owner, worn, build 9dd8505):** a brief glitch still shows
+  at the start of every point in VR ("not sure if it's still a top-down shot,
+  disappears too quickly"). Worker told to capture it every-frame in the T13
+  smoke run (strip: ~/Desktop/Claude/vt3-bugs/point_start_glitch.png) and fix
+  if small.
