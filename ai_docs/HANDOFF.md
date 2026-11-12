@@ -168,6 +168,23 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T10 worker, step 1 - code written, first macOS runs going.**
+  Uncommitted; safety diff `ai_docs/wip/t10-replay-views-lindberghrecomp.diff`
+  (`git apply` in the submodule). What is in: vr.cfg `immersive.replays` /
+  `.cutaways` `off|flat|world|camera` (old `on` = flat; `LG_VIEW_*`),
+  `WmValues.replay_view/cutaway_view`, env `LINDBERGH_VT3_REPLAY_VIEW` /
+  `_CUTAWAY_VIEW=flat|world|follow|camera` (an on/off env pin alone = flat),
+  panel rows cycle Off / Flat screen / In the world / Camera view; stereo.c
+  `stereo_vt3_view` (GL thread, from `vt3_cam_job`; anchor = last mode 1/2
+  view; correction C in `eye_projection`; flat rules off while `g_rv.active`;
+  Camera view: level per-shot heading, `LINDBERGH_VT3_REPLAY_PAN=1|2`, dip
+  to black `rv_fade_draw`, `LINDBERGH_VT3_REPLAY_FADE`), `arb_note_projection`
+  returns what it took, `replay::reverseFrame` counted (worker thread, handed
+  on by the main thread's camera), split screen suppressed via the
+  `initWinlose` rand (thread-local flag), serve close-up off in in-world
+  views, `LINDBERGH_SHOT_UNTIL` (mac shots). No headset used. Next: look at
+  `/tmp/vt3t10/m_world`, `/tmp/vt3t10/m_follow` (replay scene, mac, shots
+  2380-2600 every 4).
 - **T8b worker, step 14 - T9 COMMITTED and installed; testing stopped at the
   owner's request ("too excessive").** Submodule `688a9b9` (= the tested
   working tree, identical to the wip diff), APK
