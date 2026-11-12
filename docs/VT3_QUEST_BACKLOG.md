@@ -92,6 +92,10 @@ and asked that all progress and research be written to the docs.
       may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-12)
+- [x] **No "cannot use a card" bar, no card wait at boot; English** (owner,
+      T15; macOS-verified, headset check owed): card readers off (Classic
+      can turn the notice back on), Language English / Japanese on the main
+      page (default English).
 - [x] **Settings panel: Classic / VR buttons on top** (owner, T12). Two big
       buttons above everything, the chosen one highlighted, a line under them
       saying which runs and whether a restart is needed (Restart now right

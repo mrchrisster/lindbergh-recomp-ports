@@ -45,6 +45,7 @@ static const LgGameProfile k_profile = {
     .pace_fps = 60,
     .joystick = 1,
     .glx_sgix_pbuffer = 1,
+    .sysdata_region = 1,            /* the language: the region byte of the EEPROM's system data (Language row, hle_sega.c) */
     .vr = {
         .title = "Virtua Tennis 3 VR",
         .width = 1360, .height = 768,

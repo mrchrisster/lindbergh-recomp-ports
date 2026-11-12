@@ -1,0 +1,502 @@
+diff --git a/src/runtime/hle_sega.c b/src/runtime/hle_sega.c
+index a5ad95e..54deced 100644
+--- a/src/runtime/hle_sega.c
++++ b/src/runtime/hle_sega.c
+@@ -620,10 +620,12 @@ static void h_dipsw_get(CPU *c)
+     RET(0);
+ }
+ 
++static int g_vt3_region = -1;    /* Virtua Tennis 3: its Language setting's region (vt3_jumps) */
+ static int region_value(void)
+ {
+     const char *v = getenv("LINDBERGH_REGION");
+     if (v && *v) return atoi(v);
++    if (g_vt3_region >= 0) return g_vt3_region;
+     return g_country ? 1 : 0;
+ }
+ static void h_region(CPU *c) { RET(region_value()); }
+@@ -1026,7 +1028,47 @@ static void h_vt3_card_init(CPU *c)
+     g_vt3_card_shown = -1;
+     vt3_card_apply();
+ }
+-static void h_vt3_credit_draw(CPU *c) { vt3_card_apply(); if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_credit_draw(c); }
++/* Overlays turned Hidden during a session: the card reader's windows the
++ * game already opened (it opens them once at boot and never closes them) are
++ * closed with the game's own close-everything, CCardSlotWindowManager::init()
++ * (what it does between screens), on the game thread. Shown again: they come
++ * back when the game next opens them. LINDBERGH_VT3_OVERLAYS_AT=<frame>:<0|1>
++ * (test only): the switch flipped at that frame, as a panel click would. */
++static void vt3_slot_close_all(CPU *c)
++{
++    uint32_t t = rd32(0x085061A4u), cm = t ? rd32(t + 0x70) : 0, sw = cm ? rd32(cm + 0xB4) : 0;
++    static uint32_t init_fn;
++    if (!init_fn) init_fn = guest_symbol("_ZN22CCardSlotWindowManager4initEv");
++    if (sw && init_fn && rd8(sw + 0x2C) == 1) {
++        uint32_t a[1] = { sw };
++        guest_call(c, init_fn, a, 1);
++        extern unsigned g_frame;
++        fprintf(stderr, "[vt3] frame %u: arcade overlays hidden - the card reader's windows closed\n", g_frame);
++    }
++}
++static void h_vt3_credit_draw(CPU *c)
++{
++    static int last = -1, at_mode = -1; static long at = -2;
++    if (at == -2) { const char *v = getenv("LINDBERGH_VT3_OVERLAYS_AT"); at = -1;
++                    if (v && sscanf(v, "%ld:%d", &at, &at_mode) != 2) at = -1; }
++    extern unsigned g_frame;
++    if (at >= 0 && (long)g_frame >= at) { g_arcade_overlays = at_mode != 0; at = -1;
++                                         fprintf(stderr, "[vt3] frame %u: arcade overlays %s (LINDBERGH_VT3_OVERLAYS_AT)\n", g_frame, at_mode ? "shown" : "hidden"); }
++    if (last == 1 && !g_arcade_overlays) vt3_slot_close_all(c);
++    last = g_arcade_overlays;
++    vt3_card_apply();
++    if (!g_arcade_overlays) return;
++    push32(c, 0xDEADBEEFu); g_vt3_credit_draw(c);
++}
++/* Virtua Tennis 3's card reader/writer, per side (backup::getCard_rw_1p_use /
++ * _2p_use): 0 on, -2 out of service, -1 off. The port has no card reader
++ * (every /dev open is refused), so the game is told the cabinet has its
++ * readers switched off - the setting a card-less cabinet uses: no "1P/2P
++ * cannot use a card" bar at the top, no 11 s CARD R/W INITIALIZING screen at
++ * boot, no card prompt at character select; the King / boss level comes from
++ * the cabinet's backup instead of cards. LINDBERGH_VT3_CARD_RW=1 keeps the
++ * game's own setting (ai_docs/research/card-reader-top-bar.md). */
++static void h_vt3_card_rw_off(CPU *c) { RET(0xFFFFFFFFu); }
+ static void h_vt3_slot_open(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot_open(c); }
+ static void h_vt3_slot(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot(c); }
+ static void h_vt3_slot_card(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot_card(c); }
+@@ -1807,6 +1849,11 @@ static void vt3_jumps(void)
+     g_replays = world_mode_replays();
+     g_arcade_overlays = world_mode_overlays();
+     g_cutaways = world_mode_cutaways();
++    /* the Language row (vr.cfg language, LINDBERGH_VT3_LANGUAGE): the cabinet's
++     * region byte in the EEPROM's system data (games/vt3 profile .sysdata_region):
++     * English = 2 (export: English without the USA's rating screen and MPH),
++     * Japanese = 0. LINDBERGH_REGION=<n> wins. Read at the first EEPROM access. */
++    if (g_world_capable) g_vt3_region = world_mode_language() ? 2 : 0;
+     const char *r = getenv("LINDBERGH_VT3_ROUND"), *p = getenv("LINDBERGH_VT3_POINTS"), *l = getenv("LINDBERGH_VT3_LOG");
+     g_vt3_log = l && *l == '1';
+     if (r && *r) g_vt3_round = atoi(r);
+@@ -1824,6 +1871,13 @@ static void vt3_jumps(void)
+             nh += vt3_wrap("_ZN22CCardSlotWindowManager19window_slot_usecardElb", &g_vt3_slot_card, h_vt3_slot_card);
+             nh += vt3_wrap("_ZN12ab_card_info4initEv", &g_vt3_card_init, h_vt3_card_init);
+         }
++        {   /* Classic's Card reader notice row (classic.card_notice; VR: always off), LINDBERGH_VT3_CARD_RW=1|0 */
++            if (!world_mode_card_notice() && guest_symbol("_ZN6backup17getCard_rw_1p_useEv")) {     /* Virtua Tennis 3 only */
++                if (guest_override("_ZN6backup17getCard_rw_1p_useEv", h_vt3_card_rw_off) &&
++                    guest_override("_ZN6backup17getCard_rw_2p_useEv", h_vt3_card_rw_off))
++                    fprintf(stderr, "[sega] Virtua Tennis 3: card readers off (no card bar, no CARD R/W wait; LINDBERGH_VT3_CARD_RW=1 keeps the game's setting)\n");
++                else fprintf(stderr, "[sega] Virtua Tennis 3: WARNING card reader setting not overridden\n");
++            } }
+         if (nh) { g_arcade_overlay_hooks = 1; fprintf(stderr, "[sega] Virtua Tennis 3: arcade overlays %s (%d draws hooked)\n", g_arcade_overlays ? "shown" : "hidden", nh); }
+         const char *pt = getenv("LINDBERGH_VT3_PRIZE_TRACE");
+         if (pt && *pt) {
+diff --git a/src/runtime/host_sdl.c b/src/runtime/host_sdl.c
+index 41046f5..e319821 100644
+--- a/src/runtime/host_sdl.c
++++ b/src/runtime/host_sdl.c
+@@ -826,6 +826,22 @@ int host_window_open(const char *title)
+         SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0");
+         fprintf(stderr, "[window] audio keeps playing while the Activity is paused (test)\n");
+     }
++#endif
++    /* LINDBERGH_HEADLESS=1 (unattended runs; scripts/vt3-repro.sh sets it on
++     * macOS): never seen, never in the way of whoever works on the machine -
++     * no Dock icon and no activation (a background app), the window hidden
++     * (LINDBERGH_HIDDEN), no sound to the speakers (SDL's dummy audio driver:
++     * the mix still runs; LINDBERGH_HEADLESS_AUDIO=1 keeps the real one), no
++     * menu, no grab. LINDBERGH_SHOT still captures the frames. */
++    const char *hl = getenv("LINDBERGH_HEADLESS");
++    const int headless = hl && *hl == '1';
++#if !defined(__ANDROID__)
++    if (headless) {
++        SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "1");
++        const char *ha = getenv("LINDBERGH_HEADLESS_AUDIO");
++        if (!(ha && *ha == '1')) SDL_setenv("SDL_AUDIODRIVER", "dummy", 1);
++        fprintf(stderr, "[window] headless: hidden window, background app, no sound out (LINDBERGH_HEADLESS)\n");
++    }
+ #endif
+ #if defined(LINDBERGH_OPENXR)
+     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
+@@ -879,7 +895,7 @@ int host_window_open(const char *title)
+     /* LINDBERGH_HIDDEN=1: a test run that never shows its window or takes
+      * focus; LINDBERGH_SHOT still captures the frames */
+     const char *hv = getenv("LINDBERGH_HIDDEN");
+-    int hidden = hv && *hv && *hv != '0';
++    int hidden = (hv && *hv && *hv != '0') || headless;
+     g_win.win = SDL_CreateWindow(title && *title ? title : "lindberghrecomp",
+                                  SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                  dw, dh,
+diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
+index ffa8718..7b82bf2 100644
+--- a/src/runtime/world_mode.c
++++ b/src/runtime/world_mode.c
+@@ -25,12 +25,12 @@
+ static const char *const ENV_NAME[WM_COUNT] = {
+     "LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+     "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY",
+-    "LINDBERGH_VT3_HEIGHT" };
++    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE" };
+ static const char *const KEY_CLASSIC[WM_COUNT] = {
+-    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL };
++    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language" };
+ static const char *const KEY_IMMERSIVE[WM_COUNT] = {
+     "mode", "immersive.replays", "immersive.overlays", "immersive.cutaways", "immersive.shadow",
+-    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height" };
++    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language" };
+ 
+ const char *world_mode_env_name(int key) { return key >= 0 && key < WM_COUNT ? ENV_NAME[key] : NULL; }
+ const char *world_mode_key(int key, int immersive)
+@@ -118,6 +118,11 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     if (k[WM_DOLLY] == WM_SRC_FILE) k[WM_DOLLY] = WM_SRC_DEFAULT;   /* (no longer read from vr.cfg) */
+     if (k[WM_BACK] == WM_SRC_FILE) k[WM_BACK] = WM_SRC_DEFAULT;
+     if ((v = env(WM_HEIGHT))) { o->height = (float)atof(v); k[WM_HEIGHT] = WM_SRC_ENV; }
++    o->card_notice = im ? 0 : s->classic_card_notice;        /* VR: always off */
++    if (im) k[WM_CARD] = WM_SRC_DEFAULT;
++    if ((v = env(WM_CARD))) { o->card_notice = *v == '1'; k[WM_CARD] = WM_SRC_ENV; }
++    o->language = s->language;
++    if ((v = env(WM_LANGUAGE))) { o->language = !(*v == '0' || !strcmp(v, "japanese")); k[WM_LANGUAGE] = WM_SRC_ENV; }
+     if ((v = env(WM_SKY))) { o->sky = world_mode_sky_value(v); k[WM_SKY] = WM_SRC_ENV; }
+     if (src) memcpy(src, k, sizeof k);
+ }
+@@ -173,12 +178,13 @@ void world_mode_init(int capable)
+     world_mode_resolve(&s, -1, capable, present, &g_wm, src);
+     static const char *const SRC[] = { "default", "vr.cfg", "env" };
+     fprintf(stderr, "[world] mode %s (%s) dolly %.0f (%s) back %.0f (%s) height %.0f (%s) sky %s (%s) shadow %d (%s) "
+-                    "replays %s (%s) overlays %s (%s) cutaways %s (%s)%s\n",
++                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s)%s\n",
+             g_wm.immersive ? "immersive" : "classic", SRC[src[WM_MODE]],
+             g_wm.dolly, SRC[src[WM_DOLLY]], g_wm.back, SRC[src[WM_BACK]], g_wm.height, SRC[src[WM_HEIGHT]],
+             sky_name(g_wm.sky), SRC[src[WM_SKY]], g_wm.shadow, SRC[src[WM_SHADOW]],
+             view_label(g_wm.replays, g_wm.replay_view, g_wm.immersive), SRC[src[WM_REPLAYS]], g_wm.overlays ? "on" : "off", SRC[src[WM_OVERLAYS]],
+-            view_label(g_wm.cutaways, g_wm.cutaway_view, g_wm.immersive), SRC[src[WM_CUTAWAYS]], capable ? "" : " - this game has no world mode");
++            view_label(g_wm.cutaways, g_wm.cutaway_view, g_wm.immersive), SRC[src[WM_CUTAWAYS]],
++            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], capable ? "" : " - this game has no world mode");
+     g_start = g_game = g_panel_req = g_wm.immersive;
+     atomic_store(&g_target, g_start);
+     atomic_store(&g_gl, g_start);
+@@ -271,6 +277,8 @@ void world_mode_gl_latch(int immersive) { atomic_store(&g_gl, immersive != 0); }
+ int world_mode_replays(void) { return wm()->replays; }
+ int world_mode_overlays(void) { return wm()->overlays; }
+ int world_mode_cutaways(void) { return wm()->cutaways; }
++int world_mode_card_notice(void) { return wm()->card_notice; }
++int world_mode_language(void) { return wm()->language; }
+ int world_mode_replay_view(void) { return wm()->replay_view; }
+ int world_mode_cutaway_view(void) { return wm()->cutaway_view; }
+ int world_mode_sky(void) { return wm()->sky; }
+diff --git a/src/runtime/world_mode.h b/src/runtime/world_mode.h
+index 197793e..e7c2539 100644
+--- a/src/runtime/world_mode.h
++++ b/src/runtime/world_mode.h
+@@ -18,7 +18,8 @@ extern "C" {
+ #endif
+ 
+ /* the values, for their env variables, sources and pins */
+-enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_HEIGHT, WM_COUNT };
++enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_HEIGHT,
++       WM_CARD, WM_LANGUAGE, WM_COUNT };
+ enum { WM_SRC_DEFAULT, WM_SRC_FILE, WM_SRC_ENV };
+ 
+ typedef struct {
+@@ -34,6 +35,9 @@ typedef struct {
+     float shadow_scale;         /* what stereo.c scales shadow maps by: 0 = as the game makes them */
+     float dolly, back;          /* viewpoint forward / back in game units (immersive) */
+     float height;               /* viewpoint raised (+) / lowered (-) in game units (immersive) */
++    int card_notice;            /* the card reader's notice and boot wait (Classic's classic.card_notice;
++                                 * VR: 0); LINDBERGH_VT3_CARD_RW=1|0; at registration, so on restart */
++    int language;               /* 1 English, 0 Japanese (vr.cfg language, LINDBERGH_VT3_LANGUAGE); on restart */
+ } WmValues;
+ 
+ /* the env variable that pins a value for a run (LINDBERGH_REPLAYS, ...) */
+@@ -91,6 +95,8 @@ int world_mode_frame(unsigned frame);
+ int world_mode_replays(void);
+ int world_mode_overlays(void);
+ int world_mode_cutaways(void);
++int world_mode_card_notice(void);
++int world_mode_language(void);
+ /* LG_VIEW_FLAT / _WORLD / _CAMERA (live) */
+ int world_mode_replay_view(void);
+ int world_mode_cutaway_view(void);
+diff --git a/src/runtime/xr_settings.c b/src/runtime/xr_settings.c
+index 48b7638..5a23a75 100644
+--- a/src/runtime/xr_settings.c
++++ b/src/runtime/xr_settings.c
+@@ -22,7 +22,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+                "sight %s\ncrosshair %s\ngun %s\nhud_pitch %d\ndual %s\nstats %s\nfoveation %s\noverlays %s\nreplays %s\n"
+                "mode %s\nclassic.shadow %d\nclassic.cutaways %s\nimmersive.replays %s\nimmersive.overlays %s\n"
+                "immersive.cutaways %s\nimmersive.sky %s\nimmersive.shadow %d\n"
+-               "immersive.height %d\n",
++               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\n",
+             c->scale, c->screen, c->aim, c->resolution, c->width, c->refresh, c->left_handed ? "left" : "right",
+             LASER_NAME[c->laser], c->auto_coins ? "auto" : "manual",
+             SIGHT_NAME[c->sight], c->crosshair ? "on" : "off", c->show_gun ? "on" : "off", c->hud_pitch, c->dual ? "on" : "off", c->show_stats ? "on" : "off",
+@@ -30,7 +30,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+             c->world_mode ? "immersive" : "classic", c->classic_shadow, c->classic_cutaways ? "on" : "off",
+             view_name(c->imm_replays), c->imm_overlays ? "on" : "off", view_name(c->imm_cutaways),
+             c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow,
+-            c->imm_height);
++            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese");
+ }
+ 
+ /* LINDBERGH_XR_SET's keys are for its run only: the save writes those keys as
+@@ -133,6 +133,8 @@ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+         else if (!strcmp(key, "immersive.sky")) c->imm_sky = !strcmp(val, "off") ? LG_SKY_OFF : !strcmp(val, "painted") ? LG_SKY_PAINTED : LG_SKY_STADIUM;   /* "on" (before 2026-11-12): a sky, now the stadium's */
+         else if (!strcmp(key, "immersive.shadow")) c->imm_shadow = atoi(val);
+         else if (!strcmp(key, "immersive.height")) c->imm_height = atoi(val);
++        else if (!strcmp(key, "classic.card_notice")) c->classic_card_notice = !strcmp(val, "on");
++        else if (!strcmp(key, "language")) c->language = strcmp(val, "japanese") != 0;
+         else if (!strcmp(key, "foveation")) {
+             for (int i = 0; i < 4; i++) if (!strcmp(val, FOVEATION_NAME[i])) c->foveation = i;
+         }
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index 5819221..2c98cf8 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -34,6 +34,10 @@ typedef struct {
+     int imm_shadow;             /* "immersive.shadow" */
+     int imm_height;             /* "immersive.height": the viewpoint raised from the camera's own, game
+                                  * units (0.1 m): 0 / 10 / 20 = Low / Medium / High (an older negative = Low) */
++    int classic_card_notice;    /* "classic.card_notice off|on": the card reader's "cannot use a card" bar and
++                                 * boot wait (Virtua Tennis 3; VR: always off); applies on the next start */
++    int language;               /* "language english|japanese": 1 English (the cabinet's region export), 0
++                                 * Japanese; applies on the next start (Virtua Tennis 3) */
+ } LgXrSettings;
+ /* Each eye's image by default: the headset's own panel, pixel for pixel.
+  * OpenXR reports only a runtime-scaled recommendation, so the panel is the
+@@ -55,7 +59,7 @@ typedef struct {
+  * 2048, Camera height Medium (+1 m; T13). (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10}
++                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1}
+ /* Immersive's (VR's) Camera height choices (immersive.height), game units
+  * (0.1 m): Low / Medium / High; a stored value off the list is read as the
+  * nearest (xr_settings_nearest; the first of two equally near) - an older
+diff --git a/src/runtime/xr_world_panel.c b/src/runtime/xr_world_panel.c
+index 0c70ace..de7c60e 100644
+--- a/src/runtime/xr_world_panel.c
++++ b/src/runtime/xr_world_panel.c
+@@ -44,6 +44,8 @@ static int wm_key(int item)
+     case XW_DOLLY: return WM_DOLLY;
+     case XW_STEPBACK: return WM_BACK;
+     case XW_HEIGHT: return WM_HEIGHT;
++    case XW_CARD: return WM_CARD;
++    case XW_LANGUAGE: return WM_LANGUAGE;
+     case XW_SKY: return WM_SKY;
+     default: return -1;
+     }
+@@ -58,7 +60,7 @@ static int pinned(const XwState *w, int item)
+ {
+     const int k = wm_key(item);
+     if (k < 0 || !(w->pins >> k & 1)) return 0;
+-    return k == WM_MODE || page_mode(w) == w->running;
++    return k == WM_MODE || k == WM_LANGUAGE || page_mode(w) == w->running;
+ }
+ 
+ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+@@ -69,7 +71,7 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+     switch (w->page) {
+     case XW_PAGE_CLASSIC: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_REPLAYS), XW_ROW(XW_CUTAWAYS), XW_ROW(XW_OVERLAYS),
+-                                 XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_CARD), XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     case XW_PAGE_IMMERSIVE: {
+@@ -81,6 +83,7 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+     default:
+         if (!w->live && cfg->world_mode != w->running && !pinned(w, XW_MODE)) rows[n++] = XW_ROW(XW_RESTART);
+         rows[n++] = XW_ROW(XW_ADVANCED);
++        rows[n++] = XW_ROW(XW_LANGUAGE);
+         for (int i = 0; i < XP_COUNT; i++)
+             if (i != XP_STATS && i != XP_OVERLAYS && i != XP_REPLAYS) rows[n++] = i;
+         break;
+@@ -132,6 +135,17 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     it[XW_OVERLAYS].label = "Arcade overlays";
+     it[XW_SKY].label = "Sky";
+     it[XW_SHADOW].label = "Shadow quality";
++    it[XW_CARD].label = "Card reader notice";
++    it[XW_LANGUAGE].label = "Language";
++    {   /* both apply on the next start: "(on restart)" while the stored one is not the running one */
++        int card = cfg->classic_card_notice, lang = cfg->language;
++        if (pinned(w, XW_CARD)) card = w->eff.card_notice;
++        if (pinned(w, XW_LANGUAGE)) lang = w->eff.language;
++        snprintf(it[XW_CARD].value, 40, "%s%s", on_off(card),
++                 !pinned(w, XW_CARD) && w->running == 0 && card != w->eff.card_notice ? " (on restart)" : "");
++        snprintf(it[XW_LANGUAGE].value, 40, "%s%s", lang ? "English" : "Japanese",
++                 !pinned(w, XW_LANGUAGE) && lang != w->eff.language ? " (on restart)" : "");
++    }
+     it[XW_RESTORE].label = im ? "Restore VR defaults" : "Restore Classic defaults";
+     /* the page's stored values; a pinned row the run's own */
+     const WmValues *e = &w->eff;
+@@ -158,7 +172,7 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     shadow(it[XW_SHADOW].value, sh);
+     for (int i = 0; i < XW_COUNT; i++) {
+         size_t l = strlen(it[i].value);
+-        if (i != XW_MODE && i != XW_MODE_CLASSIC && i != XW_MODE_VR && pinned(w, i)) snprintf(it[i].value + l, 40 - l, " (env.txt)");
++        if (i != XW_MODE && i != XW_MODE_CLASSIC && i != XW_MODE_VR && (i != XW_CARD || page_mode(w) == 0) && pinned(w, i)) snprintf(it[i].value + l, 40 - l, " (env.txt)");
+     }
+     if (!pinned(w, XW_SHADOW) && page_mode(w) == w->running && sh != e->shadow) {
+         size_t l = strlen(it[XW_SHADOW].value);
+@@ -175,7 +189,7 @@ void xw_restore_defaults(LgXrSettings *c, int immersive)
+         c->imm_height = d.imm_height;
+         c->imm_sky = d.imm_sky; c->imm_shadow = d.imm_shadow;
+     } else {
+-        c->replays = d.replays; c->arcade_overlays = d.arcade_overlays;
++        c->replays = d.replays; c->arcade_overlays = d.arcade_overlays; c->classic_card_notice = d.classic_card_notice;
+         c->classic_cutaways = d.classic_cutaways; c->classic_shadow = d.classic_shadow;
+     }
+ }
+@@ -208,6 +222,8 @@ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+         c->imm_sky = c->imm_sky == LG_SKY_STADIUM ? LG_SKY_PAINTED : c->imm_sky == LG_SKY_PAINTED ? LG_SKY_OFF : LG_SKY_STADIUM;
+         fx |= live; break;
+     case XW_HEIGHT: if (!im) return 0; c->imm_height = next_step(c->imm_height, LG_XR_HEIGHT_STEPS, LG_XR_HEIGHT_NSTEPS); fx |= live; break;
++    case XW_CARD: if (im || page_mode(w) < 0) return 0; c->classic_card_notice = !c->classic_card_notice; break;   /* on restart */
++    case XW_LANGUAGE: c->language = !c->language; break;                                                     /* on restart */
+     case XW_SHADOW: {
+         int *s = im ? &c->imm_shadow : &c->classic_shadow, k = 0;
+         while (k < 3 && SHADOWS[k] <= *s) k++;
+diff --git a/src/runtime/xr_world_panel.h b/src/runtime/xr_world_panel.h
+index f2ededa..d0e3b28 100644
+--- a/src/runtime/xr_world_panel.h
++++ b/src/runtime/xr_world_panel.h
+@@ -16,7 +16,8 @@ extern "C" {
+  * page (always its first two rows; xm_paint_modes draws them side by side).
+  * XW_MODE (a toggle), XW_DOLLY and XW_STEPBACK are no rows any more (T12). */
+ enum { XW_MODE, XW_RESTART, XW_ADVANCED, XW_BACK, XW_DOLLY, XW_STEPBACK, XW_REPLAYS, XW_CUTAWAYS,
+-       XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_MODE_CLASSIC, XW_MODE_VR, XW_COUNT };
++       XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_MODE_CLASSIC, XW_MODE_VR,
++       XW_CARD, XW_LANGUAGE, XW_COUNT };    /* Classic's Card reader notice; the main page's Language (both on restart) */
+ enum { XW_PAGE_MAIN, XW_PAGE_CLASSIC, XW_PAGE_IMMERSIVE, XW_PAGES };
+ /* xw_choose's effects, beside XP_SAVE and XP_RESTART */
+ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or, live, the mode) changed: world_mode_update */
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index 522e26d..0516825 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -9,7 +9,8 @@ import unittest
+ ENV_KEYS = ["LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+             "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK",
+             "LINDBERGH_VT3_SKY", "LINDBERGH_VT3_HEIGHT", "LINDBERGH_XR_SET", "LINDBERGH_XR_SCALE", "LINDBERGH_VT3_LIVE_SWITCH",
+-            "LINDBERGH_VT3_MODE_AT", "LINDBERGH_VT3_REPLAY_VIEW", "LINDBERGH_VT3_CUTAWAY_VIEW"]
++            "LINDBERGH_VT3_MODE_AT", "LINDBERGH_VT3_REPLAY_VIEW", "LINDBERGH_VT3_CUTAWAY_VIEW",
++            "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_REGION"]
+ 
+ 
+ class WorldModeTests(unittest.TestCase):
+@@ -33,6 +34,10 @@ int main(int argc, char **argv) {
+     const WmValues *v = world_mode_values();
+     printf("%d %d %d %d %d %.0f %.0f %d %.1f", v->immersive, v->replays, v->overlays, v->cutaways,
+            v->shadow, v->dolly, v->back, v->sky, v->shadow_scale);
++    if (argc > 2 && !strcmp(argv[2], "card")) {     /* card notice, language */
++        printf(" | %d %d\n", v->card_notice, v->language);
++        return 0;
++    }
+     if (argc > 2 && !strcmp(argv[2], "views")) {    /* replays / cutaways: on, view; and the pins */
+         printf(" | %d %d %d %d %d %d\n", v->replays, v->replay_view, v->cutaways, v->cutaway_view,
+                world_mode_pinned(WM_REPLAYS), world_mode_pinned(WM_CUTAWAYS));
+@@ -108,6 +113,16 @@ int main(int argc, char **argv) {
+         _, log = self.run_wm(imm + "immersive.replays world\n")
+         self.assertIn("replays camera (vr.cfg)", log); self.assertIn("cutaways off (default)", log)
+ 
++    def test_card_notice_and_language(self):
++        c = lambda cfg=None, env=None: self.run_wm(cfg, env, args=("1", "card"))[0].split(" | ")[1]
++        self.assertEqual(c(), "0 1")                                                     # off, English
++        self.assertEqual(c("classic.card_notice on\nlanguage japanese\n"), "1 0")
++        self.assertEqual(c("mode immersive\nclassic.card_notice on\n"), "0 1")         # VR: always off
++        self.assertEqual(c("mode immersive\n", {"LINDBERGH_VT3_CARD_RW": "1"}), "1 1")  # env for tests
++        self.assertEqual(c(None, {"LINDBERGH_VT3_LANGUAGE": "japanese"}), "0 0")
++        _, log = self.run_wm("language japanese\n")
++        self.assertIn("card notice off (default) language japanese (vr.cfg)", log)
++
+     def test_defaults_are_classic(self):
+         out, log = self.run_wm()
+         self.assertEqual(out, "0 1 1 1 1024 200 50 1 0.0")
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index 96f6e5f..600f2a8 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -58,7 +58,7 @@ int main(void) {
+ 
+     MODE_KEYS={"mode":"classic","classic.shadow":"1024","classic.cutaways":"on","immersive.replays":"off",
+                "immersive.overlays":"off","immersive.cutaways":"off","immersive.sky":"stadium","immersive.shadow":"2048",
+-               "immersive.height":"10"}
++               "immersive.height":"10","classic.card_notice":"off","language":"english"}
+ 
+     @staticmethod
+     def parse(text):
+@@ -77,7 +77,7 @@ int main(void) {
+     def test_mode_keys_round_trip(self):
+         cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"camera",
+              "immersive.overlays":"on","immersive.cutaways":"camera","immersive.sky":"painted","immersive.shadow":"1024",
+-             "immersive.height":"10"}
++             "immersive.height":"10","classic.card_notice":"on","language":"japanese"}
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("".join(f"{k} {v}\n" for k,v in cfg.items()))
+             self.run_settings(d)
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index 026678f..6b36938 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -100,7 +100,7 @@ int main(void) {
+     c.world_mode = 0; w.page = XW_PAGE_CLASSIC;
+     fx = xw_choose(&w, &c, XW_CUTAWAYS); assert((fx & XW_LIVE_CHANGED) && c.classic_cutaways == 0);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 10 && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
++    assert(n == 11 && has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
+     assert(xw_choose(&w, &c, XW_SKY) == 0);             /* not a Classic row */
+     w.pins = 1u << WM_REPLAYS; w.eff.replays = 0;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "Off (env.txt)"));
+@@ -112,6 +112,15 @@ int main(void) {
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "In the world (env.txt)"));
+     assert(xw_choose(&w, &c, XW_REPLAYS) == 0);
+     w.running = 0; w.eff.replays = 0;
++    /* Classic's Card reader notice: Off by default, on restart */
++    w.page = XW_PAGE_CLASSIC;
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_CARD].label, "Card reader notice") && !strncmp(it[XW_CARD].value, "Off", 3));
++    { int pins = w.pins; w.pins = 0; w.eff.card_notice = 0;
++      fx = xw_choose(&w, &c, XW_CARD); assert(fx == XP_SAVE && c.classic_card_notice == 1);
++      xw_items(&w, &c, it); assert(!strcmp(it[XW_CARD].value, "On (on restart)"));
++      xw_choose(&w, &c, XW_CARD); assert(c.classic_card_notice == 0);
++      w.page = XW_PAGE_IMMERSIVE; assert(xw_choose(&w, &c, XW_CARD) == 0); w.page = XW_PAGE_CLASSIC;   /* not VR's */
++      w.pins = pins; }
+     /* shadow on restart, on the running mode's page */
+     w.page = XW_PAGE_CLASSIC; w.eff.shadow = 1024; c.classic_shadow = 2048;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_SHADOW].value, "High 2048 (on restart)"));
+@@ -119,6 +128,17 @@ int main(void) {
+     w.page = XW_PAGE_MAIN; w.pins = 1u << WM_MODE; w.running = 1; c.world_mode = 0;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_MODE_VR].value, "selected") && !strcmp(xw_mode_note(&w, &c), "VR runs (set by env.txt)"));
+     assert(find(&w, &c, XW_ROW(XW_RESTART)) < 0 && xw_choose(&w, &c, XW_MODE_CLASSIC) == 0 && c.world_mode == 0);
++    /* Language on the main page (both modes), English by default, on restart */
++    { XwState lw; memset(&lw, 0, sizeof lw); LgXrSettings lc = LG_XR_SETTINGS_DEFAULT;
++      world_mode_resolve(&lc, 1, 1, 0, &lw.eff, NULL); lw.running = 1;
++      int lr[XW_ROWS_MAX], ln = xw_page_rows(&lw, &lc, lr);
++      assert(has(lr, ln, XW_ROW(XW_LANGUAGE)) && lc.language == 1 && lw.eff.language == 1);
++      xw_items(&lw, &lc, it); assert(!strcmp(it[XW_LANGUAGE].value, "English"));
++      assert(xw_choose(&lw, &lc, XW_LANGUAGE) == XP_SAVE && lc.language == 0);
++      xw_items(&lw, &lc, it); assert(!strcmp(it[XW_LANGUAGE].value, "Japanese (on restart)"));
++      lw.pins = 1u << WM_LANGUAGE; lw.eff.language = 1;
++      xw_items(&lw, &lc, it); assert(!strcmp(it[XW_LANGUAGE].value, "English (env.txt)"));
++      assert(xw_choose(&lw, &lc, XW_LANGUAGE) == 0); }
+     /* a mode button on an Advanced page: that mode's page */
+     w.pins = 0; w.running = 0; w.page = XW_PAGE_CLASSIC; c.world_mode = 0;
+     fx = xw_choose(&w, &c, XW_MODE_VR); assert((fx & XP_SAVE) && c.world_mode == 1 && w.page == XW_PAGE_IMMERSIVE);
+@@ -147,7 +167,7 @@ int main(void) {
+     }
+     /* every value fits beside its label: 42 characters across the panel */
+     for (int p = 0; p < XW_PAGES; p++) {
+-        w.page = p; w.pins = 0x1ff; c.imm_shadow = 4096; c.classic_shadow = 4096; w.eff.shadow = 1024;
++        w.page = p; w.pins = 0x7ff; c.imm_shadow = 4096; c.classic_shadow = 4096; w.eff.shadow = 1024;
+         xw_items(&w, &c, it);
+         for (int i = 0; i < XW_COUNT; i++) assert(strlen(it[i].label) + strlen(it[i].value) + (it[i].value[0] ? 1 : 0) <= 41);
+         assert(strlen(xw_hint(&w)) <= 42);
+@@ -179,8 +199,8 @@ int main(void) {
+                 rows[m++] = id < XP_COUNT ? all[id] : wall[id - XP_COUNT];
+             }
+             const char *page = getenv("LINDBERGH_TEST_PANEL_PAGE");
+-            if (page && *page == '2') {      /* the VR page instead */
+-                pw.page = XW_PAGE_IMMERSIVE; pn = xw_page_rows(&pw, &pc, pr); m = 0; xw_items(&pw, &pc, wall);
++            if (page && (*page == '2' || *page == '1')) {      /* the VR (2) or Classic (1) page instead */
++                pw.page = *page == '2' ? XW_PAGE_IMMERSIVE : XW_PAGE_CLASSIC; if (*page == '1') pc.world_mode = 0; pn = xw_page_rows(&pw, &pc, pr); m = 0; xw_items(&pw, &pc, wall);
+                 for (int i = 0; i < pn; i++) rows[m++] = pr[i] < XP_COUNT ? all[pr[i]] : wall[pr[i] - XP_COUNT];
+             }
+             xm_paint_modes(img, xw_title(&pw) ? xw_title(&pw) : "Virtua Tennis 3 - settings", rows, m, 1, xw_mode_note(&pw, &pc), xw_hint(&pw));

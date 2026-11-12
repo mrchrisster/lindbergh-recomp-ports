@@ -168,6 +168,15 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T15 COMMITTED locally - macOS-verified, Quest smoke run OWED**
+  (card reader off / Classic row, overlays-hidden closes the bar, Language
+  row English default; headless macOS runs). Not installed. The combined
+  T13+T14+T15 smoke run when the headset is back: install a fresh build of
+  the committed tree, then the T13 command below plus a boot-to-match check
+  (`[sega] system data region 2`, `card readers off`, no bar, English
+  texts, match start frame - expected sooner than 1949? record it), owner's
+  vr.cfg unpinned for one start (`LINDBERGH_VT3_IMMERSIVE=
+  LINDBERGH_ARCADE_OVERLAYS= LINDBERGH_REPLAYS= LINDBERGH_VT3_CUTAWAYS=`).
 - **2026-11-12 T13/T14 COMMITTED locally - macOS-verified, Quest smoke run
   OWED** (submodule `66ce3ff`; not installed - the headset is off; installed
   is still T12 `9dd8505`). Owed smoke run (combined with T15 when granted):

@@ -51,6 +51,13 @@ working on its area):
   2026-11-11 through two `prize` matches). `LINDBERGH_GL_THREAD=1` puts the GL on its
   own thread as on the Quest. Sanitizer builds of the runtime only (the lifted code
   reused): see the 2026-11-11 match-start hang entry under Done.
+- **macOS runs are headless by default** (2026-11-12, the owner works on this
+  Mac): `scripts/vt3-repro.sh ... mac` sets `LINDBERGH_HEADLESS=1` - hidden
+  window, background app (no Dock icon, never takes focus), SDL's dummy audio
+  driver (no sound out; `LINDBERGH_HEADLESS_AUDIO=1` keeps the real one).
+  Game shots (`LINDBERGH_SHOT`) and logs are the same as a visible run
+  (checked: identical frames 300-2100). `LINDBERGH_HEADLESS=0` to watch.
+  Running `scripts/run-macos.sh` by hand: set `LINDBERGH_HEADLESS=1` too.
 - Unattended runs: `scripts/vt3-repro.sh <scene> quest <secs>` or
   `... <scene> mac ~/code/quest_games/vt3 <secs>`. Extra `LINDBERGH_*` variables
   in the environment are passed through. The headset's **env.txt is empty by
@@ -120,6 +127,30 @@ working on its area):
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-12 **T15: card reader notice off, English, headless macOS runs -
+  macOS-verified, Quest smoke run OWED** (guide section 8 "Card reader
+  notice and language (T15)"). VT3 now tells the game its card readers are
+  OFF (`backup::getCard_rw_1p/2p_use` = -1): no "1P/2P cannot use a card"
+  bar, no 11 s CARD R/W INITIALIZING screen, no card prompt; Classic's row
+  "Card reader notice: Off / On" (`classic.card_notice`, on restart; VR always
+  off; `LINDBERGH_VT3_CARD_RW=1|0`). Overlays turned Hidden during a session
+  now close an open bar (`CCardSlotWindowManager::init`; test switch
+  `LINDBERGH_VT3_OVERLAYS_AT=<frame>:<0|1>`). Language row on the main page
+  (`language english|japanese`, default English = region 2 export, on
+  restart; `LINDBERGH_VT3_LANGUAGE`, `LINDBERGH_REGION` wins; profile
+  `.sysdata_region`). **Changed for tests (macOS):** the boot reaches
+  character select ~660 frames sooner (frame ~500 instead of after the CARD
+  R/W screen), but the scripted keys still land: match start 1952 (was 1952),
+  prize Gamesetmatch 3482 -> Stats 3572 -> Load 4173 -> Start 4417; **with
+  card R/W off `round0` is Dusseldorf (Ger) instead of Milan (Ita)** - the
+  King level now comes from the cabinet's backup, not cards. Quest frame
+  numbers (match start 1949) to be re-measured in the owed smoke run.
+  Pictures: `~/Desktop/Claude/vt3-bugs/card_bar_BEFORE.png`, `_AFTER.png`,
+  `card_bar_live_hide.png`, `language_english_title.png`;
+  `~/Desktop/Claude/vt3-view/panel_T15.png`. Not checked: name entry in
+  letters, the save surviving a language switch (by design the region byte
+  is a separate EEPROM record).
 
 - 2026-11-12 **T13 / T14 - macOS-verified, Quest smoke run OWED** (submodule
   `66ce3ff`; guide section 8 "Camera view reframed ..."): Camera view framed

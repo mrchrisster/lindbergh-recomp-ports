@@ -92,6 +92,8 @@ mac)
     for v in LINDBERGH_VT3_IMMERSIVE LINDBERGH_REPLAYS LINDBERGH_VT3_CUTAWAYS LINDBERGH_ARCADE_OVERLAYS; do
         [ -n "${!v}" ] || unset "$v"; done      # empty: left to vr.cfg (the desktop reads env only)
     export LINDBERGH_KEYS="$(keys mac)"
+    # never on screen, never taking focus or the speakers (LINDBERGH_HEADLESS=0 to watch)
+    export LINDBERGH_HEADLESS="${LINDBERGH_HEADLESS-1}"
     export LINDBERGH_SHOT="${LINDBERGH_SHOT:-$OUT/f}" LINDBERGH_SHOT_EVERY="${LINDBERGH_SHOT_EVERY:-$SHOT_EVERY}" LINDBERGH_SHOT_FROM="${LINDBERGH_SHOT_FROM:-$SHOT_FROM}"
     echo "vt3-repro: $SCENE on macOS for ${SECS}s -> $OUT"
     "$ROOT/scripts/run-macos.sh" --opengl vt3 "$GAME" >"$OUT/vt3.log" 2>&1 &

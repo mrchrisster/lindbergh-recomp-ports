@@ -245,3 +245,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   writing `ai_docs/research/ic-card-save-emulation.md` (conductor commits).
   Opposite of T15's "card R/W OFF": becomes a setting (Save progress On/Off).
 - Future: versus with a second Quest - read-only research worker writing `ai_docs/research/versus-two-quests.md` (conductor commits). No build planned yet.
+
+## 2026-11-12 ~11:00 (T15 worker)
+- T15 committed locally, macOS-verified, Quest smoke OWED: card readers off
+  (Classic row "Card reader notice"), Language row (English default, region
+  2), overlays Hidden closes the bar live; macOS runs headless
+  (LINDBERGH_HEADLESS=1 default in vt3-repro.sh mac). Match start on macOS
+  unchanged (1952); round0 venue now Dusseldorf (King level from backup).
