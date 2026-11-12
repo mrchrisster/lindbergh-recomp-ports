@@ -10,7 +10,9 @@
 //        all-files access, which the app asks for when it finds no game)
 // The release APK holds the game's code translated from one exact vt3_Lindbergh_HD
 // (R.string.elf_sha256); any other version would not run, so it is checked
-// here first. Without a usable game the app writes HOW-TO-ADD-THE-GAME.txt
+// here first. The same goes for the libraries the game loads (lib/libCg.so,
+// R.string.solib_check): their code is in the app, their bytes are read from
+// the player's copy at start-up (lindberghrecomp solib.c checks them again). Without a usable game the app writes HOW-TO-ADD-THE-GAME.txt
 // into its folder and closes.
 package org.lindbergh.vt3;
 
@@ -76,7 +78,8 @@ public class VirtuaTennis3VR extends SDLActivity {
             File drv = new File(own, "lib");
             if (!elf.canRead() || !env.canRead() || !fs.isDirectory() || fs.list() == null ||
                     !drv.isDirectory() || drv.list() == null ||
-                    !getString(R.string.elf_sha256).trim().equalsIgnoreCase(sha256(elf))) {
+                    !getString(R.string.elf_sha256).trim().equalsIgnoreCase(sha256(elf)) ||
+                    checkLibraries(elf.getParentFile()) != null) {
                 String error = "Private game diagnostic refused: app cannot read the staged game/config.";
                 Log.e(TAG, error);
                 return error;
@@ -110,6 +113,8 @@ public class VirtuaTennis3VR extends SDLActivity {
             if (!want.isEmpty() && !want.equalsIgnoreCase(have)) {
                 msg = "This is a different version of the game (vt3_Lindbergh_HD " + have.substring(0, 12) +
                       "), the app needs vt3_Lindbergh_HD " + want.substring(0, 12) + ".";
+            } else {
+                msg = checkLibraries(elf.getParentFile());
             }
         }
         writeHelp(own, msg);
@@ -137,6 +142,30 @@ public class VirtuaTennis3VR extends SDLActivity {
         }
     }
 
+    /* The game's own libraries (R.string.solib_check, "path size sha256;..." relative
+     * to the executable's folder): null when all are there and right. */
+    private String checkLibraries(File exeDir) {
+        for (String entry : getString(R.string.solib_check).split(";")) {
+            String[] p = entry.trim().split(" ");
+            if (p.length != 3) continue;
+            File f = new File(exeDir, p[0]);
+            String where;
+            try { where = f.getCanonicalPath(); } catch (Exception e) { where = f.getPath(); }
+            String name = f.getName();
+            if (!f.canRead()) {
+                return "The game's " + name + " is missing: copy the game's lib folder too, so that it is at " + where + ".";
+            }
+            String have = f.length() == Long.parseLong(p[1]) ? sha256(f) : "size " + f.length();
+            Log.i(TAG, "game library: " + where + ", " + have);
+            if (!have.equalsIgnoreCase(p[2])) {
+                return "The game's " + name + " at " + where + " is a different version or damaged (" +
+                       (have.length() > 12 ? have.substring(0, 12) : have) + "), the app needs " + name +
+                       " with SHA-256 " + p[2].substring(0, 12) + ".";
+            }
+        }
+        return null;
+    }
+
     private static String sha256(File f) {
         try (InputStream in = new FileInputStream(f)) {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -162,7 +191,8 @@ public class VirtuaTennis3VR extends SDLActivity {
             "    /sdcard/VirtuaTennis3/vt3_Lindbergh/vt3_Lindbergh_HD\n\n" +
             "(Internal shared storage > VirtuaTennis3 over USB), and allow the app to access\n" +
             "all files when it asks.\n\n" +
-            "The app needs vt3_Lindbergh_HD with SHA-256 " + getString(R.string.elf_sha256).trim() + "\n";
+            "The app needs vt3_Lindbergh_HD with SHA-256 " + getString(R.string.elf_sha256).trim() + "\n" +
+            "and the game's lib/libCg.so (" + getString(R.string.solib_check).trim() + ")\n";
         try (FileOutputStream out = new FileOutputStream(help)) {
             out.write(text.getBytes("UTF-8"));
         } catch (Exception e) {

@@ -86,9 +86,16 @@ cd "$Q"
 # the executable the game's code came from (the app refuses any other), and
 # the version: VERSION (a release tag like v0.2.0) or 0.1.0
 SHA=$(cat "$ROOT/games/$ID/generated/$SHA_FILE" 2>/dev/null || true)
+# the libraries the game dlopens (tools/recomp/solib.py): their code is in the
+# app, their bytes are read from the player's files - "path size sha256;..."
+# for the app to check at start (path relative to the executable's folder)
+SOLIB_CHECK=$(tr '\n' ';' < "$ROOT/games/$ID/generated/recomp_solib.txt" 2>/dev/null || true)
+if [ -f "$ROOT/games/$ID/generated/recomp_solib_img.c" ]; then
+    echo "games/$ID/generated/recomp_solib_img.c embeds the game's library bytes: delete it and lift again" >&2; exit 1
+fi
 VER=${VERSION:-v0.1.0}; VER=${VER#v}
 VCODE=$(echo "$VER" | awk -F. '{print $1*10000 + $2*100 + $3}')
-./gradlew --no-daemon -q ":$ID:assembleRelease" -PelfSha256="$SHA" -PappVersionName="$VER" -PappVersionCode="$VCODE"
+./gradlew --no-daemon -q ":$ID:assembleRelease" -PelfSha256="$SHA" -PsolibCheck="$SOLIB_CHECK" -PappVersionName="$VER" -PappVersionCode="$VCODE"
 cp "$ID/build/outputs/apk/release/$ID-release.apk" "$OUT"
 rm -rf "$ASSETS"
 ls -la "$OUT"

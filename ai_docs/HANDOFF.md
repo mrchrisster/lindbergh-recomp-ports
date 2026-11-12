@@ -168,6 +168,35 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T19 COMMITTED (submodule 1addfc1 + outer) - libCg.so is no
+  longer in the app; macOS-verified, Quest smoke run OWED.** Sizes: mac
+  `build-mac/vt3` 70,181,888 -> 68,052,576 B; APK libmain.so 74,052,080 ->
+  71,925,648 B (APK 25,347,451 -> 24,604,459 B); sampled libCg.so byte runs
+  found: 323/328 -> 0/328 in both. APK (= T18 APK + T19):
+  `/tmp/vt3q/T19/VirtuaTennis3VR_T19_libcg_from_player.apk` (also
+  `quest/VirtuaTennis3VR.apk`). The app now NEEDS the player's
+  `/sdcard/VirtuaTennis3/lib/libCg.so` (2,170,374 B, SHA-256
+  da2f7604a1046e841e4a3e28d63c6a8d80ef9dcae996d6c06cad1b32585c736c, the
+  Rev. C disk0/lib copy). `quest/install.sh` pushes `lib` (GAME_PARTS), so an
+  install made with it has the file; the old builds never read it, so its
+  presence on the headset is NOT verified yet. **Owed, folded into the ONE
+  combined smoke run (install this APK instead of the T18 one; same run):**
+  ```
+  R=/tmp/vt3q/T19; adb shell ls -l /sdcard/VirtuaTennis3/lib/libCg.so
+  adb shell sha256sum /sdcard/VirtuaTennis3/lib/libCg.so    # da2f7604...736c
+  adb install -r $R/VirtuaTennis3VR_T19_libcg_from_player.apk
+  OUT=$R/smoke LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ANISO=8 LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_GAME_SHOT=2300,1,1,2301 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh prize quest 150
+  grep -E '^\[solib\]|\[xr\] splash|texture filtering|FATAL' $R/smoke/vt3.log | head
+  adb logcat -d -s VirtuaTennis3VR | grep -E 'game library|lib' | tail -3
+  ```
+  Pass: `[solib] libCg.so read from /sdcard/VirtuaTennis3/vt3_Lindbergh/../lib/libCg.so
+  (2170374 bytes, SHA-256 verified), 6721 relocations applied`, then
+  `libCg.so loaded at 0xb4000000`, match flow as usual (shaders compile).
+  If `ls` shows no file: `adb push <disk0>/lib /sdcard/VirtuaTennis3/` first
+  (or the app shows the Toast "The game's libCg.so is missing: copy the game's
+  lib folder too, so that it is at /sdcard/VirtuaTennis3/lib/libCg.so." and
+  closes - that is the error path; optional: check it once by renaming the
+  file over adb, then rename back). Not needed as a separate run.
 - **2026-11-12 T19 step 4 (macOS) PASSED.** Headless `prize` Classic
   (`/tmp/vt3t19/classic`) and Immersive (`/tmp/vt3t19/imm`), 330 s each:
   `[solib] libCg.so read from .../vt3_Lindbergh/../lib/libCg.so (2170374

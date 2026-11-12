@@ -313,3 +313,19 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - ~14:40: owner's fixes committed - icon candidate 7 "VT3 orange" without the
   ball's specular spot (installed); splash logo group and fallback title
   centred by measured drawn pixels. APK rebuilt (/tmp/vt3q/T18/). Smoke run owed.
+
+## 2026-11-12 ~15:20 (T19 build worker: libCg.so out of the app)
+- COMMITTED locally (never pushed), **macOS-verified, Quest smoke run OWED**
+  (HANDOFF 3.1 top, folded into the combined run): submodule 1addfc1, outer
+  commit after it. The embedded image was libCg's whole relocated load image
+  (data/rodata/GOT/tables the lifted code reads; its code was already lifted
+  to C). Now read from the player's `lib/libCg.so` at start-up, size +
+  SHA-256 checked, relocated from a generated table (no file bytes), result
+  checked against the lift-time image hash (identical). libmain.so 74.05 ->
+  71.93 MB, libCg byte runs 323/328 -> 0/328 (mac binary the same).
+  No fallback switch. Missing/wrong file: clear error naming the path (log,
+  exit 1; Quest: Toast + HOW-TO file before start).
+- Same violation, NOT fixed (owner to decide): Ghost Squad Evolution's
+  released APK embeds CRI `snd_util.so` + `librnalindbergh_jr.so` (146/274 and
+  232/265 sampled runs found); HOTD EX lifts the same two. Fix = re-lift with
+  the new solib.py + copy the Java check; hotd4, hotd4sp, lgj load none.

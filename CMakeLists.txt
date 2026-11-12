@@ -77,7 +77,14 @@ function(lindbergh_game id)
         else()
             target_sources(${id} PRIVATE "${gen}/recomp_gl_thunks.c")
         endif()
-        # libraries the game dlopens, lifted by lindberghrecomp/tools/recomp/solib.py
+        # libraries the game dlopens, lifted by lindberghrecomp/tools/recomp/solib.py:
+        # their code, and their relocation table - their bytes are read at
+        # start-up from the player's files (solib.c). An older lift embedded the
+        # whole library (recomp_solib_img.c): never build that into the app.
+        if(EXISTS "${gen}/recomp_solib_img.c")
+            message(FATAL_ERROR "${gen}/recomp_solib_img.c embeds the game's library bytes; "
+                "delete it and lift again (scripts/build-macos.sh) - the app reads them from the player's files")
+        endif()
         file(GLOB solib "${gen}/recomp_solib_*.c")
         target_sources(${id} PRIVATE ${solib})
     endif()
