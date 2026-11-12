@@ -252,3 +252,12 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   2), overlays Hidden closes the bar live; macOS runs headless
   (LINDBERGH_HEADLESS=1 default in vt3-repro.sh mac). Match start on macOS
   unchanged (1952); round0 venue now Dusseldorf (King level from backup).
+
+## 2026-11-12 midday (headset unavailable for some hours)
+- Committed locally, macOS-verified, **Quest smoke run OWED**: T13/T14
+  (submodule 66ce3ff), T15 (298f90a: card readers off, Language, headless
+  macOS runs); outer 848b315. Headset still has the T12 build (9dd8505).
+- T17 (owner): Anti-aliasing switch (Off / 2x / 4x) - same worker, Mac only,
+  default unchanged; joins the one combined smoke run.
+- Research running (read-only): card save emulation (T16, option C, single
+  player), versus with two Quests (Mac standing in for the second headset).
