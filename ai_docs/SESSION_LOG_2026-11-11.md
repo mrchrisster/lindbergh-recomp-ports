@@ -184,6 +184,12 @@ after it; that build is installed.
 - Stopped on controller input during a run (headset possibly worn):
   env.txt emptied, vr.cfg unchanged, committed fix build re-installed.
 
+## 9. After midnight: T9 (T8b worker)
+
+- Step back 5/6/7/8 m and a Camera height row (submodule `688a9b9`),
+  installed. Classic regression skipped at the owner's request; the owner
+  asked for minimal headset testing from now on (README ground rules).
+
 ## 8. Late night: T8 (T8 and T8b workers)
 
 - Owner's worn reports on `9d68719`: Classic top-down 3D frames at match

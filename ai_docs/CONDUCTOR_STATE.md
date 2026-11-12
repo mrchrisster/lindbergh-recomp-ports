@@ -162,3 +162,11 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   `2c3f4f4` installed, env.txt 0, vr.cfg = owner's 22:51 file.
 - T9 written + mostly verified, NOT committed: owed slate at +2 m and a
   short Immersive + Classic regression (HANDOFF 3.1 step 8).
+
+## 2026-11-12 ~00:10 (T8b worker, done)
+- **T9 COMMITTED** (local): submodule `688a9b9`; installed (sha256
+  744291d9...), env.txt 0, vr.cfg = owner's 22:51 file, app stopped.
+- Checks skipped at the owner's request: Classic regression for T9.
+- Owner's rule added to README: minimal headset testing (one ~2 min smoke
+  run per change; the owner judges worn).
+- Owner to judge worn: Step back 5-8 m, Camera height steps.

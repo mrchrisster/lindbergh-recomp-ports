@@ -17,3 +17,5 @@ dropped. T5 (LOD bias) is committed.
   out of world frames (stereo.c, arbprog.c `arb_fp_units`). Works in
   test runs (HANDOFF 3.1), regression not yet run.
 - `glq-second-writer-fix.diff` - historical (committed as `373c5ae`).
+- `t8-flat-and-fade-lindberghrecomp.diff` - committed as `2c3f4f4`.
+- `t9-view-lindberghrecomp.diff` - committed as `688a9b9` (historical).

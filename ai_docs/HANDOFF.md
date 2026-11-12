@@ -168,6 +168,17 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 14 - T9 COMMITTED and installed; testing stopped at the
+  owner's request ("too excessive").** Submodule `688a9b9` (= the tested
+  working tree, identical to the wip diff), APK
+  `/tmp/vt3q/T8b/VirtuaTennis3VR_688a9b9.apk` (sha256 744291d9...) installed,
+  app stopped, env.txt 0, vr.cfg = owner's 22:51 file byte-identical.
+  Q_imm (Immersive prize 220 s, input 0) passed: Gameset 3107 -> Stats 3172
+  -> Load 3532 (360, tapped), Stats 7094 -> Load 7694 (600), round 3 start;
+  black 0-1, 1185, 1947-8, 3534-5, 3776-7, 7697-8 (load / match start, the
+  game's own); 0 FATAL/WARNING/watchdog. **Skipped (owner):** Q_cls Classic
+  regression. B1: band = the near end's front wall. Next worker: follow the
+  owner's new rule (README ground rules) - one ~2 min smoke run per change.
 - **T8b worker, step 13 - slate at +2 m OK** (L20b, input 0: StatsLoop
   3082, shot 3250 = slate, flat, both eyes; sheet
   `~/Desktop/Claude/vt3-view/result_slate_at_heights.png` updated). Q_imm /

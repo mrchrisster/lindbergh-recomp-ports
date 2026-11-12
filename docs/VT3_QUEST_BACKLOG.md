@@ -60,6 +60,10 @@ and asked that all progress and research be written to the docs.
       In progress.
 - [ ] Pick the defaults for the camera's forward move (Camera closer, 20 m)
       and step back (6 m) - adjustable in Immersive's advanced settings.
+      2026-11-11 late (owner): Step back is now 5 / 6 / 7 / 8 m (3 and 9 m
+      were too far in / out) and there is a **Camera height** row (2 m lower
+      .. 2 m higher, Standard default) - owner to judge worn. Pictures:
+      `~/Desktop/Claude/vt3-view/`.
 - [ ] Sky (owner to judge worn): Immersive's Sky row - Stadium (default) is
       now Sega's own sky all round and overhead (each court's full sky dome,
       which the headset used to cut down to a cone in front - the "two

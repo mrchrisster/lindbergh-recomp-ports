@@ -38,6 +38,9 @@ working on its area):
 - Don't turn Guardian off from adb; ask the user to confirm prompts in the
   headset ("Finding position in room" means the room is too dark).
 - Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- **Owner's rule (2026-11-12): keep headset testing minimal — one short smoke
+  run per change (boot to a match start, ~2 minutes), no multi-run
+  regressions unless the owner asks; the owner judges worn.**
 
 ## How to test
 
@@ -117,6 +120,20 @@ working on its area):
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-12 **T9: Immersive Step back 5 / 6 / 7 / 8 m and a Camera height
+  row** (submodule `688a9b9`; guide section 8 "Step back"). `immersive.back`
+  50-80 (default 60; a stored value off the list = the nearest),
+  `immersive.height` -20..20 (0 = the camera's own; `LINDBERGH_VT3_HEIGHT`),
+  both live. Quest: each step shot (head held), serve meter at -2/0/+2 m,
+  slate at -2/+2 m, panel row, Immersive prize FLOWLOG+BLACK_LOG (slates
+  360 tapped / 600, round 3, black only the game's own, no FATAL). **Skipped
+  at the owner's request:** Classic regression (Classic code unchanged).
+  Pictures: `~/Desktop/Claude/vt3-view/`. The dark band at the bottom at
+  6-8 m is the near end's front wall just in front of the viewpoint (seen
+  pitched down; already there at 6 m before T9), not a rendering fault.
+  Test helper: count real controller input as `[cab] frame N: buttons V`
+  with V not 0 / 0x1 / 0x10 (the old `[cab] buttons` grep never matched).
 
 - 2026-11-11 late **T8: court from above at a match's start, Classic's stray
   3D frames, Immersive's "image within an image" before each serve - fixed,
