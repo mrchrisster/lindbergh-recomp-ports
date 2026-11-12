@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 9 - resumed (owner handed the headset back; his
+  22:51 vr.cfg is the one to restore).** Helper fixed: `t8run.sh` now counts
+  real input (`[cab] frame N: buttons V` not 0 / 0x1 / 0x10). Installed the
+  T8+T9 test build again; running `.../scratchpad/seq4.sh` (log
+  `/tmp/vt3q/T8b/seq4.out`, marker `SEQ4_DONE`; a watcher greps the device's
+  vt3.log every 10 s and kills the run on real input -> `INPUT_SEEN`):
+  B1 (band: view pitched down 35), L20b (slate at +2 m, shots 3250-3650),
+  Q_imm (FLOWLOG+BLACK_LOG 220 s), Q_cls (FLOWLOG, shots every 150 frames).
+  Dark band at the bottom at 6 m: also in the sky build's R_m0 shot
+  (`/tmp/vt3q/X/R_m0/game_02300.ppm`) - not new with T9.
 - **T8b worker, step 8 - STOPPED: controller input (owner in the headset,
   `mWakefulness=Awake`) during L-20 (from frame ~4346), L20 and Q_imm.**
   Done at once: seq3 and its run killed by PID, app force-stopped, env.txt 0
