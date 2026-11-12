@@ -168,6 +168,36 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T10 worker, step 3 - macOS-verified build ready; WAITING FOR
+  THE HEADSET (conductor's grant).** Code uncommitted (submodule working tree
+  = `ai_docs/wip/t10-replay-views-lindberghrecomp.diff`); test APK
+  `/tmp/vt3q/T10/VirtuaTennis3VR_t10.apk`. macOS logic runs (`/tmp/vt3t10/q_*`,
+  `r_*`): prize Immersive, replays world + cutaways camera - Winlose 7 camera
+  view (start dip, 1 shot, end dip), `big-point serve close-up left out (Point
+  cutaways in the world)`, Replay 6 in the world (anchored), Gamesetmatch ->
+  Stats -> Load -> next round, twice; replay scene, replays camera + cutaways
+  world - 7 replays, each one start + end dip, a type-0 ace replay's rewind
+  found (`reverseFrame`) with the camera's move a frame later settled in the
+  same dip (fixed after this run: it was a second dip); splitreplay with
+  cutaways world - `split-screen close-up left out` at all 6 points; Classic
+  splitreplay unchanged (`split-screen camera forced`, no `[rview]`); flat
+  views give no `[rview]` correction lines; no crash / FATAL. Unit tests pass.
+  **Headset plan (one ~2 min smoke run each; back up vr.cfg, empty env.txt,
+  watcher on real input):**
+  ```
+  R=/tmp/vt3q/T10; adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.before
+  adb install -r $R/VirtuaTennis3VR_t10.apk
+  # S1: replays In the world, cutaways Camera view (shots through the first replay + close-up)
+  OUT=$R/S1 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_VT3_REPLAY_VIEW=world LINDBERGH_VT3_CUTAWAY_VIEW=follow LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_VT3_CAMMODE_LOG=2 LINDBERGH_XR_FIXED_HEAD=1 LINDBERGH_GAME_SHOT=<first replay -10>,6,0,<+200> LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh replay quest 130
+  # S2 (if granted): the other pair - REPLAY_VIEW=follow CUTAWAY_VIEW=world
+  adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.after; cmp $R/vr.cfg.before $R/vr.cfg.after; adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+  ```
+  The first replay's frame on the Quest: read it from the run's `[flow] ...
+  ReplayLoop` (macOS: 2409 in the replay scene; the Quest's match starts at
+  ~1949, so expect ~2460 - start shots at 2380 every 6 to 2700 if unknown).
+  Look for: stadium in the same place as the last rally frame (A), players
+  replaying, shadows at the feet, no flat frame in modes 6/7, black dips
+  (B), ball trail / hit flash facing; then commit the submodule and the docs.
 - **2026-11-12 T10 worker, step 2 - logic verified by logs on macOS; macOS
   pictures useless.** `LINDBERGH_STEREO=1` on the desktop shows the left eye
   tiny and the right eye black (the second-eye replay draws no world) in

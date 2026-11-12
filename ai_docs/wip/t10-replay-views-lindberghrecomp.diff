@@ -235,10 +235,10 @@ index a682de7..41046f5 100644
      } else {
          if (g_frame != (unsigned)at) return;
 diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
-index 6631726..4660b0f 100644
+index 6631726..ac56108 100644
 --- a/src/runtime/stereo.c
 +++ b/src/runtime/stereo.c
-@@ -334,6 +334,215 @@ float stereo_eye_x(int view)
+@@ -334,6 +334,218 @@ float stereo_eye_x(int view)
      return -ss_lens(p) * ss_eye_e(view);
  }
  
@@ -277,6 +277,7 @@ index 6631726..4660b0f 100644
 +    float heading[3];       /* Camera: the shot's level heading, world */
 +    unsigned fade_at; int fading;
 +    unsigned shots;
++    unsigned shot_frame;
 +    unsigned mode_seen, mode_frame;   /* the mode last noted, the frame it began: the game's first
 +                                       * frame in a new mode still has the old camera's view */
 +} g_rv;
@@ -358,7 +359,7 @@ index 6631726..4660b0f 100644
 +        static int pan = -1;
 +        if (pan < 0) { const char *v = getenv("LINDBERGH_VT3_REPLAY_PAN"); pan = v && *v ? atoi(v) : 0; }
 +        const int start = was != k || mode != g_rv.mode;
-+        int shot = start || cut || !g_rv.have_last || g_frame - g_rv.mode_frame == 1;
++        int shot = start || cut || !g_rv.have_last || (g_frame - g_rv.mode_frame == 1 && g_rv.shot_frame != g_frame);
 +        if (!shot) {
 +            float d2 = 0, dt = 0;
 +            for (int i = 0; i < 3; i++) { d2 += (pos[i] - g_rv.last_pos[i]) * (pos[i] - g_rv.last_pos[i]); dt += fwd[i] * g_rv.last_fwd[i]; }
@@ -370,12 +371,14 @@ index 6631726..4660b0f 100644
 +        if (shot && stale) {
 +            if (start) rv_fade_start("start");      /* black while the old view is still drawn */
 +        } else if (shot) {
-+            /* the first real frame of a new camera mode: its first shot, inside the start's dip */
-+            const int settle = g_rv.fading && g_frame - g_rv.fade_at <= 2 && g_frame - g_rv.mode_frame <= 2;
-+            g_rv.shots++;
++            /* a new shot within 2 frames of a dip (the first real frame of a new
++             * camera mode; the camera's move a frame after the replay's rewind):
++             * taken inside that dip, not another */
++            const int settle = g_rv.fading && g_frame - g_rv.fade_at <= 2;
++            g_rv.shots++; g_rv.shot_frame = g_frame;
 +            fprintf(stderr, "[rview] frame %u: camera mode %u from the camera's place, shot %u at %.0f %.0f %.0f heading %.2f %.2f%s\n",
 +                    g_frame, mode, g_rv.shots, pos[0], pos[1], pos[2], g_rv.heading[0], g_rv.heading[2],
-+                    cut ? " (rewind)" : settle ? " (start)" : start ? " (start)" : " (cut)");
++                    cut ? " (rewind)" : settle ? " (settled in the dip)" : start ? " (start)" : " (cut)");
 +            if (!settle) rv_fade_start(start ? "start" : cut ? "rewind" : "cut");
 +        }
 +        if (pan == 2) { mat_identity(g_rv.C); g_rv.up[0] = view[1]; g_rv.up[1] = view[5]; g_rv.up[2] = view[9]; }
@@ -454,7 +457,7 @@ index 6631726..4660b0f 100644
  /* effective_projection's world part for a given eye: the head's pose, the
   * eyes' lens, and in immersive mode the dolly and step back. Writes no
   * state, so it can be asked from the game's thread too (stereo_vt3_hud_anchor). */
-@@ -380,6 +589,8 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -380,6 +592,8 @@ static void eye_projection(const float *p, int hud, int which, float *out)
               * the HUD sprites and the logo screen behind a near plane that far
               * out - they vanished. Those keep the old 0.05. */
              float n2 = (n > 10.0f ? 0.05f : nk) * n, f2 = 4.0f * f;
@@ -463,7 +466,7 @@ index 6631726..4660b0f 100644
              q[10] = -(f2 + n2) / (f2 - n2); q[14] = -2.0f * f2 * n2 / (f2 - n2);
              lg_stereo_eye_projection(q,hud,&eye,out);
              {   /* LINDBERGH_VT3_VIEW_TURN=<yaw>[,<pitch>] degrees (test only): the eyes
-@@ -400,6 +611,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -400,6 +614,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
                  if (ns && at != g_frame) { at = g_frame; for (int i = 0; i < ns; i++) if ((long)g_frame >= sf[i]) { ty = sy[i]; tp = sp[i]; } }
                  extern volatile float g_game_up_eye[3];
                  float u[3] = { g_game_up_eye[0], g_game_up_eye[1], g_game_up_eye[2] };
@@ -471,7 +474,7 @@ index 6631726..4660b0f 100644
                  float ul = sqrtf(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
                  if ((ty != 0 || tp != 0) && ul > 0.5f) {
                      float R[16], A[16], B[16], o2[16];
-@@ -429,10 +641,11 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -429,10 +644,11 @@ static void eye_projection(const float *p, int hud, int which, float *out)
               * (from the game's view, arb_note_projection) taken out. */
              const float back = world_mode_back();     /* live: the panel's Step back */
              extern volatile float g_game_up_eye[3]; extern volatile int g_game_world_ok;
@@ -485,7 +488,7 @@ index 6631726..4660b0f 100644
                  float h[3] = { u[2] / ul * (u[0] / ul), u[2] / ul * (u[1] / ul), -1 + (u[2] / ul) * (u[2] / ul) };   /* (0,0,-1) less its up part */
                  float hl = sqrtf(h[0] * h[0] + h[1] * h[1] + h[2] * h[2]);
                  if (hl > 0.1f) for (int i = 0; i < 3; i++) t[i] += back * h[i] / hl;
-@@ -443,6 +656,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -443,6 +659,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
                  for (int i = 0; i < 3; i++) t[i] -= lift * u[i] / ul;
              }
              for (int r = 0; r < 4; r++) out[12 + r] += t[0] * out[r] + t[1] * out[4 + r] + t[2] * out[8 + r];
@@ -493,7 +496,7 @@ index 6631726..4660b0f 100644
              return;
          }
      }
-@@ -1951,7 +2165,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
+@@ -1951,7 +2168,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
           * one, world - before anything else went into the eyes. */
          if (g_vt3_cut_until && (int)(g_vt3_cut_until - g_frame) >= 0 && (int)(g_frame - g_vt3_cut_from) >= 0 && persp && g_mv && g_game_fb == 0 && !g_side &&
              !g_replaying && g_eye_draws <= 1 && !menu_state() && (is_draw(k) || k == K_BEGIN)) {
@@ -502,7 +505,7 @@ index 6631726..4660b0f 100644
              if (lng != g_flat) {
                  g_flat = lng; g_zoom_frames = lng ? 6 : 0;
                  if (g_flat) { g_screen_lens[0] = 1.732f; g_screen_lens[1] = 1.732f * GAME_W / GAME_H; }
-@@ -1993,7 +2207,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
+@@ -1993,7 +2210,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
          /* A long lens - the sniper scope, a cutscene's close-up - is a
           * magnified view the eye's own frustum would undo: it goes on the
           * screen too, framed by the scope the game draws there. */
@@ -511,7 +514,7 @@ index 6631726..4660b0f 100644
          if (persp && !g_replaying) { if (zoom) g_zoom_draws++; if (g_game_fb == g_hud_fb) g_hudfb_draws++; }
          LgStereoDrawFacts facts={0};
          facts.perspective=persp;facts.hud_target=g_game_fb==g_hud_fb;
-@@ -3748,7 +3962,8 @@ void stereo_frame_end(void)
+@@ -3748,7 +3965,8 @@ void stereo_frame_end(void)
      g_leaves = 0;
      g_flat_shown = g_flat;
      dump_targets();
@@ -521,7 +524,7 @@ index 6631726..4660b0f 100644
      if (g_overflow) { fprintf(stderr, "[stereo] frame %u: recording overflowed %u times\n", g_frame, g_overflow); g_overflow = 0; }
  }
  
-@@ -3811,14 +4026,15 @@ void stereo_frame_begin(void)
+@@ -3811,14 +4029,15 @@ void stereo_frame_begin(void)
          g_weapon_frame_draws = g_weapon_draws;
          g_weapon_draws = 0;
      }
@@ -539,7 +542,7 @@ index 6631726..4660b0f 100644
      g_lens_seen = 0;
      g_near_seen = 0;
      g_scene_draws = 0;
-@@ -3901,7 +4117,7 @@ void stereo_vt3_camera(unsigned mode, float lens)
+@@ -3901,7 +4120,7 @@ void stereo_vt3_camera(unsigned mode, float lens)
          if (g_vt3_cam_mode != ~0u) { g_vt3_cut_from = g_frame + 1; g_vt3_cut_until = g_frame + 2; }
          g_vt3_cam_mode = mode;
      }

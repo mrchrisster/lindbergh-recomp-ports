@@ -502,6 +502,13 @@ working on its area):
 
 ## In progress
 
+- 2026-11-12 **T10: replays and point cutaways in the world (Immersive)** -
+  built and checked on macOS by logs (guide section 8 "Replays and point
+  cutaways in the world"), **uncommitted, waiting for the headset** (HANDOFF
+  3.1 top entry: plan, APK, safety diff `ai_docs/wip/t10-replay-views-lindberghrecomp.diff`).
+  macOS desktop stereo gives no usable pictures of VT3 (right eye without
+  world, baseline too): pictures come from the Quest's `LINDBERGH_GAME_SHOT`.
+
 - (superseded 2026-11-11 night: sky committed `9d68719`, T4 only in
   `ai_docs/wip/t4-on-sky-lindberghrecomp.diff`) 2026-11-11 **Uncommitted, never run on the headset** (HANDOFF 3.1 lists
   the checks): Sky modes drawn (`stereo.c` `sky_on`, `dome_left_out`,
