@@ -151,3 +151,7 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   in these views (test: `splitreplay`). Serve close-up on big points: ask the
   owner only if cheap; research says it adds nothing from the seat.
   Panel row: Point cutaways: Off / Flat screen / In the world / Camera view.
+- **Owner (23:20): wants a POV (player's eyes) camera to experiment with**,
+  towards "a real VR game". Read-only research worker writing
+  `ai_docs/research/pov-camera.md` (conductor commits). Implementation = T11,
+  after T10 (in-world replays + reaction camera).
