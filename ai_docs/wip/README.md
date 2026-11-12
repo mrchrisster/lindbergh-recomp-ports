@@ -19,3 +19,16 @@ dropped. T5 (LOD bias) is committed.
 - `glq-second-writer-fix.diff` - historical (committed as `373c5ae`).
 - `t8-flat-and-fade-lindberghrecomp.diff` - committed as `2c3f4f4`.
 - `t9-view-lindberghrecomp.diff` - committed as `688a9b9` (historical).
+
+- `t17-antialiasing-lindberghrecomp.diff` (2026-11-12, inherited from a cut-off
+  worker, on top of submodule `298f90a`) - T17 Anti-aliasing switch, **started,
+  does not link on the Quest**: the setting (`msaa 0|2|4` in vr.cfg,
+  `LINDBERGH_MSAA`, `world_mode_msaa()`, `LgXrSettings.msaa`, main-page row
+  "Anti-aliasing Off / 2x / 4x (on restart)", default Off), a desktop
+  multisampled window (`host_sdl.c`, macOS/Linux only), and in `stereo.c`
+  `eye_targets_multiview` a call to `gl4es_multiview_msaa(fbo, samples)` -
+  **which exists nowhere** (no gl4es change, `quest/gl4es.patch` untouched), plus
+  `stereo_world_depth` giving no depth when anti-aliased. Missing: the gl4es
+  side (multisampled multiview attachments), resolve accounting for mid-frame
+  reads, alpha-to-coverage, unit tests, docs.
+  Restore: `git -C lindberghrecomp apply ../ai_docs/wip/t17-antialiasing-lindberghrecomp.diff`.

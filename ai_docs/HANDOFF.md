@@ -168,6 +168,13 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T17 inherited (build worker, step 0) - UNVERIFIED, does not
+  link on the Quest.** A cut-off worker left the T17 setting half-done in the
+  submodule working tree (safety copy `ai_docs/wip/t17-antialiasing-lindberghrecomp.diff`,
+  described in `ai_docs/wip/README.md`): vr.cfg `msaa`, `LINDBERGH_MSAA`, panel
+  row, desktop multisampled window, and a call to a gl4es function
+  `gl4es_multiview_msaa` that does not exist yet. Next: write the gl4es side
+  and the resolve accounting, unit tests, then T16.
 - **2026-11-12 T15 COMMITTED locally - macOS-verified, Quest smoke run OWED**
   (card reader off / Classic row, overlays-hidden closes the bar, Language
   row English default; headless macOS runs). Not installed. The combined

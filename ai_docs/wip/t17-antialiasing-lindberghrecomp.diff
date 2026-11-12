@@ -1,0 +1,312 @@
+diff --git a/src/runtime/host_sdl.c b/src/runtime/host_sdl.c
+index e319821..b86434c 100644
+--- a/src/runtime/host_sdl.c
++++ b/src/runtime/host_sdl.c
+@@ -25,6 +25,7 @@
+  * Register as a regular app and take focus. */
+ void host_menu_install(void);    /* host_menu_mac.m */
+ 
++static int g_win_msaa;                  /* the window's anti-aliasing samples asked for (LINDBERGH_MSAA, desktop) */
+ static void mac_activate(void)
+ {
+     id app = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSApplication"),
+@@ -874,6 +875,22 @@ int host_window_open(const char *title)
+     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
++#if !defined(__ANDROID__) && !defined(LINDBERGH_OPENXR)
++    /* LINDBERGH_MSAA=2|4 (desktop, the headset's Anti-aliasing row's
++     * counterpart): a multisampled window. The game draws its picture into
++     * the window's own framebuffer (its world and HUD; its whole-screen
++     * copies read it resolved), so its edges are smoothed there. Off (0) by
++     * default; a window that cannot be made so is made without. */
++    {
++        const char *v = getenv("LINDBERGH_MSAA");
++        g_win_msaa = v && *v ? atoi(v) : 0;
++        g_win_msaa = g_win_msaa >= 4 ? 4 : g_win_msaa >= 2 ? 2 : 0;
++        if (g_win_msaa) {
++            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
++            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, g_win_msaa);
++        }
++    }
++#endif
+ #endif
+     /* The window: LINDBERGH_WINDOW=WxH, else 1080 tall at the game's aspect
+      * (1920x1080 for a 16:9 game), shrunk to fit the screen. Resizable; the
+@@ -914,6 +931,16 @@ int host_window_open(const char *title)
+                                  SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
+ #endif
+                                  (hidden ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN));
++#if !defined(__ANDROID__) && !defined(LINDBERGH_OPENXR) && !defined(LINDBERGH_VULKAN)
++    if (!g_win.win && g_win_msaa) {     /* no multisampled window here: as before */
++        fprintf(stderr, "[window] no %dx multisampled window (%s) - anti-aliasing off\n", g_win_msaa, SDL_GetError());
++        g_win_msaa = 0;
++        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
++        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
++        g_win.win = SDL_CreateWindow(title && *title ? title : "lindberghrecomp", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
++                                     dw, dh, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (hidden ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN));
++    }
++#endif
+     if (!g_win.win) {
+         fprintf(stderr, "[window] SDL_CreateWindow: %s\n", SDL_GetError());
+         return 0;
+diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
+index c901df7..5d7a38c 100644
+--- a/src/runtime/stereo.c
++++ b/src/runtime/stereo.c
+@@ -66,7 +66,10 @@ int gl4es_multiview_copy(unsigned src, int layer, int sx0, int sy0, int sx1, int
+ extern int gl4es_mv_trace;
+ void gl4es_multiview_read_pixel(int x, int y, unsigned char out[4]);
+ void gl4es_multiview_read_pixel_layer(int x, int y, int layer, unsigned char out[4]);
++int gl4es_multiview_msaa(unsigned framebuffer, int samples);
+ #endif
++static int g_msaa;                      /* the eyes' anti-aliasing samples granted (0: none) */
++int stereo_msaa(void) { return g_msaa; }
+ 
+ extern unsigned g_frame;
+ 
+@@ -1195,8 +1198,28 @@ static void eye_targets_multiview(void)
+     glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+     glGenFramebuffers(1, &g_eye_fbo[0]);
+     glBindFramebuffer(GL_FRAMEBUFFER, g_eye_fbo[0]);
++    /* Anti-aliasing (the panel's row, vr.cfg msaa, LINDBERGH_MSAA; on the
++     * next start): the eyes' colour and depth multisampled with implicit
++     * resolve - everything that reads them (the blit to the swapchain, the
++     * game's whole-screen copies, the frame hold, game shots) reads the
++     * resolved picture, each read mid-frame costing a resolve. VR and Classic
++     * alike (both are drawn here). */
++    {
++        const int want = world_mode_msaa();
++        if (want > 1) {
++            g_msaa = gl4es_multiview_msaa(g_eye_fbo[0], want);
++            fprintf(stderr, "[stereo] anti-aliasing: %dx asked, %dx granted\n", want, g_msaa);
++        }
++    }
+     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE_ARB, g_eye_tex[0], 0);
+     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE_ARB, g_eye_tex[1], 0);
++    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE && g_msaa) {
++        /* the multisampled attachments refused: as before, without */
++        fprintf(stderr, "[stereo] anti-aliased eye framebuffer incomplete - anti-aliasing off\n");
++        g_msaa = 0; gl4es_multiview_msaa(g_eye_fbo[0], 0);
++        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE_ARB, g_eye_tex[0], 0);
++        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE_ARB, g_eye_tex[1], 0);
++    }
+     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+         fprintf(stderr, "[stereo] multiview eye framebuffer incomplete\n");
+     g_eye_fbo[1] = g_eye_fbo[0];
+@@ -4409,7 +4432,9 @@ void stereo_set_screen_distance(float d) { if (d > 0) g_screen_dist = d; }
+ unsigned stereo_world_depth(float *zn, float *zf)
+ {
+ #ifdef LINDBERGH_GL4ES
+-    if (!g_on || !g_mv || g_flat || g_scene_draws == 0) return 0;
++    /* anti-aliased eyes: a multisampled depth's contents after the resolve are
++     * not defined - no depth for the compositor's reprojection then */
++    if (!g_on || !g_mv || g_flat || g_scene_draws == 0 || g_msaa > 0) return 0;
+     GLuint dt = 0;
+     for (unsigned i = 0; i < g_nfb_depth; i++) if (g_fb_depth[i].fb == g_world_fb_next) dt = g_fb_depth[i].depth;
+     if (g_world_fb_next == 0) dt = g_eye_tex[1];      /* the window: the eyes' own target */
+diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
+index 7b82bf2..d198b7f 100644
+--- a/src/runtime/world_mode.c
++++ b/src/runtime/world_mode.c
+@@ -25,12 +25,12 @@
+ static const char *const ENV_NAME[WM_COUNT] = {
+     "LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+     "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY",
+-    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE" };
++    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_MSAA" };
+ static const char *const KEY_CLASSIC[WM_COUNT] = {
+-    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language" };
++    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language", "msaa" };
+ static const char *const KEY_IMMERSIVE[WM_COUNT] = {
+     "mode", "immersive.replays", "immersive.overlays", "immersive.cutaways", "immersive.shadow",
+-    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language" };
++    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "msaa" };
+ 
+ const char *world_mode_env_name(int key) { return key >= 0 && key < WM_COUNT ? ENV_NAME[key] : NULL; }
+ const char *world_mode_key(int key, int immersive)
+@@ -122,6 +122,8 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     if (im) k[WM_CARD] = WM_SRC_DEFAULT;
+     if ((v = env(WM_CARD))) { o->card_notice = *v == '1'; k[WM_CARD] = WM_SRC_ENV; }
+     o->language = s->language;
++    o->msaa = s->msaa;
++    if ((v = env(WM_MSAA))) { int n = atoi(v); o->msaa = n >= 4 ? 4 : n >= 2 ? 2 : 0; k[WM_MSAA] = WM_SRC_ENV; }
+     if ((v = env(WM_LANGUAGE))) { o->language = !(*v == '0' || !strcmp(v, "japanese")); k[WM_LANGUAGE] = WM_SRC_ENV; }
+     if ((v = env(WM_SKY))) { o->sky = world_mode_sky_value(v); k[WM_SKY] = WM_SRC_ENV; }
+     if (src) memcpy(src, k, sizeof k);
+@@ -178,13 +180,13 @@ void world_mode_init(int capable)
+     world_mode_resolve(&s, -1, capable, present, &g_wm, src);
+     static const char *const SRC[] = { "default", "vr.cfg", "env" };
+     fprintf(stderr, "[world] mode %s (%s) dolly %.0f (%s) back %.0f (%s) height %.0f (%s) sky %s (%s) shadow %d (%s) "
+-                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s)%s\n",
++                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s) msaa %d (%s)%s\n",
+             g_wm.immersive ? "immersive" : "classic", SRC[src[WM_MODE]],
+             g_wm.dolly, SRC[src[WM_DOLLY]], g_wm.back, SRC[src[WM_BACK]], g_wm.height, SRC[src[WM_HEIGHT]],
+             sky_name(g_wm.sky), SRC[src[WM_SKY]], g_wm.shadow, SRC[src[WM_SHADOW]],
+             view_label(g_wm.replays, g_wm.replay_view, g_wm.immersive), SRC[src[WM_REPLAYS]], g_wm.overlays ? "on" : "off", SRC[src[WM_OVERLAYS]],
+             view_label(g_wm.cutaways, g_wm.cutaway_view, g_wm.immersive), SRC[src[WM_CUTAWAYS]],
+-            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], capable ? "" : " - this game has no world mode");
++            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], g_wm.msaa, SRC[src[WM_MSAA]], capable ? "" : " - this game has no world mode");
+     g_start = g_game = g_panel_req = g_wm.immersive;
+     atomic_store(&g_target, g_start);
+     atomic_store(&g_gl, g_start);
+@@ -279,6 +281,7 @@ int world_mode_overlays(void) { return wm()->overlays; }
+ int world_mode_cutaways(void) { return wm()->cutaways; }
+ int world_mode_card_notice(void) { return wm()->card_notice; }
+ int world_mode_language(void) { return wm()->language; }
++int world_mode_msaa(void) { return wm()->msaa; }
+ int world_mode_replay_view(void) { return wm()->replay_view; }
+ int world_mode_cutaway_view(void) { return wm()->cutaway_view; }
+ int world_mode_sky(void) { return wm()->sky; }
+diff --git a/src/runtime/world_mode.h b/src/runtime/world_mode.h
+index e7c2539..3d91548 100644
+--- a/src/runtime/world_mode.h
++++ b/src/runtime/world_mode.h
+@@ -19,7 +19,7 @@ extern "C" {
+ 
+ /* the values, for their env variables, sources and pins */
+ enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_HEIGHT,
+-       WM_CARD, WM_LANGUAGE, WM_COUNT };
++       WM_CARD, WM_LANGUAGE, WM_MSAA, WM_COUNT };
+ enum { WM_SRC_DEFAULT, WM_SRC_FILE, WM_SRC_ENV };
+ 
+ typedef struct {
+@@ -38,6 +38,7 @@ typedef struct {
+     int card_notice;            /* the card reader's notice and boot wait (Classic's classic.card_notice;
+                                  * VR: 0); LINDBERGH_VT3_CARD_RW=1|0; at registration, so on restart */
+     int language;               /* 1 English, 0 Japanese (vr.cfg language, LINDBERGH_VT3_LANGUAGE); on restart */
++    int msaa;                   /* anti-aliasing samples asked for: 0, 2, 4 (vr.cfg msaa, LINDBERGH_MSAA); on restart */
+ } WmValues;
+ 
+ /* the env variable that pins a value for a run (LINDBERGH_REPLAYS, ...) */
+@@ -97,6 +98,7 @@ int world_mode_overlays(void);
+ int world_mode_cutaways(void);
+ int world_mode_card_notice(void);
+ int world_mode_language(void);
++int world_mode_msaa(void);
+ /* LG_VIEW_FLAT / _WORLD / _CAMERA (live) */
+ int world_mode_replay_view(void);
+ int world_mode_cutaway_view(void);
+diff --git a/src/runtime/xr_settings.c b/src/runtime/xr_settings.c
+index 5a23a75..f7c5081 100644
+--- a/src/runtime/xr_settings.c
++++ b/src/runtime/xr_settings.c
+@@ -22,7 +22,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+                "sight %s\ncrosshair %s\ngun %s\nhud_pitch %d\ndual %s\nstats %s\nfoveation %s\noverlays %s\nreplays %s\n"
+                "mode %s\nclassic.shadow %d\nclassic.cutaways %s\nimmersive.replays %s\nimmersive.overlays %s\n"
+                "immersive.cutaways %s\nimmersive.sky %s\nimmersive.shadow %d\n"
+-               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\n",
++               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nmsaa %d\n",
+             c->scale, c->screen, c->aim, c->resolution, c->width, c->refresh, c->left_handed ? "left" : "right",
+             LASER_NAME[c->laser], c->auto_coins ? "auto" : "manual",
+             SIGHT_NAME[c->sight], c->crosshair ? "on" : "off", c->show_gun ? "on" : "off", c->hud_pitch, c->dual ? "on" : "off", c->show_stats ? "on" : "off",
+@@ -30,7 +30,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+             c->world_mode ? "immersive" : "classic", c->classic_shadow, c->classic_cutaways ? "on" : "off",
+             view_name(c->imm_replays), c->imm_overlays ? "on" : "off", view_name(c->imm_cutaways),
+             c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow,
+-            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese");
++            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese", c->msaa);
+ }
+ 
+ /* LINDBERGH_XR_SET's keys are for its run only: the save writes those keys as
+@@ -95,6 +95,7 @@ void xr_settings_load(LgXrSettings *c)
+     if (c->imm_shadow != 1024 && c->imm_shadow != 2048 && c->imm_shadow != 4096) c->imm_shadow = d.imm_shadow;
+     if (c->imm_sky < LG_SKY_OFF || c->imm_sky > LG_SKY_PAINTED) c->imm_sky = d.imm_sky;
+     c->imm_dolly = d.imm_dolly; c->imm_back = d.imm_back;
++    if (c->msaa != 0 && c->msaa != 2 && c->msaa != 4) c->msaa = c->msaa > 4 ? 4 : c->msaa > 0 ? 2 : 0;
+     if (c->imm_replays < LG_VIEW_OFF || c->imm_replays > LG_VIEW_CAMERA) c->imm_replays = d.imm_replays;
+     if (c->imm_cutaways < LG_VIEW_OFF || c->imm_cutaways > LG_VIEW_CAMERA) c->imm_cutaways = d.imm_cutaways;
+     /* the panel's choices (xr_world_panel.c); any other stored value - an
+@@ -135,6 +136,7 @@ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+         else if (!strcmp(key, "immersive.height")) c->imm_height = atoi(val);
+         else if (!strcmp(key, "classic.card_notice")) c->classic_card_notice = !strcmp(val, "on");
+         else if (!strcmp(key, "language")) c->language = strcmp(val, "japanese") != 0;
++        else if (!strcmp(key, "msaa")) c->msaa = atoi(val);
+         else if (!strcmp(key, "foveation")) {
+             for (int i = 0; i < 4; i++) if (!strcmp(val, FOVEATION_NAME[i])) c->foveation = i;
+         }
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index 2c98cf8..f38a7b7 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -38,6 +38,8 @@ typedef struct {
+                                  * boot wait (Virtua Tennis 3; VR: always off); applies on the next start */
+     int language;               /* "language english|japanese": 1 English (the cabinet's region export), 0
+                                  * Japanese; applies on the next start (Virtua Tennis 3) */
++    int msaa;                   /* "msaa 0|2|4": anti-aliasing samples of the eyes' framebuffer (VR and
++                                 * Classic on the headset; 0 off, today's); applies on the next start */
+ } LgXrSettings;
+ /* Each eye's image by default: the headset's own panel, pixel for pixel.
+  * OpenXR reports only a runtime-scaled recommendation, so the panel is the
+@@ -59,7 +61,7 @@ typedef struct {
+  * 2048, Camera height Medium (+1 m; T13). (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1}
++                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0}
+ /* Immersive's (VR's) Camera height choices (immersive.height), game units
+  * (0.1 m): Low / Medium / High; a stored value off the list is read as the
+  * nearest (xr_settings_nearest; the first of two equally near) - an older
+diff --git a/src/runtime/xr_world_panel.c b/src/runtime/xr_world_panel.c
+index de7c60e..c993c6b 100644
+--- a/src/runtime/xr_world_panel.c
++++ b/src/runtime/xr_world_panel.c
+@@ -46,6 +46,7 @@ static int wm_key(int item)
+     case XW_HEIGHT: return WM_HEIGHT;
+     case XW_CARD: return WM_CARD;
+     case XW_LANGUAGE: return WM_LANGUAGE;
++    case XW_MSAA: return WM_MSAA;
+     case XW_SKY: return WM_SKY;
+     default: return -1;
+     }
+@@ -60,7 +61,7 @@ static int pinned(const XwState *w, int item)
+ {
+     const int k = wm_key(item);
+     if (k < 0 || !(w->pins >> k & 1)) return 0;
+-    return k == WM_MODE || k == WM_LANGUAGE || page_mode(w) == w->running;
++    return k == WM_MODE || k == WM_LANGUAGE || k == WM_MSAA || page_mode(w) == w->running;
+ }
+ 
+ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+@@ -84,6 +85,7 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+         if (!w->live && cfg->world_mode != w->running && !pinned(w, XW_MODE)) rows[n++] = XW_ROW(XW_RESTART);
+         rows[n++] = XW_ROW(XW_ADVANCED);
+         rows[n++] = XW_ROW(XW_LANGUAGE);
++        rows[n++] = XW_ROW(XW_MSAA);
+         for (int i = 0; i < XP_COUNT; i++)
+             if (i != XP_STATS && i != XP_OVERLAYS && i != XP_REPLAYS) rows[n++] = i;
+         break;
+@@ -137,6 +139,12 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     it[XW_SHADOW].label = "Shadow quality";
+     it[XW_CARD].label = "Card reader notice";
+     it[XW_LANGUAGE].label = "Language";
++    it[XW_MSAA].label = "Anti-aliasing";
++    {
++        const int m = pinned(w, XW_MSAA) ? w->eff.msaa : cfg->msaa;
++        snprintf(it[XW_MSAA].value, 40, "%s%s", m >= 4 ? "4x" : m >= 2 ? "2x" : "Off",
++                 !pinned(w, XW_MSAA) && m != w->eff.msaa ? " (on restart)" : "");
++    }
+     {   /* both apply on the next start: "(on restart)" while the stored one is not the running one */
+         int card = cfg->classic_card_notice, lang = cfg->language;
+         if (pinned(w, XW_CARD)) card = w->eff.card_notice;
+@@ -224,6 +232,7 @@ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+     case XW_HEIGHT: if (!im) return 0; c->imm_height = next_step(c->imm_height, LG_XR_HEIGHT_STEPS, LG_XR_HEIGHT_NSTEPS); fx |= live; break;
+     case XW_CARD: if (im || page_mode(w) < 0) return 0; c->classic_card_notice = !c->classic_card_notice; break;   /* on restart */
+     case XW_LANGUAGE: c->language = !c->language; break;                                                     /* on restart */
++    case XW_MSAA: c->msaa = c->msaa >= 4 ? 0 : c->msaa >= 2 ? 4 : 2; break;                                 /* Off > 2x > 4x, on restart */
+     case XW_SHADOW: {
+         int *s = im ? &c->imm_shadow : &c->classic_shadow, k = 0;
+         while (k < 3 && SHADOWS[k] <= *s) k++;
+diff --git a/src/runtime/xr_world_panel.h b/src/runtime/xr_world_panel.h
+index d0e3b28..cfad973 100644
+--- a/src/runtime/xr_world_panel.h
++++ b/src/runtime/xr_world_panel.h
+@@ -17,7 +17,7 @@ extern "C" {
+  * XW_MODE (a toggle), XW_DOLLY and XW_STEPBACK are no rows any more (T12). */
+ enum { XW_MODE, XW_RESTART, XW_ADVANCED, XW_BACK, XW_DOLLY, XW_STEPBACK, XW_REPLAYS, XW_CUTAWAYS,
+        XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_MODE_CLASSIC, XW_MODE_VR,
+-       XW_CARD, XW_LANGUAGE, XW_COUNT };    /* Classic's Card reader notice; the main page's Language (both on restart) */
++       XW_CARD, XW_LANGUAGE, XW_MSAA, XW_COUNT };   /* + the main page's Anti-aliasing (on restart) */    /* Classic's Card reader notice; the main page's Language (both on restart) */
+ enum { XW_PAGE_MAIN, XW_PAGE_CLASSIC, XW_PAGE_IMMERSIVE, XW_PAGES };
+ /* xw_choose's effects, beside XP_SAVE and XP_RESTART */
+ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or, live, the mode) changed: world_mode_update */
