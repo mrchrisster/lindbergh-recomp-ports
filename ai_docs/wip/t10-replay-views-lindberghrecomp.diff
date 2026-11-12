@@ -235,10 +235,10 @@ index a682de7..41046f5 100644
      } else {
          if (g_frame != (unsigned)at) return;
 diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
-index 6631726..1dae276 100644
+index 6631726..4660b0f 100644
 --- a/src/runtime/stereo.c
 +++ b/src/runtime/stereo.c
-@@ -334,6 +334,206 @@ float stereo_eye_x(int view)
+@@ -334,6 +334,215 @@ float stereo_eye_x(int view)
      return -ss_lens(p) * ss_eye_e(view);
  }
  
@@ -277,6 +277,8 @@ index 6631726..1dae276 100644
 +    float heading[3];       /* Camera: the shot's level heading, world */
 +    unsigned fade_at; int fading;
 +    unsigned shots;
++    unsigned mode_seen, mode_frame;   /* the mode last noted, the frame it began: the game's first
++                                       * frame in a new mode still has the old camera's view */
 +} g_rv;
 +static int mat_invert(const float *m, float *out);
 +static int g_proj_dirty;                /* (defined below) */
@@ -330,7 +332,9 @@ index 6631726..1dae276 100644
 +        pos[i] = -(V[i * 4] * V[12] + V[i * 4 + 1] * V[13] + V[i * 4 + 2] * V[14]);
 +        fwd[i] = -V[i * 4 + 2];
 +    }
-+    if (mode == 1 || mode == 2) {               /* the court camera: the anchor, until a replay or close-up */
++    if (mode != g_rv.mode_seen) { g_rv.mode_seen = mode; g_rv.mode_frame = g_frame; }
++    const int stale = g_frame == g_rv.mode_frame;     /* (measured: one frame) */
++    if ((mode == 1 || mode == 2) && !stale) {   /* the court camera: the anchor, until a replay or close-up */
 +        memcpy(g_rv.anchor, V, sizeof V);
 +        g_rv.anchor_up[0] = view[1]; g_rv.anchor_up[1] = view[5]; g_rv.anchor_up[2] = view[9];
 +        g_rv.anchor_ok = 1;
@@ -353,7 +357,8 @@ index 6631726..1dae276 100644
 +    } else if (k == LG_VIEW_CAMERA) {
 +        static int pan = -1;
 +        if (pan < 0) { const char *v = getenv("LINDBERGH_VT3_REPLAY_PAN"); pan = v && *v ? atoi(v) : 0; }
-+        int shot = was != k || mode != g_rv.mode || cut || !g_rv.have_last;
++        const int start = was != k || mode != g_rv.mode;
++        int shot = start || cut || !g_rv.have_last || g_frame - g_rv.mode_frame == 1;
 +        if (!shot) {
 +            float d2 = 0, dt = 0;
 +            for (int i = 0; i < 3; i++) { d2 += (pos[i] - g_rv.last_pos[i]) * (pos[i] - g_rv.last_pos[i]); dt += fwd[i] * g_rv.last_fwd[i]; }
@@ -362,12 +367,16 @@ index 6631726..1dae276 100644
 +        float hl = sqrtf(fwd[0] * fwd[0] + fwd[2] * fwd[2]);
 +        if ((shot || pan >= 1) && hl > 0.05f) { g_rv.heading[0] = fwd[0] / hl; g_rv.heading[1] = 0; g_rv.heading[2] = fwd[2] / hl; }
 +        else if (shot && hl <= 0.05f) { g_rv.heading[0] = 0; g_rv.heading[1] = 0; g_rv.heading[2] = -1; }
-+        if (shot) {
++        if (shot && stale) {
++            if (start) rv_fade_start("start");      /* black while the old view is still drawn */
++        } else if (shot) {
++            /* the first real frame of a new camera mode: its first shot, inside the start's dip */
++            const int settle = g_rv.fading && g_frame - g_rv.fade_at <= 2 && g_frame - g_rv.mode_frame <= 2;
 +            g_rv.shots++;
 +            fprintf(stderr, "[rview] frame %u: camera mode %u from the camera's place, shot %u at %.0f %.0f %.0f heading %.2f %.2f%s\n",
 +                    g_frame, mode, g_rv.shots, pos[0], pos[1], pos[2], g_rv.heading[0], g_rv.heading[2],
-+                    cut ? " (rewind)" : was != k || mode != g_rv.mode ? " (start)" : " (cut)");
-+            rv_fade_start(was != k || mode != g_rv.mode ? "start" : "cut");
++                    cut ? " (rewind)" : settle ? " (start)" : start ? " (start)" : " (cut)");
++            if (!settle) rv_fade_start(start ? "start" : cut ? "rewind" : "cut");
 +        }
 +        if (pan == 2) { mat_identity(g_rv.C); g_rv.up[0] = view[1]; g_rv.up[1] = view[5]; g_rv.up[2] = view[9]; }
 +        else {
@@ -445,7 +454,7 @@ index 6631726..1dae276 100644
  /* effective_projection's world part for a given eye: the head's pose, the
   * eyes' lens, and in immersive mode the dolly and step back. Writes no
   * state, so it can be asked from the game's thread too (stereo_vt3_hud_anchor). */
-@@ -380,6 +580,8 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -380,6 +589,8 @@ static void eye_projection(const float *p, int hud, int which, float *out)
               * the HUD sprites and the logo screen behind a near plane that far
               * out - they vanished. Those keep the old 0.05. */
              float n2 = (n > 10.0f ? 0.05f : nk) * n, f2 = 4.0f * f;
@@ -454,7 +463,7 @@ index 6631726..1dae276 100644
              q[10] = -(f2 + n2) / (f2 - n2); q[14] = -2.0f * f2 * n2 / (f2 - n2);
              lg_stereo_eye_projection(q,hud,&eye,out);
              {   /* LINDBERGH_VT3_VIEW_TURN=<yaw>[,<pitch>] degrees (test only): the eyes
-@@ -400,6 +602,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -400,6 +611,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
                  if (ns && at != g_frame) { at = g_frame; for (int i = 0; i < ns; i++) if ((long)g_frame >= sf[i]) { ty = sy[i]; tp = sp[i]; } }
                  extern volatile float g_game_up_eye[3];
                  float u[3] = { g_game_up_eye[0], g_game_up_eye[1], g_game_up_eye[2] };
@@ -462,7 +471,7 @@ index 6631726..1dae276 100644
                  float ul = sqrtf(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
                  if ((ty != 0 || tp != 0) && ul > 0.5f) {
                      float R[16], A[16], B[16], o2[16];
-@@ -429,10 +632,11 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -429,10 +641,11 @@ static void eye_projection(const float *p, int hud, int which, float *out)
               * (from the game's view, arb_note_projection) taken out. */
              const float back = world_mode_back();     /* live: the panel's Step back */
              extern volatile float g_game_up_eye[3]; extern volatile int g_game_world_ok;
@@ -476,7 +485,7 @@ index 6631726..1dae276 100644
                  float h[3] = { u[2] / ul * (u[0] / ul), u[2] / ul * (u[1] / ul), -1 + (u[2] / ul) * (u[2] / ul) };   /* (0,0,-1) less its up part */
                  float hl = sqrtf(h[0] * h[0] + h[1] * h[1] + h[2] * h[2]);
                  if (hl > 0.1f) for (int i = 0; i < 3; i++) t[i] += back * h[i] / hl;
-@@ -443,6 +647,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
+@@ -443,6 +656,7 @@ static void eye_projection(const float *p, int hud, int which, float *out)
                  for (int i = 0; i < 3; i++) t[i] -= lift * u[i] / ul;
              }
              for (int r = 0; r < 4; r++) out[12 + r] += t[0] * out[r] + t[1] * out[4 + r] + t[2] * out[8 + r];
@@ -484,7 +493,7 @@ index 6631726..1dae276 100644
              return;
          }
      }
-@@ -1951,7 +2156,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
+@@ -1951,7 +2165,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
           * one, world - before anything else went into the eyes. */
          if (g_vt3_cut_until && (int)(g_vt3_cut_until - g_frame) >= 0 && (int)(g_frame - g_vt3_cut_from) >= 0 && persp && g_mv && g_game_fb == 0 && !g_side &&
              !g_replaying && g_eye_draws <= 1 && !menu_state() && (is_draw(k) || k == K_BEGIN)) {
@@ -493,7 +502,7 @@ index 6631726..1dae276 100644
              if (lng != g_flat) {
                  g_flat = lng; g_zoom_frames = lng ? 6 : 0;
                  if (g_flat) { g_screen_lens[0] = 1.732f; g_screen_lens[1] = 1.732f * GAME_W / GAME_H; }
-@@ -1993,7 +2198,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
+@@ -1993,7 +2207,7 @@ static int transform_call(CPU *c, HleId id, const char *n)
          /* A long lens - the sniper scope, a cutscene's close-up - is a
           * magnified view the eye's own frustum would undo: it goes on the
           * screen too, framed by the scope the game draws there. */
@@ -502,7 +511,7 @@ index 6631726..1dae276 100644
          if (persp && !g_replaying) { if (zoom) g_zoom_draws++; if (g_game_fb == g_hud_fb) g_hudfb_draws++; }
          LgStereoDrawFacts facts={0};
          facts.perspective=persp;facts.hud_target=g_game_fb==g_hud_fb;
-@@ -3748,7 +3953,8 @@ void stereo_frame_end(void)
+@@ -3748,7 +3962,8 @@ void stereo_frame_end(void)
      g_leaves = 0;
      g_flat_shown = g_flat;
      dump_targets();
@@ -512,7 +521,7 @@ index 6631726..1dae276 100644
      if (g_overflow) { fprintf(stderr, "[stereo] frame %u: recording overflowed %u times\n", g_frame, g_overflow); g_overflow = 0; }
  }
  
-@@ -3811,14 +4017,15 @@ void stereo_frame_begin(void)
+@@ -3811,14 +4026,15 @@ void stereo_frame_begin(void)
          g_weapon_frame_draws = g_weapon_draws;
          g_weapon_draws = 0;
      }
@@ -530,7 +539,7 @@ index 6631726..1dae276 100644
      g_lens_seen = 0;
      g_near_seen = 0;
      g_scene_draws = 0;
-@@ -3901,7 +4108,7 @@ void stereo_vt3_camera(unsigned mode, float lens)
+@@ -3901,7 +4117,7 @@ void stereo_vt3_camera(unsigned mode, float lens)
          if (g_vt3_cam_mode != ~0u) { g_vt3_cut_from = g_frame + 1; g_vt3_cut_until = g_frame + 2; }
          g_vt3_cam_mode = mode;
      }
@@ -804,3 +813,122 @@ index d28d3bd..4bf6b1f 100644
      case XW_OVERLAYS: if (im) c->imm_overlays = !c->imm_overlays; else c->arcade_overlays = !c->arcade_overlays; fx |= live; break;
      case XW_SKY:        /* Stadium -> Painted -> Off -> Stadium */
          if (!im) return 0;
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index 2cbe388..6fb3510 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -9,7 +9,7 @@ import unittest
+ ENV_KEYS = ["LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+             "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK",
+             "LINDBERGH_VT3_SKY", "LINDBERGH_VT3_HEIGHT", "LINDBERGH_XR_SET", "LINDBERGH_XR_SCALE", "LINDBERGH_VT3_LIVE_SWITCH",
+-            "LINDBERGH_VT3_MODE_AT"]
++            "LINDBERGH_VT3_MODE_AT", "LINDBERGH_VT3_REPLAY_VIEW", "LINDBERGH_VT3_CUTAWAY_VIEW"]
+ 
+ 
+ class WorldModeTests(unittest.TestCase):
+@@ -33,6 +33,11 @@ int main(int argc, char **argv) {
+     const WmValues *v = world_mode_values();
+     printf("%d %d %d %d %d %.0f %.0f %d %.1f", v->immersive, v->replays, v->overlays, v->cutaways,
+            v->shadow, v->dolly, v->back, v->sky, v->shadow_scale);
++    if (argc > 2 && !strcmp(argv[2], "views")) {    /* replays / cutaways: on, view; and the pins */
++        printf(" | %d %d %d %d %d %d\n", v->replays, v->replay_view, v->cutaways, v->cutaway_view,
++               world_mode_pinned(WM_REPLAYS), world_mode_pinned(WM_CUTAWAYS));
++        return 0;
++    }
+     if (argc > 2 && !strcmp(argv[2], "latch")) {    /* the panel's Mode flipped, then two frames */
+         LgXrSettings s = LG_XR_SETTINGS_DEFAULT; xr_settings_load(&s);
+         s.world_mode = !world_mode_immersive();
+@@ -83,6 +88,26 @@ int main(int argc, char **argv) {
+             p = subprocess.run([str(binary or self.bin), *args], cwd=d, env=e, text=True, capture_output=True, check=True)
+             return p.stdout.strip(), p.stderr
+ 
++    def views(self, cfg=None, env=None):
++        return self.run_wm(cfg, env, args=("1", "views"))[0].split(" | ")[1]
++
++    def test_replay_and_cutaway_views(self):
++        imm = "mode immersive\n"
++        self.assertEqual(self.views(imm), "0 1 0 1 0 0")                                          # off, flat
++        self.assertEqual(self.views(imm + "immersive.replays on\nimmersive.cutaways flat\n"), "1 1 1 1 0 0")
++        self.assertEqual(self.views(imm + "immersive.replays world\nimmersive.cutaways camera\n"), "1 2 1 3 0 0")
++        # an on/off pin alone: flat, whatever vr.cfg says (a test does not depend on it)
++        self.assertEqual(self.views(imm + "immersive.replays world\n", {"LINDBERGH_REPLAYS": "1"}), "1 1 0 1 1 0")
++        self.assertEqual(self.views(imm + "immersive.replays world\n", {"LINDBERGH_REPLAYS": "0"}), "0 1 0 1 1 0")
++        # a view variable alone turns it on; follow = camera; with on/off 0 it stays off
++        self.assertEqual(self.views(imm, {"LINDBERGH_VT3_REPLAY_VIEW": "world", "LINDBERGH_VT3_CUTAWAY_VIEW": "follow"}), "1 2 1 3 1 1")
++        self.assertEqual(self.views(imm, {"LINDBERGH_VT3_REPLAY_VIEW": "camera", "LINDBERGH_REPLAYS": "0"}), "0 3 0 1 1 0")
++        self.assertEqual(self.views(imm, {"LINDBERGH_VT3_REPLAY_VIEW": "flat", "LINDBERGH_REPLAYS": "1"}), "1 1 0 1 1 0")
++        # Classic: on/off only, always flat; its view variables do nothing
++        self.assertEqual(self.views("replays on\n", {"LINDBERGH_VT3_REPLAY_VIEW": "world"}), "1 1 1 1 1 0")
++        _, log = self.run_wm(imm + "immersive.replays world\n")
++        self.assertIn("replays world (vr.cfg)", log); self.assertIn("cutaways off (default)", log)
++
+     def test_defaults_are_classic(self):
+         out, log = self.run_wm()
+         self.assertEqual(out, "0 1 1 1 1024 200 60 1 0.0")
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index 50f14b4..4ff2594 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -76,8 +76,8 @@ int main(void) {
+             for k,v in self.MODE_KEYS.items():self.assertEqual(saved[k],v,k)
+ 
+     def test_mode_keys_round_trip(self):
+-        cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"on",
+-             "immersive.overlays":"on","immersive.cutaways":"on","immersive.dolly":"250",
++        cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"world",
++             "immersive.overlays":"on","immersive.cutaways":"camera","immersive.dolly":"250",
+              "immersive.back":"70","immersive.sky":"painted","immersive.shadow":"1024",
+              "immersive.height":"-10"}
+         with tempfile.TemporaryDirectory() as d:
+@@ -88,6 +88,17 @@ int main(void) {
+             self.run_settings(d)
+             self.assertEqual((Path(d)/"vr.cfg").read_text(),first)
+ 
++    def test_old_on_reads_as_flat_screen(self):
++        with tempfile.TemporaryDirectory() as d:
++            (Path(d)/"vr.cfg").write_text("immersive.replays on\nimmersive.cutaways off\n")
++            self.run_settings(d)
++            saved=self.parse((Path(d)/"vr.cfg").read_text())
++            self.assertEqual(saved["immersive.replays"],"flat");self.assertEqual(saved["immersive.cutaways"],"off")
++            (Path(d)/"vr.cfg").write_text("immersive.replays flat\nimmersive.cutaways bogus\n")
++            self.run_settings(d)
++            saved=self.parse((Path(d)/"vr.cfg").read_text())
++            self.assertEqual(saved["immersive.replays"],"flat");self.assertEqual(saved["immersive.cutaways"],"off")
++
+     def test_unknown_keys_ignored_and_bad_values_defaulted(self):
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("bogus 12\nmode immersive\nimmersive.shadow 3000\nimmersive.stand_y 9\nimmersive.dolly -5\nfuture.key on\n")
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index dd21c8b..378dca7 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -56,6 +56,17 @@ int main(void) {
+     /* the non-running mode's page: saved, not live */
+     fx = xw_choose(&w, &c, XW_REPLAYS);
+     assert(fx == XP_SAVE && c.imm_replays == 1 && c.replays == 1);
++    /* Immersive's Replays / Point cutaways: Off > Flat screen > In the world > Camera view > Off */
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "Flat screen"));
++    xw_choose(&w, &c, XW_REPLAYS); assert(c.imm_replays == LG_VIEW_WORLD);
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "In the world"));
++    xw_choose(&w, &c, XW_REPLAYS); assert(c.imm_replays == LG_VIEW_CAMERA);
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "Camera view"));
++    xw_choose(&w, &c, XW_REPLAYS); assert(c.imm_replays == LG_VIEW_OFF && c.replays == 1);
++    xw_choose(&w, &c, XW_CUTAWAYS); xw_choose(&w, &c, XW_CUTAWAYS); assert(c.imm_cutaways == LG_VIEW_WORLD);
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_CUTAWAYS].value, "In the world") && !strcmp(it[XW_CUTAWAYS].label, "Point cutaways"));
++    xw_choose(&w, &c, XW_CUTAWAYS); xw_choose(&w, &c, XW_CUTAWAYS); assert(c.imm_cutaways == LG_VIEW_OFF);
++    xw_choose(&w, &c, XW_REPLAYS);
+     /* cycles */
+     xw_choose(&w, &c, XW_SKY); assert(c.imm_sky == LG_SKY_PAINTED);
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_SKY].value, "Painted"));
+@@ -96,6 +107,11 @@ int main(void) {
+     assert(xw_choose(&w, &c, XW_REPLAYS) == 0 && c.replays == 1);
+     w.page = XW_PAGE_IMMERSIVE;                          /* the pin is the running (Classic) mode's only */
+     xw_items(&w, &c, it); assert(!strstr(it[XW_REPLAYS].value, "env"));
++    /* Immersive running, its view pinned (LINDBERGH_VT3_REPLAY_VIEW): the run's view */
++    w.running = 1; w.eff.replays = 1; w.eff.replay_view = LG_VIEW_WORLD;
++    xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "In the world (env.txt)"));
++    assert(xw_choose(&w, &c, XW_REPLAYS) == 0);
++    w.running = 0; w.eff.replays = 0;
+     /* shadow on restart, on the running mode's page */
+     w.page = XW_PAGE_CLASSIC; w.eff.shadow = 1024; c.classic_shadow = 2048;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_SHADOW].value, "High 2048 (on restart)"));

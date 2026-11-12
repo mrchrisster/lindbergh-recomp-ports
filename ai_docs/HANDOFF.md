@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T10 worker, step 2 - logic verified by logs on macOS; macOS
+  pictures useless.** `LINDBERGH_STEREO=1` on the desktop shows the left eye
+  tiny and the right eye black (the second-eye replay draws no world) in
+  every view, baseline included - so pictures must come from the headset's
+  `LINDBERGH_GAME_SHOT`. Logs (replay scene): replay lens 3.0-3.2 (type 4
+  camera behind the near baseline, eye ~1 m high), close-up 2.8-9.6; three
+  world camera notes per frame + the pixel camera; **the game's first frame
+  in a new camera mode still carries the old view** - anchor now taken only
+  from mode 1/2 frames after their first, Camera view's start dip begins on
+  that stale frame and the first real frame is its first shot (no second
+  dip). Unit tests extended and passing (world_mode, world_panel, settings).
+  Running: `/tmp/vt3t10/r_{follow,split,prize,classic}` (logic checks).
 - **2026-11-12 T10 worker, step 1 - code written, first macOS runs going.**
   Uncommitted; safety diff `ai_docs/wip/t10-replay-views-lindberghrecomp.diff`
   (`git apply` in the submodule). What is in: vr.cfg `immersive.replays` /
