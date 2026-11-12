@@ -22,6 +22,16 @@ Immersive, replays and cutaways off, full-size game shots both eyes at frame
 Raw images (not committed, game content): scratchpad `runs/A_base`,
 `B_skip158`, `C_skip229`, `D_nocut`.
 
+**Corrections (sky worker, 2026-11-11 night; guide section 8 "The sky in
+Immersive"):** the sky dome is **not** vp 129 / fp 180 - that is the SUN
+sprite. `GAME_NO_SKY_Polygon` is one draw with vp 111 (plain matrix) and a
+texture-times-colour fp (118 / 122, varies by venue): a full hemisphere of
+radius ~4000 with the venue's 2048x512 panorama wrapped once round 360 deg.
+It looked like "a backdrop for the broadcast camera's directions" only
+because the eyes clipped it (it is drawn at the game's far plane); fixed in
+`arbprog.c` `vt3_sky_fix`. **Round 0 is Ger3M (Duesseldorf)**, round 1
+Aus1F, round 2 Fra1F (from the atlases bound in each), not Ita3F.
+
 **T2 - the real stands in Immersive (submodule `fade8ac`)**: 2.1 implemented
 as recommended (`h_vt3_field_draw`, hle_sega.c; tree count from
 `0x081A7718(field+0x2c)`, 5 trees on Ita3F; per call, Immersive only;

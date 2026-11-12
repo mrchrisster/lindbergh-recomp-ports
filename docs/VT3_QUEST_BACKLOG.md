@@ -60,14 +60,24 @@ and asked that all progress and research be written to the docs.
       In progress.
 - [ ] Pick the defaults for the camera's forward move (Camera closer, 20 m)
       and step back (6 m) - adjustable in Immersive's advanced settings.
-- [ ] Sky: Immersive now has a Sky row - Stadium (the court's own painted
-      sky from Sega's model, the default), Painted (ours), Off. The stadium
-      sky covers only the directions the TV camera looks; above and behind,
-      our painted sky fills in (written, not yet tried on the headset).
+- [ ] Sky (owner to judge worn): Immersive's Sky row - Stadium (default) is
+      now Sega's own sky all round and overhead (each court's full sky dome,
+      which the headset used to cut down to a cone in front - the "two
+      different skies" seam), Painted (ours only), Off (none). Pictures:
+      `~/Desktop/Claude/vt3-sky/`.
+- [ ] Stadium checks still owed on the later venues (seen in unattended
+      shots of rounds 0-2, 2026-11-11): the near end's lower seats have no
+      crowd cards on all three (Ger3M, Aus1F, Fra1F) - data or the audience
+      manager; floating cards, z-fighting and roofs at the far plane not
+      seen in the shots but not looked for closely; rounds 3+ not looked at.
 - [ ] HUD scoreboards float in the scene at court level instead of a HUD
       panel (older note).
 
 ## Done (2026-11-11)
+- [x] **Sky in Immersive: one sky.** The court's own sky (Sega's 360-degree
+      dome) now fills the whole sky in the headset; before, only a cone in
+      front showed, with our painted sky round it in a different colour.
+      The Sky setting acts on it: Stadium / Painted / Off, no stray wedge.
 
 - [x] **Audience and ad boards blurrier than on the PC** (Quest, both modes).
       The game asks its crowd, boards and other textures for one mip level

@@ -44,6 +44,16 @@ come from the game's main thread.
 - Owed: rerun from HANDOFF 3.1 when the owner frees the headset (skip-bisect
   `scratchpad/q4.sh`, T4 debug, T5 build regression + install).
 
+## Night 2026-11-11 (sky worker) - Installed build / headset state
+- Installed: `0dbcb6e` build (fix + T5 LOD bias + FIXED_HEAD test switch),
+  regression PASSED (prize Immersive + Classic, 5 match starts). APK copy
+  `/private/tmp/claude-501/-Users-chrishelms-Desktop-Claude/786966e7-92df-442c-b205-476a682b88a2/scratchpad/w2/VirtuaTennis3VR_0dbcb6e.apk`.
+  App stopped, env.txt 0 bytes, vr.cfg = owner's (byte-identical).
+- Committed, not yet regression-run: submodule `9d68719` - Sega's sky dome
+  all round in Immersive (the seam the owner reported). APK
+  `.../w2/VirtuaTennis3VR_skyonly.apk`. Pictures `~/Desktop/Claude/vt3-sky/`.
+- T4 shadow mask: still broken, only in `ai_docs/wip/` (opt-in there).
+
 ## Headset (check first)
 `adb shell wc -c /sdcard/VirtuaTennis3/env.txt` must be 0; the installed APK may
 be an unregressed test build (fade8ac or later). Last known-good APK copy:

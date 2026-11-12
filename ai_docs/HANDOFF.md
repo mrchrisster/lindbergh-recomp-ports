@@ -168,6 +168,62 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **Sky worker, group 2 (2026-11-11 night) - sky COMMITTED, regression
+  of it still owed; PAUSED for the conductor.** Submodule `9d68719` (sky
+  dome fix + test switches; T4 left out, kept as
+  `ai_docs/wip/t4-on-sky-lindberghrecomp.diff`, opt-in there). APK of
+  exactly this code: `.../786966e7-.../scratchpad/w2/VirtuaTennis3VR_skyonly.apk`.
+  **Installed now: the regressed `0dbcb6e` build** (`w2/VirtuaTennis3VR_0dbcb6e.apk`),
+  app stopped, env.txt 0, vr.cfg byte-identical, battery 81%.
+  GPU (prize, FIXED_HEAD, view pitched 20, match windows 2400-3000):
+  Stadium new 3.0-3.2 ms (90% 4.3-4.4), Off 2.8-3.0, old behaviour
+  (`LINDBERGH_VT3_DOME=0 LINDBERGH_VT3_SKY_FILL=1`) 4.1, Painted 4.0;
+  59-60 fps in play - the new sky costs ~0.2 ms and saves ~1 ms over the
+  old painted fill. Cuts on (`Q_cuts`): Winlose 2463, Replay 3355,
+  Gamesetmatch 3442, Stats 3532 -> Load 4133 (601), next round; black only
+  0-1, 1085-6, 1947-8, 4135-6 (the game's own); no FATAL / WARNING.
+  **New finding (not the sky):** in every run with the eyes set while the
+  session is stopped (FIXED_HEAD now acts unattended; also with
+  `LINDBERGH_VT3_DOME=0`) the result slate has 60-80 frames of 20-40 ms
+  GPU and 43-48 fps; the old committed build without a held head had 2.
+  Suspect the head-locked HUD / flat-panel path (`head_ok` is set by
+  `set_eyes`), which a worn session always takes - check worn, or A/B
+  unattended with and without FIXED_HEAD (`G_*` vs `Z_gdef`). Shots for
+  the owner: `/Users/chrishelms/Desktop/Claude/vt3-sky/` (per venue Before
+  / Stadium / Painted / Off x forward / up 70 / left 90 / behind, ten
+  directions of Stadium, seam before/after rounds 0 and 2). Runs:
+  `/tmp/vt3q/X/{A,B,C}_r{0,1,2}`, `G_*`, `Q_cuts`.
+  **Next (after the conductor's go):** install `w2/VirtuaTennis3VR_skyonly.apk`
+  and run the regression (prize Immersive 330 s FLOWLOG + BLACK_LOG, prize
+  Classic 330 s, 3 Immersive match starts 80 s), e.g.
+  `bash .../w2/g3.sh` minus its first four GPU lines; if it passes, leave
+  that build installed, app stopped, env.txt empty, vr.cfg restored.
+- **Sky worker, group 1 - the real sky found and fixed (working tree, not
+  yet committed).** macOS probe (vertex dump with the draw's own indices):
+  the sky is **GAME_NO_SKY_Polygon = one draw, a whole hemisphere of radius
+  ~4000 game units** (32 segments x 8 rings, apex y 4000; Ger3M's reaches y
+  -780), drawn with vp 111 (plain MVP, locals 0-3) and a texture-times-
+  colour fp (118 on round 0, 122 on rounds 1/2 - not stable), unit 0 the
+  stadium atlas (4096x1024 / 4096x512) with uv 0..0.5 x 0..0.5 = the
+  2048x512 panorama wrapped **once round the full 360 deg** (u 0 at azimuth
+  -125 deg, v 0.499 horizon -> 0.001 zenith). fp 180 = the SUN sprite
+  (vp 129, a small quad at ~(860, 350, -1740)). The game draws the dome at
+  its far plane: round 1/2 with the projection's depth row = w (z = w),
+  round 0 at true depth (~4000 > far 3000). The eyes reproject from the
+  game's clip space, so only a front cone survived - that was the
+  "lavender sky in front" (the panorama's own lavender) next to our painted
+  fill. Round 0 is **Ger3M (Duesseldorf)**, not Ita3F (atlas shows
+  Duesseldorf Open). Fix (`arbprog.c` `vt3_sky_fix`, `u_sky`): in Immersive
+  world draws, vertices > 3000 from their model origin get the true clip
+  depth back before `u_reproj`, then are pinned to the eye's far plane;
+  Painted / Off collapse them (no wedge, no band). Stadium no longer draws
+  the painted fill (`LINDBERGH_VT3_SKY_FILL=1` test). Quest shots
+  (`/tmp/vt3q/X/A_r*`, `B_r*`, `C_r*`; fixed head): one continuous Sega
+  sky forward / 60 / 90 / 120 / 180 / up 40 / 70 / 89, both eyes identical
+  in the sky (disparity 0 px at pitch 70); Off black sky, no wedge; Painted
+  ours only. T4 defaulted off (opt-in `LINDBERGH_VT3_MASK=1`) and kept out
+  of the sky commit. `LINDBERGH_XR_FIXED_HEAD` now works with the session
+  stopped.
 - **Sky worker (2026-11-11 night), step 0 - committed build regression PASSED.**
   Submodule `0dbcb6e` = `8004564` (fix + T5 LOD bias) + the test switch
   `LINDBERGH_XR_FIXED_HEAD=1` committed alone (host_xr.c). WIP (T3/T4) set

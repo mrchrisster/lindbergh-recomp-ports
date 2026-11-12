@@ -118,6 +118,18 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 night **Immersive sky: Sega's own dome all round** (`arbprog.c`
+  `vt3_sky_fix`; submodule `9d68719`; guide section 8 "The sky in
+  Immersive"). The sky is `GAME_NO_SKY_Polygon`, a full hemisphere (r ~4000)
+  with the venue's 360-degree panorama, drawn at the game's far plane; the
+  eyes kept only a front cone, so our painted sky showed round it in another
+  colour. Its vertices now get their true depth back and are pinned to the
+  eyes' far plane; Sky Painted / Off collapse them; Stadium draws no painted
+  fill. fp 180 is the sun, not the sky. Round 0 is Ger3M, 1 Aus1F, 2 Fra1F.
+  GPU: Stadium ~0.2 ms over Off, ~1 ms under the old fill. Regression of
+  this build still owed (HANDOFF 3.1). `LINDBERGH_XR_FIXED_HEAD` now works
+  unattended.
+
 - 2026-11-11 **Texture LOD bias on GLES (T5)** (`arbprog.c`, `quest/gl4es.patch`;
   submodule `8004564`): crowd and boards one mip sharper on the Quest, VT3 only,
   `LINDBERGH_LOD_BIAS=0` off. T4 (per-eye shadow mask) failed on the headset
@@ -459,7 +471,8 @@ working on its area):
 
 ## In progress
 
-- 2026-11-11 **Uncommitted, never run on the headset** (HANDOFF 3.1 lists
+- (superseded 2026-11-11 night: sky committed `9d68719`, T4 only in
+  `ai_docs/wip/t4-on-sky-lindberghrecomp.diff`) 2026-11-11 **Uncommitted, never run on the headset** (HANDOFF 3.1 lists
   the checks): Sky modes drawn (`stereo.c` `sky_on`, `dome_left_out`,
   `LINDBERGH_VT3_DOME_FP`), the per-eye ground shadow mask (`stereo.c`
   `mask_copy`, `stereo_mask_twin`; `arbprog.c` `vt3_mask_unit`, `lg_mask`;

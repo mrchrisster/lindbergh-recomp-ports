@@ -183,3 +183,14 @@ after it; that build is installed.
   `LINDBERGH_XR_FIXED_HEAD=1` (WIP).
 - Stopped on controller input during a run (headset possibly worn):
   env.txt emptied, vr.cfg unchanged, committed fix build re-installed.
+
+## 7. Night: the sky (sky worker)
+
+- Step 0: the committed build (`0dbcb6e` = fix + T5 + FIXED_HEAD switch)
+  regression-passed and installed.
+- The real sky found: `GAME_NO_SKY_Polygon`, one full-hemisphere draw with
+  the venue's 360-degree panorama, clipped by the headset's reprojection to
+  a front cone. Fixed (`9d68719`): Sega's sky all round; Sky Painted / Off
+  act on it. Seam pictures in `~/Desktop/Claude/vt3-sky/`.
+- Found: result-slate GPU spikes (20-40 ms) whenever the eyes are set while
+  the session is stopped - possibly the worn slate path; to check.
