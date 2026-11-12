@@ -310,3 +310,6 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   embedded in the APK (recomp_solib_img.c); upstream game screenshots in
   docs/*/mac-*.jpg and lindberghrecomp/docs/attract.png. Apple system fonts
   in the rendered splash / icon: swap for OFL before a public release.
+- ~14:40: owner's fixes committed - icon candidate 7 "VT3 orange" without the
+  ball's specular spot (installed); splash logo group and fallback title
+  centred by measured drawn pixels. APK rebuilt (/tmp/vt3q/T18/). Smoke run owed.

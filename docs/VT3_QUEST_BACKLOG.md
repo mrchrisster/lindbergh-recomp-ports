@@ -112,7 +112,7 @@ and asked that all progress and research be written to the docs.
       no "Remove Card." windows with Save on; the lose path (Continue, Game
       over) runs (`lose` scene). macOS-verified, **Quest smoke run owed**.
 - [x] **Launcher icon: "VT3" in front of a tennis ball** (owner's brief;
-      original drawing, `quest/tools/vt3_icon.py` candidate 5). **Seen on the
+      original drawing, `quest/tools/vt3_icon.py` candidate 7 "VT3 orange", owner's pick). **Seen on the
       headset: owed** (smoke run).
 - [x] **Start-up screen with the game's own logo** (owner): the "Virtua
       Tennis 3" title logo read at start-up from the player's game files,

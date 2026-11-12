@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~14:40 build worker: owner's fixes COMMITTED.** Icon = candidate
+  7 "VT3 orange", no specular spot on the ball (installed; 5/6 share the ball
+  code, same change). Start-up screen: the logo + TM + VR group, and the
+  fallback title, centred on the screen's centre line by their drawn pixels
+  measured at run time (submodule `splash_logo.c`); previews
+  `~/Desktop/Claude/vt3-splash/layout_A_font_1.png` (group centre ~764 of
+  768 - the badge's soft shadow) and `..._fallback_no_game_files.png`. APK
+  rebuilt: `/tmp/vt3q/T18/VirtuaTennis3VR_aniso_icon_splash.apk` (checked:
+  carries the orange icon). Smoke-run checks below unchanged (icon: the
+  orange "VT3" tile on court blue; splash: the logo group centred).
 - **2026-11-12 ~14:50 build worker: icon + splash COMMITTED - built for the
   Quest, headset checks OWED; release-rule audit done.** Submodule 4929c07
   (splash_logo.c: the game's title logo read at start-up from
@@ -191,8 +201,8 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
   filtering: anisotropic 8x`; flow as usual. **Owner, worn (at that start):**
   the start-up panel shows the Virtua Tennis 3 logo with VR after it, the two
   thin-line controllers with callouts, the line with the ball moving (no
-  digits); then in the Library ("Unknown Sources") the app's icon is the "VT3
-  in front of a ball" tile (if the old one shows: launcher cache, reinstall
+  digits); then in the Library ("Unknown Sources") the app's icon is the orange "VT3
+  in front of a ball" tile on court blue (if the old one shows: launcher cache, reinstall
   or reboot). Advanced pages: "Texture filtering" and "Reset save" rows.
   **Release-rule audit:** no Sega art in the repo's code / generated C /
   committed art (splash, icons: ours; other games' icons are drawn

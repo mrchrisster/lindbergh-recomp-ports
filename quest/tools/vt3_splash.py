@@ -225,7 +225,7 @@ def radius(marks, key):
     return {'trigger': 4, 'stick': marks['r_stick'], 'lower': marks['r_btn'], 'upper': marks['r_btn'], 'menu': 10}[key]
 
 if LAYOUT == 'A':
-    LOGO_AT = (360, 46, 640, 274)
+    LOGO_AT = (448, 46, 640, 274)                       # centred: x + w/2 = 768 (the group is centred on it at run time)
     VR_AT = (-6, -18)
     TITLE_AT = ((PANEL_W - TITLE_W) // 2, 46 + (274 - TITLE_H) // 2)
     cy = 560
@@ -240,7 +240,7 @@ if LAYOUT == 'A':
     BAR = (568, 806, 968, 809)
     d.text((PANEL_W // 2, 834), 'loading', font=note_f, fill=DIM + (255,), anchor='mm')
 elif LAYOUT == 'B':
-    LOGO_AT = (380, 40, 600, 250)
+    LOGO_AT = (468, 40, 600, 250)
     VR_AT = (-6, -16)
     TITLE_AT = ((PANEL_W - TITLE_W) // 2, 40 + (250 - TITLE_H) // 2)
     cy = 560

@@ -5,7 +5,8 @@ Draws the launcher icon of the Virtua Tennis 3 (VR edition) Quest port:
 original artwork in the start-up splash's palette (quest/tools/vt3_splash.py),
 drawn with Pillow - no Sega logo, box art, game textures or likenesses.
 
-Candidates (1-7; the default and installed one is 5):
+Candidates (1-7; the default and installed one is 7; the balls of 5-7 have no
+specular spot - owner, 2026-11-12):
   5  VT3 chrome  - bold italic "VT3" (pearl VT, deep blue 3, black keyline,
                    white rim, bevel, drop shadow) in front of a glossy tennis
                    ball, on navy - the owner's brief (2026-11-12): "simply VT3
@@ -298,7 +299,7 @@ def shifted(m, dx, dy):
     return out
 
 
-def glossy_ball(a, cx, cy, r, tilt=-24, gloss=1.0, rim=True):
+def glossy_ball(a, cx, cy, r, tilt=-24, gloss=0.0, rim=True):
     """a 3D tennis ball (art units): radial shading lit from the upper left,
     white seam arcs that follow the shading, a specular glint, a soft shadow"""
     S = a.S
@@ -464,7 +465,7 @@ def cand7(a, layer):
 
 CANDS = {1: cand1, 2: cand2, 3: cand3, 4: cand4, 5: cand5, 6: cand6, 7: cand7}
 NAMES = {1: 'ball 3', 2: 'headset', 3: 'court', 4: 'racket', 5: 'VT3 chrome', 6: 'VT3 lime', 7: 'VT3 orange'}
-DEFAULT = 5                      # installed (owner's choice: VT3 in front of a ball)
+DEFAULT = 7                      # installed (owner's pick 2026-11-12: VT3 orange, no specular spot on the ball)
 SAFE = 66 / 108
 
 
