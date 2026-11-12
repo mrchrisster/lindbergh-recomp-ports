@@ -168,6 +168,24 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T13 worker, step 1 - Camera view reframed, In the world off
+  the panel, height default Medium (uncommitted; macOS only).** stereo.c
+  `rv_frame_shot` / `rv_look_at`: Camera view looks along the game camera's
+  aim (pitch included) from a point moved toward its target (camera+0x44) to
+  d - k(d - d tan(game)/tan(eye)), k = `LINDBERGH_VT3_REPLAY_CLOSE` (0.6),
+  >= 2 m from the target, not under ground / through the net / inside a
+  player; close-up 2.8 m; fixed per shot (default) or
+  `LINDBERGH_VT3_REPLAY_FOLLOW=1`; `LINDBERGH_VT3_REPLAY_LEVEL=1` standing
+  height + level gaze; replay start dip holds 16 frames (over the intro
+  wipe); per-shot log `[rview] ... camera ... aim ... lens ... eye ...
+  players in view n/m`. `LINDBERGH_VT3_REPLAY_PAN` removed. Test switch
+  `LINDBERGH_VT3_REPLAY_TYPE=<0..6>|cycle` (camera::setReplayType).
+  Rows Off / Flat screen / Camera view (stored `world` = camera; env world
+  for tests). Default Camera height Medium (stored values kept - NB the
+  owner's vr.cfg says `immersive.height 0`, written by an old save).
+  `LINDBERGH_VT3_CAMMODE_LOG=3` logs every world camera note (T14 hunt).
+  T14 (point-start glitch) logged in the backlog. Unit tests pass. Running:
+  macOS replay scene, camera views, replay type cycle (`/tmp/vt3t10/c13`).
 - **2026-11-12 T12 worker, step 2 - T12 COMMITTED and installed** (submodule
   `9dd8505`; APK `/tmp/vt3q/T12/VirtuaTennis3VR_t12.apk`, sha256 5f7fa9fe...;
   app stopped, env.txt 0, owner's vr.cfg byte-identical - note: the first
@@ -1011,6 +1029,10 @@ Unattended runs need `LINDBERGH_AUDIO_KEEP_ON_PAUSE=1` (else the mixer stops
      loop-end position bug; measured on macOS and Quest), owner to confirm by
      ear; possible limiter distortion in loud moments left for his ears.
      Procedure below.
+
+### 3.1b Open bugs
+- **T14** point-start glitch in VR (backlog Bugs): being traced in the T13
+  smoke run (every-frame shots round two point starts).
 
 ### 3.2 Crowd cards above the side stands (Immersive) - fixed by the real stands
 Superseded (2026-11-11): the floaters stood on the hidden `GAME_NO` tiers;

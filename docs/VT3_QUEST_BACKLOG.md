@@ -19,6 +19,14 @@ fix works live in `VT3_PORTING_GUIDE.md` section 8.
 ## To do
 
 ### Bugs
+- [ ] **T14: a short glitch at the start of every point (VR)** (owner,
+      2026-11-12, build 9dd8505, his vr.cfg: replays off, cutaways off):
+      "the little glitch at every start of a point - not sure if it's still
+      a top-down shot, it disappears too quickly". T8 left the StartLoop
+      cross-fade out and holds the frame after a match's EntranceLoop only.
+      Being traced (HANDOFF 3.1): every-frame shots of both eyes round two
+      point starts in the T13 smoke run, `LINDBERGH_VT3_CAMMODE_LOG=3`
+      (every world camera note) on macOS.
 Reported by the owner after a full match worn on 2026-11-11 (build before
 `1b1988b`); the owner also said "we are getting close to a first release"
 and asked that all progress and research be written to the docs.
