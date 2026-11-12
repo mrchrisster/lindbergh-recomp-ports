@@ -92,6 +92,17 @@ and asked that all progress and research be written to the docs.
       may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-12)
+- [x] **Anti-aliasing switch** (owner, T17; built, macOS-checked, **Quest
+      smoke run owed**, default Off until judged worn): main-page row
+      Anti-aliasing Off / 2x / 4x (on restart; vr.cfg `msaa`,
+      `LINDBERGH_MSAA`). Smooths polygon edges (net tape and posts, players,
+      stands); the net's mesh and the court lines are textures and need
+      the follow-ups below. Picture (macOS):
+      `~/Desktop/Claude/vt3-aa/desktop_net_off_vs_4x.png`.
+- [ ] **Net mesh and court lines still shimmer with anti-aliasing on**
+      (follow-up to T17): alpha-to-coverage for alpha-tested draws (net,
+      crowd cards, fences) and anisotropic texture filtering for the court
+      lines. Not started.
 - [x] **No "cannot use a card" bar, no card wait at boot; English** (owner,
       T15; macOS-verified, headset check owed): card readers off (Classic
       can turn the notice back on), Language English / Japanese on the main

@@ -128,6 +128,19 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-12 **T17: Anti-aliasing switch - built, macOS-checked, Quest smoke
+  run OWED** (guide section 8 "Anti-aliasing (T17)"). Main-page row
+  Anti-aliasing Off / 2x / 4x (on restart), vr.cfg `msaa 0|2|4` (default 0),
+  `LINDBERGH_MSAA`. Quest: the eyes' multiview arrays attached multisampled
+  (`gl4es_multiview_msaa`, GL_OVR_multiview_multisampled_render_to_texture,
+  implicit resolve; every eye read already goes through its own
+  single-sampled framebuffer); no compositor depth while on; Off = today's
+  path. Desktop: `LINDBERGH_MSAA` = multisampled window. MSAA does not
+  smooth the net mesh / court lines (textures): follow-ups alpha-to-coverage
+  and anisotropic filtering. **Testing note:** a gl4es change needs
+  `cmake --build ../deps/gl4es-android` before `quest/build.sh` (it links
+  `deps/gl4es/lib/libGL.a`, which `deps.sh` builds only when missing).
+
 - 2026-11-12 **T15: card reader notice off, English, headless macOS runs -
   macOS-verified, Quest smoke run OWED** (guide section 8 "Card reader
   notice and language (T15)"). VT3 now tells the game its card readers are

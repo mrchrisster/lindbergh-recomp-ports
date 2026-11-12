@@ -519,10 +519,10 @@ index b0f02993..2daf81c9 100644
          if((hardext.npot==1 || hardext.npot==2) && (!tex->actual.wrap_s || !tex->actual.wrap_t || !wrap_npot(tex->actual.wrap_s) || !wrap_npot(tex->actual.wrap_t))) {
 diff --git a/src/gl/multiview.c b/src/gl/multiview.c
 new file mode 100644
-index 00000000..d9d69ee0
+index 00000000..331ee50c
 --- /dev/null
 +++ b/src/gl/multiview.c
-@@ -0,0 +1,844 @@
+@@ -0,0 +1,879 @@
 +// multiview.c - both eyes of a VR headset in one pass (see multiview.h).
 +//
 +// Shaders: what gl4es makes of every shader is GLSL ES 1.00, and multiview
@@ -590,6 +590,7 @@ index 00000000..d9d69ee0
 +    void (*ReadPixels)(GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*);
 +    void (*TexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const void*);
 +    void (*FramebufferTextureMultiviewOVR)(GLenum, GLenum, GLuint, GLint, GLint, GLsizei);
++    void (*FramebufferTextureMultisampleMultiviewOVR)(GLenum, GLenum, GLuint, GLint, GLsizei, GLint, GLsizei);   // optional
 +    GLuint (*GetUniformBlockIndex)(GLuint, const GLchar*);
 +    void (*UniformBlockBinding)(GLuint, GLuint, GLuint);
 +    void (*BindBufferRange)(GLenum, GLuint, GLuint, GLintptr, GLsizeiptr);
@@ -639,6 +640,8 @@ index 00000000..d9d69ee0
 +    L(GetError) L(BlitFramebuffer) L(FramebufferTexture2D) L(IsEnabled) L(GenFramebuffers) L(DeleteFramebuffers) L(BindFramebuffer) L(FramebufferTextureLayer) L(ReadPixels)
 +#undef L
 +    if(strstr(ext, "GL_EXT_buffer_storage")) *(void**)&mv.BufferStorageEXT = proc_address(gles, "glBufferStorageEXT");
++    if(strstr(ext, "GL_OVR_multiview_multisampled_render_to_texture"))
++        *(void**)&mv.FramebufferTextureMultisampleMultiviewOVR = proc_address(gles, "glFramebufferTextureMultisampleMultiviewOVR");
 +    gl4es_mv = gl4es_mv_shaders = 1;
 +    return 1;
 +}
@@ -963,6 +966,28 @@ index 00000000..d9d69ee0
 +    bind_array(unit, prev);
 +}
 +
++static GLuint mv_msaa_fb;
++static int mv_msaa_samples;
++int gl4es_multiview_msaa(GLuint framebuffer, int samples)
++{
++    mv_msaa_fb = 0; mv_msaa_samples = 0;
++    if(!gl4es_mv || samples < 2) return 0;
++    if(!mv.FramebufferTextureMultisampleMultiviewOVR) {
++        printf("LIBGL: multiview: no GL_OVR_multiview_multisampled_render_to_texture - no anti-aliasing\n");
++        return 0;
++    }
++    GLint max = 0;
++    mv.GetIntegerv(0x8D57 /*GL_MAX_SAMPLES_EXT*/, &max);
++    if(max >= 2 && samples > max) samples = max;
++    if(max < 2) { printf("LIBGL: multiview: the driver allows %d samples - no anti-aliasing\n", max); return 0; }
++    mv_msaa_fb = framebuffer; mv_msaa_samples = samples;
++    printf("LIBGL: multiview: framebuffer %u drawn with %dx anti-aliasing (implicit resolve; driver max %d)\n", framebuffer, samples, max);
++    return samples;
++}
++
++// the samples the eyes' attachments really got (0 once an attachment fell back)
++int gl4es_multiview_msaa_granted(void) { return mv_msaa_samples; }
++
 +int mv_attach(GLenum target, GLenum attachment, gltexture_t* tex, GLuint fb, GLenum textarget)
 +{
 +    if(!gl4es_mv || !tex) return 0;
@@ -977,6 +1002,16 @@ index 00000000..d9d69ee0
 +    }
 +    // a depth array has stencil too: the eyes' framebuffer is drawn with it
 +    if(attachment == GL_DEPTH_ATTACHMENT && is_depth(tex)) attachment = GL_DEPTH_STENCIL_ATTACHMENT;
++    if(mv_msaa_samples > 1 && fb == mv_msaa_fb) {
++        mv.FramebufferTextureMultisampleMultiviewOVR(target, attachment, array_for(tex), 0, mv_msaa_samples, 0, 2);
++        GLenum e = mv.GetError();
++        if(e) {     // fall back to the single-sampled attachment
++            printf("LIBGL: multiview: multisampled attachment %#x failed (error %#x) - no anti-aliasing\n", attachment, e);
++            mv_msaa_samples = 0;
++            mv.FramebufferTextureMultiviewOVR(target, attachment, array_for(tex), 0, 0, 2);
++        }
++        return 1;
++    }
 +    mv.FramebufferTextureMultiviewOVR(target, attachment, array_for(tex), 0, 0, 2);
 +    return 1;
 +}
@@ -1369,10 +1404,10 @@ index 00000000..d9d69ee0
 +}
 diff --git a/src/gl/multiview.h b/src/gl/multiview.h
 new file mode 100644
-index 00000000..56f46fe8
+index 00000000..4d88d7f1
 --- /dev/null
 +++ b/src/gl/multiview.h
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,56 @@
 +#ifndef _GL4ES_MULTIVIEW_H_
 +#define _GL4ES_MULTIVIEW_H_
 +
@@ -1401,6 +1436,13 @@ index 00000000..56f46fe8
 +// a rectangle texture's two-layer array, as the driver knows it (0: none)
 +GLuint gl4es_multiview_array(GLuint texture);
 +void gl4es_multiview_layered(GLuint texture);   // a 2D render target sampled per view
++// Anti-aliasing for one framebuffer (the eyes'): its attachments are made
++// multisampled with implicit resolve (GL_OVR_multiview_multisampled_render_to_texture,
++// glFramebufferTextureMultisampleMultiviewOVR), samples clamped to the driver's
++// maximum. Call after creating and before attaching. Returns the samples
++// granted (0: the driver cannot, or samples < 2 - attached as before).
++int gl4es_multiview_msaa(GLuint framebuffer, int samples);
++int gl4es_multiview_msaa_granted(void);   // after attaching: the samples kept (0: a fallback happened)
 +// one layer of a texture's array as w*h RGBA bytes, for finding what goes wrong
 +int gl4es_multiview_read(GLuint texture, GLenum target, int layer, void* out);
 +// a region of one view's layer of a rectangle texture, scaled into a 2D texture

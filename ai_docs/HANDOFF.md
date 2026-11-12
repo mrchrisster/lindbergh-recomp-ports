@@ -168,6 +168,39 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T17 COMMITTED locally - macOS-checked, Quest smoke run OWED**
+  (anti-aliasing; guide section 8 "Anti-aliasing (T17)"). Default Off = today's
+  path (no gl4es call, same GL calls); 2x / 4x opt-in by panel row / vr.cfg
+  `msaa` / `LINDBERGH_MSAA`. Quest APK builds (gl4es rebuilt, `quest/gl4es.patch`
+  regenerated). Unit tests: `test_world_mode` (msaa), `test_xr_settings`
+  (round trip, off-list values), `test_xr_world_panel` (row, cycle, pins).
+  macOS desktop 4x window: picture and screen copies fine, net tape smooth,
+  net mesh not (texture) - `~/Desktop/Claude/vt3-aa/desktop_net_off_vs_4x.png`.
+  **Owed, ONE Quest run (~2 min), after the combined T13-T15 smoke run (which
+  covers the Off path) with the committed build installed:**
+  ```
+  R=/tmp/vt3q/T17; mkdir -p $R
+  adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.before; adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+  OUT=$R/aa4 LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_MSAA=4 LINDBERGH_GPU_TIME=1 LINDBERGH_XR_FIXED_HEAD=1 LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_GAME_SHOT=2300,1,1,2302 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh prize quest 150
+  adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.after; cmp $R/vr.cfg.before $R/vr.cfg.after; adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+  grep -E 'anti-aliasing|incomplete|refused|\[world\] mode|gputime|FATAL|\[flow\]' $R/aa4/vt3.log | head -40
+  ```
+  Pass: `LIBGL: multiview: framebuffer N drawn with 4x anti-aliasing` and
+  `[stereo] anti-aliasing: 4x asked, 4x granted`, no `incomplete` / `refused`;
+  flow as usual (match start ~1949, Gamesetmatch, Stats, next round); the
+  frames 2300-2302 both eyes show the court with the players' ground shadows
+  at their feet (the shadow mask copy reads the resolved eyes) and nothing
+  drawn after the mask copy showing through (stands / net / players whole -
+  the risk: the extension leaves the multisampled depth undefined after a
+  mid-frame resolve; Adreno reloads it, if not, later draws z-fight);
+  `[gputime]` over frames 2100-3000 within ~+1.5 ms of the combined run's
+  Off value (same scene, `LINDBERGH_GPU_TIME=1` there too). Pictures for the
+  owner: crop the net (rows ~45-55 % of the eye height, centre half of the
+  width) of `$R/aa4/eye_2300.ppm` and the combined run's frame 2300 (if it
+  had shots; else rerun Off only if the owner asks), 3x nearest, into
+  `~/Desktop/Claude/vt3-aa/quest_net_off_vs_4x.png`. If it fails: nothing to
+  undo (default Off); log the failure and keep `msaa 0`. The owner judges
+  2x / 4x worn by setting the row and restarting.
 - **2026-11-12 T17 inherited (build worker, step 0) - UNVERIFIED, does not
   link on the Quest.** A cut-off worker left the T17 setting half-done in the
   submodule working tree (safety copy `ai_docs/wip/t17-antialiasing-lindberghrecomp.diff`,

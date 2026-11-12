@@ -267,3 +267,8 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Headset not on adb. Inherited T17 diff saved as
   `ai_docs/wip/t17-antialiasing-lindberghrecomp.diff` (setting + panel row done,
   gl4es side missing - Quest build would not link). Working on T17, then T16.
+- T17 COMMITTED locally (submodule ca127f5), macOS-checked, Quest smoke run
+  OWED (one ~2 min run with LINDBERGH_MSAA=4, HANDOFF 3.1 top). Default Off =
+  unchanged path. MSAA smooths polygon edges only; net mesh / court lines
+  need alpha-to-coverage / anisotropic filtering (backlog follow-up).
+  Headset still not on adb. Next: T16 (save game), macOS only.
