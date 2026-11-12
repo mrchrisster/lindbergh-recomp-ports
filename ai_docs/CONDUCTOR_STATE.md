@@ -113,3 +113,13 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Next: (1) T8 regression both modes -> commit -> install; (2) card reader
   bar fix; (3) T4 shadow mask; then gl4es mv_copy, GPU page faults, live
   switch 2-8, scoreboards, cameras.
+
+## 2026-11-11 ~23:10 (owner's feedback)
+- **T8 confirmed worn by the owner** (image in image, Classic stray 3D, court
+  from above) on the test build; regression + commit in progress (worker).
+- New owner requests: **T9** Immersive distance choices 5/6/7/8 m (3 and 9
+  too extreme) and a **camera height** row - given to the T8 worker to do
+  after its commit; pictures to ~/Desktop/Claude/vt3-view/.
+- Owner asks whether replay cameras can be immersive in Immersive mode:
+  read-only research worker writing `ai_docs/research/immersive-replay-cameras.md`
+  (not committed by it; conductor commits).
