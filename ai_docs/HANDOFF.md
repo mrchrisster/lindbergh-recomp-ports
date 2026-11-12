@@ -168,6 +168,20 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T13 worker, step 2 - macOS verified, T14 cause found and
+  eased; waiting for the headset.** macOS: replay type cycle, 17 Camera-view
+  shots (all 7 types + close-ups), the target's player in view every time;
+  close-up 2.8 m. T14: StartLoop snaps the court camera ~10 m nearer / 3 m
+  lower then glides back (CAMMODE_LOG=3) - now eased over 60 frames, logged
+  `court camera snapped ... eased`; far-end height eased too. Docs: guide
+  section 8 "Camera view reframed ...", backlog. Uncommitted (safety diff
+  `ai_docs/wip/t13-camera-view-lindberghrecomp.diff`). Smoke plan: one ~2
+  min run, Quest `replay` scene with the owner's vr.cfg pins off except
+  views: `LINDBERGH_VT3_REPLAY_VIEW=camera LINDBERGH_VT3_CUTAWAY_VIEW=camera
+  LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_VT3_CAMMODE_LOG=2 LINDBERGH_VT3_CUTLOG=1
+  LINDBERGH_XR_FIXED_HEAD=1 LINDBERGH_GAME_SHOT=<start-40>,1,0,<start+40>
+  LINDBERGH_SHOT_BOTH=1` round the first point start, plus 4-frame shots
+  through the first replay / close-up.
 - **2026-11-12 T13 worker, step 1 - Camera view reframed, In the world off
   the panel, height default Medium (uncommitted; macOS only).** stereo.c
   `rv_frame_shot` / `rv_look_at`: Camera view looks along the game camera's
