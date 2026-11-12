@@ -237,3 +237,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - When the headset is back: ONE combined smoke run (T13+T14+T15), install
   the committed build, tell the owner. His vr.cfg has `immersive.height 0`
   stored = Low; he picks Medium himself.
+- Owner asked for macOS runs in the background (no window popping up):
+  worker adding a headless switch for `mac` runs, default on.
+- **Card save (T16, owner's decision):** emulate the IC card as a save game,
+  high level - skip the card screens, load / save the card data directly,
+  **no profile picker, always the same player**. Read-only research worker
+  writing `ai_docs/research/ic-card-save-emulation.md` (conductor commits).
+  Opposite of T15's "card R/W OFF": becomes a setting (Save progress On/Off).
