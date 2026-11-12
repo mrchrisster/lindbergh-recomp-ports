@@ -168,6 +168,14 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 00:42 T10 worker, step 4 - headset granted (two smoke runs).**
+  Owner's game (pid 15602, last real input ~12000 frames earlier, headset
+  asleep) force-stopped; owner's vr.cfg backed up
+  `/tmp/vt3q/T10/vr.cfg.owner` (sha1 47c9e2b4..., immersive, back 50,
+  shadow 4096); his vt3.log copied to `/sdcard/VirtuaTennis3/vt3_owner_session.log`.
+  T10 APK installed. S1 (replays world, cutaways follow) running via
+  scratchpad `t10run.sh` (watcher kills on real input). Next: S2
+  (`t10run.sh S2 follow world`), restore vr.cfg, strips, commit.
 - **2026-11-12 T10 worker, step 3 - macOS-verified build ready; WAITING FOR
   THE HEADSET (conductor's grant).** Code uncommitted (submodule working tree
   = `ai_docs/wip/t10-replay-views-lindberghrecomp.diff`); test APK
