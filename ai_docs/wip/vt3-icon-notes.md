@@ -5,7 +5,8 @@ blue, white-to-orange letters) "but kill the speckle highlight on the ball":
 the specular spot is gone from the shared ball code (`glossy_ball`
 gloss=0), so 5-7 stay consistent; 7 is the default and INSTALLED. Pictures:
 `~/Desktop/Claude/vt3-icon/recommended.png` (= 7), `vt3_candidate_7_1024.png`,
-`vt3_candidate_7_sheet.png` (192/96/48). Seen on the headset: OWED.**
+`vt3_candidate_7_sheet.png` (192/96/48). Seen on the headset: OWED.** (~14:45: the letters' outlines are drawn from the closed
+union of the glyphs - no rim sliver / dark pocket between the T and the 3.)
 
 **Update 2026-11-12 afternoon (build worker): the owner's brief - "simply VT3
 with a tennis ball behind it, shaded in a similar way as the game" - is

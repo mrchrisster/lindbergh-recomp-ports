@@ -345,6 +345,16 @@ def glossy_ball(a, cx, cy, r, tilt=-24, gloss=0.0, rim=True):
         ImageDraw.Draw(a.img).ellipse(a.box(cx - r, cy - r, cx + r, cy + r), outline=(70, 92, 14, 255), width=max(1, int(a.r(r * .025))))
 
 
+def close_mask(m, r):
+    """morphological closing (dilate, then erode by about r px) of a mask, by
+    blur-and-threshold: fills pockets and gaps narrower than ~2r, keeps the
+    outer contour"""
+    r = max(1, int(r))
+    d = m.filter(ImageFilter.GaussianBlur(r * .5)).point(lambda v: 255 if v > 10 else 0)
+    e = d.filter(ImageFilter.GaussianBlur(r * .5)).point(lambda v: 255 if v > 245 else 0)
+    return ImageChops.lighter(e, m).filter(ImageFilter.GaussianBlur(1))
+
+
 def text_mask(a, s, f, at, anchor='mm', stroke=0):
     m = a.mask()
     ImageDraw.Draw(m).text(at, s, font=f, fill=255, anchor=anchor, stroke_width=int(stroke), stroke_fill=255)
@@ -383,8 +393,11 @@ def vt3_letters(a, style):
     bb = full.getbbox()
     vt = text_mask(a, 'VT', f, at, anchor='ls').filter(ImageFilter.MaxFilter(5))
     rim_w, key_w = a.r(.042), a.r(.026)
-    rim = text_mask(a, 'VT3', f, at, anchor='ls', stroke=rim_w)
-    key = text_mask(a, 'VT3', f, at, anchor='ls', stroke=key_w)
+    # the outlines are of the union of the letters, closed: the pockets and slivers
+    # between touching glyphs (the T's bar over the 3's top arm, the 3's round
+    # terminals) are filled, so no thin rim / dark hole runs through the word
+    rim = close_mask(text_mask(a, 'VT3', f, at, anchor='ls', stroke=rim_w), a.r(.05))
+    key = close_mask(text_mask(a, 'VT3', f, at, anchor='ls', stroke=key_w), a.r(.05))
     # soft drop shadow
     sh = Image.new('RGBA', a.img.size, (0, 0, 0, 0))
     sh.putalpha(shifted(rim, a.r(.012), a.r(.03)).filter(ImageFilter.GaussianBlur(a.r(.02))).point(lambda v: v * 200 // 255))

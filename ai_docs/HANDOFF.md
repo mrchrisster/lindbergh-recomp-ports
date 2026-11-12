@@ -168,6 +168,12 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~14:45: icon letter artefact fixed** (owner: a thin dark line
+  with dots through the "3" where it meets the T - a white rim sliver and a
+  dark pocket between the touching glyphs). `vt3_icon.py` now closes the
+  union of the letters' outline masks (`close_mask`) before drawing the rim
+  and keyline: 5, 6, 7 clean at 1024 / 192 / 96 / 48. Icons reinstalled,
+  `~/Desktop/Claude/vt3-icon/` regenerated, APK rebuilt (same path).
 - **2026-11-12 ~14:40 build worker: owner's fixes COMMITTED.** Icon = candidate
   7 "VT3 orange", no specular spot on the ball (installed; 5/6 share the ball
   code, same change). Start-up screen: the logo + TM + VR group, and the
