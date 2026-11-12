@@ -144,3 +144,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   Off / Flat screen / In the world / Camera view. Design:
   `ai_docs/research/immersive-replay-cameras.md` (B is its "follow" step -
   there only a comparison step; promote it to a full option).
+- **Owner (23:15): the reaction camera is included too** - the winner's
+  close-up after a point (win/lose loop, camera mode 7; "Point cutaways") gets
+  the same treatment in T10: both views (in the world from your seat / at the
+  camera with natural FOV + fade). The 1-in-10 split screen must be suppressed
+  in these views (test: `splitreplay`). Serve close-up on big points: ask the
+  owner only if cheap; research says it adds nothing from the seat.
+  Panel row: Point cutaways: Off / Flat screen / In the world / Camera view.
