@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 3 - T8 verified; T9 runs going.** On the T8 build
+  (0fa1b111): G1 GPU (prize, Immersive, FIXED_HEAD, VIEW_TURN 0,20) match
+  2.8 / 2.8 / 3.1 ms (sky build G_new 3.2 / 3.1 / 3.0) - no cost; slate
+  20-40 ms frames as before (known FIXED_HEAD finding). V2 (Immersive,
+  every frame 1940-1985 both eyes): 1949 held (black like 1947-48, both
+  eyes), fade left out from 1950, clean court. Strips
+  `~/Desktop/Claude/vt3-bugs/immersive_court_from_above_1949_{BEFORE,AFTER}.png`.
+  **Installed now: T8+T9 test build** (`/tmp/vt3q/T8b/VirtuaTennis3VR_t8t9.apk`).
+  Running: `.../786966e7-.../scratchpad/seq2.sh` (D50-D80 step back, H-20..H20
+  height + slate at 3200, S-20/S0/S20 serve meter round0) -> `/tmp/vt3q/T8b/`,
+  marker `SEQ2_DONE`. Then: V1 Classic capture 1944-1960, contact sheet to
+  `~/Desktop/Claude/vt3-view/`, regression, commits.
 - **T8b worker, step 2 - T9 code written (uncommitted, unbuilt for Quest).**
   T9 (owner, via conductor): Immersive Step back choices 5/6/7/8 m (was
   0/3/6/9/12, default 6 m = `immersive.back 60` stays; stored values off the
