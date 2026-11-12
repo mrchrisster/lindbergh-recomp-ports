@@ -155,3 +155,4 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   towards "a real VR game". Read-only research worker writing
   `ai_docs/research/pov-camera.md` (conductor commits). Implementation = T11,
   after T10 (in-world replays + reaction camera).
+- POV research DONE: `ai_docs/research/pov-camera.md` (steps 0-11, `LINDBERGH_VT3_VIEW=seat|behind|eyes|snap`; note `vr.scale` must be 10 in the POV path; analog view-relative stick via `pad::exec` wrap is realistic). T11.
