@@ -170,3 +170,12 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Owner's rule added to README: minimal headset testing (one ~2 min smoke
   run per change; the owner judges worn).
 - Owner to judge worn: Step back 5-8 m, Camera height steps.
+
+## 2026-11-12 00:20 (conductor)
+- T9 committed + installed (submodule 688a9b9, outer fd2d213), headset idle,
+  owner to judge Step back 5-8 m and Camera height worn. Dark band at the
+  bottom at 6-8 m = the near end's front wall (real geometry, pre-existing).
+- T10 worker started (in-world replays A + B, reaction camera): macOS only
+  until the conductor grants the headset; one short smoke run per change.
+- Local, not pushed: 2c3f4f4 (T8), 688a9b9 (T9) and all outer commits after
+  1f3ec0f. Push to `fork` on the owner's word.
