@@ -168,6 +168,28 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 8 - STOPPED: controller input (owner in the headset,
+  `mWakefulness=Awake`) during L-20 (from frame ~4346), L20 and Q_imm.**
+  Done at once: seq3 and its run killed by PID, app force-stopped, env.txt 0
+  bytes, vr.cfg = the owner's 22:51 file byte-identical
+  (`/tmp/vt3q/T8b/vr.cfg.owner2251`), **installed: committed T8 build
+  `2c3f4f4`** (`/tmp/vt3q/T8b/VirtuaTennis3VR_2c3f4f4.apk`, sha256 0fa1b111...).
+  **T9 NOT committed** (code in the submodule working tree and
+  `ai_docs/wip/t9-view-lindberghrecomp.diff`; its guide/backlog text in
+  `ai_docs/wip/t9-view-docs.diff` - `git apply` it). T9 verified so far:
+  step back 5-8 m, heights -2..+2 m, serve meter at -2/0/+2 m, panel row
+  (`~/Desktop/Claude/vt3-view/immersive_advanced_panel.png`), slate at -2 m
+  (`result_slate_at_heights.png`: the +2 m shot at 3500 is play, not the
+  slate - L20 was disturbed). V1 Classic capture clean (strips
+  `vt3-bugs/classic_court_from_above_1949_{BEFORE,AFTER}.png`).
+  **Owed for T9:** slate at +2 m, Q_imm / Q_cls regression (220 s, FLOWLOG +
+  BLACK_LOG) on a T8+T9 build (`/tmp/vt3q/T8b/VirtuaTennis3VR_t8t9.apk` =
+  the current working tree), then commit + install + restore vr.cfg.
+  **Testing bug found:** the helpers' `cab_count.txt` (`grep -c '\[cab\]
+  buttons'`) never matches (`[cab] frame N: buttons ...`) - always 0. Real
+  check: `grep -E '^\[cab\] frame' vt3.log | awk '$5 !~ /^(0x1|0|0x10),$/'`
+  outside the script's own keys (z = 0x1, coin = 0x10). Earlier runs
+  G1..MP clean by that check.
 - **T8b worker, step 7 - serve meter OK at -2 / 0 / +2 m** (S-20/S0/S20,
   cab 0): meter beside the player both eyes; sheet
   `~/Desktop/Claude/vt3-view/serve_meter_at_heights.png`. seq3 continues

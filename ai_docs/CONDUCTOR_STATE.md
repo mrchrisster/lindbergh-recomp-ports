@@ -156,3 +156,9 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   `ai_docs/research/pov-camera.md` (conductor commits). Implementation = T11,
   after T10 (in-world replays + reaction camera).
 - POV research DONE: `ai_docs/research/pov-camera.md` (steps 0-11, `LINDBERGH_VT3_VIEW=seat|behind|eyes|snap`; note `vr.scale` must be 10 in the POV path; analog view-relative stick via `pad::exec` wrap is realistic). T11.
+
+## 2026-11-12 ~00:30 (T8b worker, stopped)
+- Owner input seen in runs (headset awake): stopped, committed T8 build
+  `2c3f4f4` installed, env.txt 0, vr.cfg = owner's 22:51 file.
+- T9 written + mostly verified, NOT committed: owed slate at +2 m and a
+  short Immersive + Classic regression (HANDOFF 3.1 step 8).
