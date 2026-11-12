@@ -272,3 +272,9 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   unchanged path. MSAA smooths polygon edges only; net mesh / court lines
   need alpha-to-coverage / anisotropic filtering (backlog follow-up).
   Headset still not on adb. Next: T16 (save game), macOS only.
+- T16 COMMITTED locally (submodule 891dd47), macOS-verified, default Off,
+  Quest smoke run OWED (HANDOFF 3.1 top). Save carries over (3 sessions);
+  Off = no file, flow unchanged; corrupt file handled. Open for the owner:
+  default On?, a name for the save ("noname" now), lose path untested.
+  Headset never appeared on adb this session: the combined T13-T17 smoke run
+  is still owed; nothing installed (headset has T12 9dd8505).

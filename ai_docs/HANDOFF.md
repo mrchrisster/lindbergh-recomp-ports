@@ -184,7 +184,7 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
   ```
   Pass: `Save progress on`, `fresh record` at ~1500, `written to
   vt3_save_test.bin` at the match's judge, Gamesetmatch -> Stats -> Load, the
-  file listed (2 records' worth: 32 + 636 bytes = 668), no FATAL. Then the
+  file listed (one record = 668 bytes, in the game directory), no FATAL. Then the
   owner tries it worn: set "Save progress: On", restart, play, quit, play
   again - and says whether it should default On.
 - **2026-11-12 T16 (save game) step 1 - written, UNCOMMITTED, macOS runs in
