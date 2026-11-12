@@ -168,6 +168,19 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 10 - STOPPED AGAIN on real controller input
+  (~23:47 MST, headset `Awake`).** B1's log (`/tmp/vt3q/T8b/B1/vt3.log`) has
+  buttons 0x9001 / 0x8001 / 0x10000 / 0x10010 from frame 1204 - not the
+  script's. Watcher stopped the run; app force-stopped, env.txt 0, vr.cfg =
+  owner's 22:51 file byte-identical, **installed: committed T8 `2c3f4f4`**.
+  T9 still uncommitted (wip diffs as in step 8); still owed: B1 (band, view
+  pitched down), L20b (slate +2 m), Q_imm, Q_cls - just rerun
+  `.../786966e7-.../scratchpad/seq4.sh` after `adb install -r
+  /tmp/vt3q/T8b/VirtuaTennis3VR_t8t9.apk` and `adb shell rm -f
+  /sdcard/VirtuaTennis3/vt3.log` (the watcher reads the device log; its
+  device-side grep now has `2>/dev/null` - a missing log printed an error
+  line that counted as input, so the first trigger at launch may have been
+  that bug; the log then showed real input anyway).
 - **T8b worker, step 9 - resumed (owner handed the headset back; his
   22:51 vr.cfg is the one to restore).** Helper fixed: `t8run.sh` now counts
   real input (`[cab] frame N: buttons V` not 0 / 0x1 / 0x10). Installed the
