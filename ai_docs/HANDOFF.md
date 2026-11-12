@@ -168,6 +168,20 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T19 (libCg.so out of the binary) step 1 - findings.** What the
+  embedded image is for: libCg's CODE is already lifted to C
+  (`recomp_solib_funcs_*.c`); `recomp_solib_img.c` is the whole loaded image
+  (2,211,840 bytes: every PT_LOAD, relocated by `tools/recomp/solib.py` at lift
+  time) that `src/runtime/solib.c` memcpy's to guest 0xB4000000 on first use -
+  the lifted code reads its data / rodata / GOT / PIC switch tables / init
+  arrays from there (the text bytes are copied but not run). Baseline: 323 of 328
+  sampled 48-byte runs of libCg.so found in both `build-mac/vt3` (70,181,888 B)
+  and the APK's libmain.so (74,052,080 B). Plan: solib.py emits a relocation
+  table (offset, type, resolved symbol address - no file bytes) + the file's
+  size/SHA-256 + the relocated image's SHA-256; solib.c reads `../lib/libCg.so`
+  (relative to the executable's folder), checks, loads PT_LOADs, applies the
+  table. Other games: hotdex and gse use the same path (their generated/ is
+  empty here). libCg sha256 da2f7604...736c (disk0 = revc copy).
 - **2026-11-12 ~14:45: icon letter artefact fixed** (owner: a thin dark line
   with dots through the "3" where it meets the T - a white rim sliver and a
   dark pocket between the touching glyphs). `vt3_icon.py` now closes the
