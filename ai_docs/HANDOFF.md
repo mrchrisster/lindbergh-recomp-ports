@@ -168,6 +168,26 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **Sky worker (2026-11-11 night), step 0 - committed build regression PASSED.**
+  Submodule `0dbcb6e` = `8004564` (fix + T5 LOD bias) + the test switch
+  `LINDBERGH_XR_FIXED_HEAD=1` committed alone (host_xr.c). WIP (T3/T4) set
+  aside (identical to `ai_docs/wip/`), built, installed; copy
+  `/private/tmp/claude-501/-Users-chrishelms-Desktop-Claude/786966e7-92df-442c-b205-476a682b88a2/scratchpad/w2/VirtuaTennis3VR_0dbcb6e.apk`
+  - **this is the owner's build now (installed)**. Runs (`/tmp/vt3q/X/Z_*`):
+  Immersive `prize` 330 s BLACK_LOG: Gamesetmatch 3106 -> Stats 3172 -> Load
+  3532 (script taps), Stats 7128 -> Load 7728 (600), next rounds; black only
+  0-1, 1185-6, 1947-8, LoadLoop 3534/7730, load->match 3776/7972 (the game's
+  own). Classic `prize` 330 s: Winlose/Replay/Gamesetmatch, slates 601 / 600
+  / 601, next rounds. Match starts without BLACK_LOG: 5 of 5 clean (3 plain +
+  the 2 GPU runs), each with the one `[glq] job ... handed` line, no FATAL /
+  WARNING / watchdog, no `health` line. GPU pair (FIXED_HEAD, GPU_TIME,
+  frames 2100-3000): default 3.8 / 4.1 / 4.3 ms, `LINDBERGH_LOD_BIAS=0` 3.6 /
+  3.6 / 3.6 ms (LOD bias ~+0.4 ms), 59.2-60.0 fps both. **Found: FIXED_HEAD
+  never acted unattended** (no `head held fixed` line in these runs nor in
+  the T3-T5 worker's F_/G_ runs except two): the unworn session stops before
+  the game locates a view, so the eyes keep whatever they had. Fixed in the
+  working tree (`fixed_head()` also while the session is not running). No
+  controller input. env.txt 0, vr.cfg byte-identical. WIP restored.
 - **T3-T5 worker, group 2 - STOPPED: controller input during H_def.**
   `H_def` (prize, GPU_TIME, fixed head) logged real controller input from
   frame 3727 (`[cab] buttons 0x5001 ... 0xa010`: stick and shot bits, not the
