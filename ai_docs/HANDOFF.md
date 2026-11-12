@@ -168,6 +168,22 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8 worker (2026-11-11 late), step 0.** Conductor's queue now: T8
+  (owner's worn reports on `9d68719`: (a) Classic, "when we switch to 3d for
+  a split second the court can be seen from a top down shot"; (b) Immersive,
+  "a split second before every point ... an image within an image") -
+  capture + present strips in `~/Desktop/Claude/vt3-bugs/`, then fix each;
+  then T4 (ground shadow), then T6. **T7 (near-end crowd) DROPPED by the
+  owner** - parked in the backlog's "Later / parked" (lead:
+  `CAudience2DManager::draw` crowd level). T4 untouched so far (the WIP
+  diff in `ai_docs/wip/` is as the sky worker left it). Headset: installed
+  `9d68719` (sha 990f1a81, copy
+  `.../123aec40-.../scratchpad/VirtuaTennis3VR_9d68719.apk`), owner's vr.cfg
+  backed up (`/tmp/vt3q/T8/vr.cfg.owner`, scratchpad `vr.cfg.owner`: mode
+  classic, replays on, classic.cutaways on, overlays off; immersive
+  replays/cutaways/overlays off). Runs: `/tmp/vt3q/T8/<name>`, helper
+  `scratchpad/t8run.sh`. Running: C1 (Classic owner settings, prize, every
+  frame 1880-2060, MODE/FLOW/CAMMODE/CUT logs).
 - **Sky worker, group 3 - conductor's go; regression of `9d68719` RUNNING**
   (`.../w2/reg.sh`: installs `VirtuaTennis3VR_skyonly.apk`, then R_imm prize
   Immersive 330 s FLOWLOG+BLACK_LOG, R_cls Classic 330 s, R_m0/1/2 Immersive

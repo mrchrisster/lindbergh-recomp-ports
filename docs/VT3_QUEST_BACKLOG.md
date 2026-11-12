@@ -66,12 +66,26 @@ and asked that all progress and research be written to the docs.
       different skies" seam), Painted (ours only), Off (none). Pictures:
       `~/Desktop/Claude/vt3-sky/`.
 - [ ] Stadium checks still owed on the later venues (seen in unattended
-      shots of rounds 0-2, 2026-11-11): the near end's lower seats have no
-      crowd cards on all three (Ger3M, Aus1F, Fra1F) - data or the audience
-      manager; floating cards, z-fighting and roofs at the far plane not
-      seen in the shots but not looked for closely; rounds 3+ not looked at.
+      shots of rounds 0-2, 2026-11-11): floating cards, z-fighting and roofs
+      at the far plane not seen in the shots but not looked for closely;
+      rounds 3+ not looked at. (Missing near-end crowd: parked, below.)
 - [ ] HUD scoreboards float in the scene at court level instead of a HUD
       panel (older note).
+
+## Later / parked
+- [ ] **Spectators missing near the viewer in Immersive** (parked by the
+      owner 2026-11-11: "probably a game setting and can be ignored for
+      now"). The stands at the viewer's own end and the near side stands
+      have seats but no crowd cards, the far end is full (rounds 0-2:
+      Ger3M, Aus1F, Fra1F). Picture:
+      `~/Desktop/Claude/vt3-sky/round0_Ger3M-Duesseldorf_stadium_10_directions.png`
+      (panels 90,0 / 120,0 / 180,0 / -90,0). Research lead
+      (`ai_docs/research/crowd-and-upper-stands.md` 1.3):
+      `CAudience2DManager::draw` (0x08090096) draws crowd trees
+      `0 .. min(level, count)-1` plus the standing tree, the level set by
+      `make(bool, level)` per round (attendance grows through the
+      tournament); no camera-end rule was found in it, so the empty sections
+      may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-11)
 - [x] **Sky in Immersive: one sky.** The court's own sky (Sega's 360-degree
