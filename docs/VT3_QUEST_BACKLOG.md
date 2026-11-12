@@ -69,6 +69,14 @@ and asked that all progress and research be written to the docs.
 
 ## Done (2026-11-11)
 
+- [x] **Audience and ad boards blurrier than on the PC** (Quest, both modes).
+      The game asks its crowd, boards and other textures for one mip level
+      sharper (texture LOD bias -1); GLES has no such setting, so the Quest
+      showed them a level blurrier. The bias is now applied in the shaders
+      (Virtua Tennis 3 only; `LINDBERGH_LOD_BIAS=0` off). Unattended: crowd
+      and boards visibly sharper, board text steady frame to frame. Owner to
+      judge worn.
+
 - [x] **Immersive froze or crashed at the start of a match** (the owner hit
       it worn; unattended 2 of 2, later 1 of 3). The game updates its camera on
       one of its own worker threads, and Immersive's camera feed queued its

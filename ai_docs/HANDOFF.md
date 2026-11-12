@@ -168,6 +168,65 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T3-T5 worker, group 2 - STOPPED: controller input during H_def.**
+  `H_def` (prize, GPU_TIME, fixed head) logged real controller input from
+  frame 3727 (`[cab] buttons 0x5001 ... 0xa010`: stick and shot bits, not the
+  script's start taps) and the frame rate fell to ~50 fps from frame ~8900;
+  the Quest shell's control bar was the resumed activity afterwards. Taken as
+  **worn**: runs stopped by PID, app force-stopped, env.txt 0 bytes, vr.cfg
+  byte-identical to the owner's (pulled before), and the **committed fix
+  build re-installed** (`scratchpad/VirtuaTennis3VR_fade8ac_glqfix.apk`) so the
+  owner does not play the WIP. Battery 85%.
+  **T5 committed** (submodule `8004564`, outer: this commit): LOD bias. Fixed-
+  head pair F_def / F_lod0 (frame 2300, both eyes): far crowd and boards
+  sharper (edge energy crowd 50.3 vs 44.5, boards 29.6 vs 23.5), board text
+  steady over 2300-2305 (frame-to-frame change in proportion to the extra
+  detail; no shimmer seen). GPU (random pose, so +-0.5 ms noise): default
+  4.0-4.3 vs off 3.8-3.9 ms; fixed-head H_def 3.9-4.7 ms; H_lod0 not run.
+  **T4 FAILS on the headset**: with the per-eye mask (default) the ground
+  shadows of **both players are gone** in both eyes (F_def crops
+  `/tmp/vt3q/W/t4_near.png`, `t4_far.png`); `LINDBERGH_VT3_MASK=0` shows them.
+  The twin is used (log lines present) but reads no shadow: suspects - the
+  sampler2DArray on unit 15 not getting the twin's array (gl4es binds the 2D
+  texture; the layered lookup may need `mv_layered` handled at bind for an
+  extra unit), the blit sizes (`d->mv_w` 0 before `array_for`?), or the mask
+  being in a channel the eye copy lacks. Not committed; needs a debug run
+  (e.g. output `lg_mask` as colour). **T3: the dome is not fp 180.** Fill
+  lit with fp 180's constants came out black (k0 = k1 = 0, k2 = 1, sun
+  0.462 0.383 -0.800, e 50: fp 180 is a sun-glow term, not the sky), and the
+  front sky with clouds plus a lavender wedge **stay in Painted and Off**
+  (`/tmp/vt3q/W/d2.png`: rows Stadium / Painted / Off, views 0,0 / 0,70 /
+  90 / 180 / 60,30 / 120). So the Sky setting's "leave the dome out"
+  removes the wrong draw, and the visible backdrop is another program
+  (candidates from the frame: 232-246 / 227, 199, 217, 186, 148, 140 -
+  skip-bisect queue `scratchpad/q4.sh` written, not run). The dome-matching
+  code (dome_note, u_dome) is wrong as it stands and stays uncommitted.
+  Working tree after this: T3/T4 WIP + test switches restored on top of
+  `8004564` (`ai_docs/wip/`).
+- **T3-T5 worker (2026-11-11 evening), group 1** (`/tmp/vt3q/W/*`; helper
+  `.../786966e7-.../scratchpad/run.sh` = battery check + repro + summary +
+  worn check). Owner's vr.cfg pulled first (`/tmp/vt3q/W/vr.cfg.before`, copy
+  `scratchpad/vr.cfg.owner_w`). WIP APK built and installed (copy
+  `scratchpad/VirtuaTennis3VR_wip_t345.apk`). **S1 smoke** (Immersive `prize`
+  200 s): `[arbprog] ground shadow mask read per eye on unit 15 (16 units)`,
+  `[stereo] frame 1949: ground shadow mask per eye, 2064x2208 x2 (game texture
+  45)`, `[sky] ... behind the stadium's own sky dome`; 0 `does not compile` /
+  `does not link`, no `[glq]` FATAL/WARNING, no watchdog; flow Gamesetmatch
+  3166 -> Stats 3262 -> Load 3863 (601), Stats 7462 -> Load 8062 (600), next
+  rounds. **Finding: unattended shots are not comparable between runs** - the
+  unworn headset's pose differs per launch (anchor yaw -54 vs 2 deg), so the
+  frame-2300 pictures and the GPU ms (view-dependent: 3.7-4.3 ms) differed by
+  run, not by switch. Added test switches (working tree): `LINDBERGH_XR_FIXED_HEAD=1`
+  (host_xr.c: head level at the anchor, facing ahead), `LINDBERGH_VT3_VIEW_TURN`
+  list `<yaw>,<pitch>@<frame>/...`, `LINDBERGH_VT3_SKY_AT=<0|1|2>@<frame>/...`,
+  `LINDBERGH_VT3_SKY_DEBUG=1` (fill magenta); test APK
+  `scratchpad/VirtuaTennis3VR_wip_t345_test.apk` installed. GPU (random pose,
+  frames 2100-3000, 60 fps all): default 3.1/4.3/4.3/4.0, LOD_BIAS=0
+  2.5/3.9/3.8, MASK=0 2.6/3.7/3.7/3.7 ms - to be redone with FIXED_HEAD.
+  Sky: the dome texture is a 2048x512 panorama strip at the top left of each
+  stadium's atlas (`S_<court>_B_sk_sky_NY_tga`, DXT1 4096x512/1024, extracted
+  to `/tmp/vt3q/W/sky/`): deep blue at its top row, haze + tree line at the
+  bottom. The fill was lavender (123,138,200) next to the dome's (72,128,212).
 - **Hang fix committed and installed.** Submodule `373c5ae`, outer `2b7d4fe`
   (local, not pushed). Installed: the fix build (fade8ac + 373c5ae, committed
   code only; copy `.../786966e7-.../scratchpad/VirtuaTennis3VR_fade8ac_glqfix.apk`,

@@ -118,6 +118,13 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-11 **Texture LOD bias on GLES (T5)** (`arbprog.c`, `quest/gl4es.patch`;
+  submodule `8004564`): crowd and boards one mip sharper on the Quest, VT3 only,
+  `LINDBERGH_LOD_BIAS=0` off. T4 (per-eye shadow mask) failed on the headset
+  (shadows vanish) and T3's "dome" is not fp 180 - both uncommitted, see
+  HANDOFF 3.1. Unattended Quest pictures differ per launch (head pose): use
+  `LINDBERGH_XR_FIXED_HEAD=1` (in the WIP) for comparable shots / GPU ms.
+
 - 2026-11-11 **Immersive hang / crash at match start - fixed** (`gl_thread.c`,
   `crash_report.c`; submodule `373c5ae`; HANDOFF 3.1). The game runs
   `camera::gameRoutine` on one of its worker threads, and world mode's camera
