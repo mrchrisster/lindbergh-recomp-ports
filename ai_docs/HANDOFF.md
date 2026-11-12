@@ -168,6 +168,10 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 7 - serve meter OK at -2 / 0 / +2 m** (S-20/S0/S20,
+  cab 0): meter beside the player both eyes; sheet
+  `~/Desktop/Claude/vt3-view/serve_meter_at_heights.png`. seq3 continues
+  (V1, MP, L-20/L20, Q_imm, Q_cls).
 - **T8b worker, step 6 - seq3 RUNNING** (`.../786966e7-.../scratchpad/seq3.sh`,
   log `/tmp/vt3q/T8b/seq3.out`, marker `SEQ3_DONE`): S-20/S0/S20 serve meter
   (round0, SERVESHOT **needs `LINDBERGH_VT3_SERVELOG=1`** - the first S
