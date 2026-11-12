@@ -126,8 +126,8 @@ working on its area):
   colour. Its vertices now get their true depth back and are pinned to the
   eyes' far plane; Sky Painted / Off collapse them; Stadium draws no painted
   fill. fp 180 is the sun, not the sky. Round 0 is Ger3M, 1 Aus1F, 2 Fra1F.
-  GPU: Stadium ~0.2 ms over Off, ~1 ms under the old fill. Regression of
-  this build still owed (HANDOFF 3.1). `LINDBERGH_XR_FIXED_HEAD` now works
+  GPU: Stadium ~0.2 ms over Off, ~1 ms under the old fill. Regression
+  passed; installed (HANDOFF 3.1). `LINDBERGH_XR_FIXED_HEAD` now works
   unattended.
 
 - 2026-11-11 **Texture LOD bias on GLES (T5)** (`arbprog.c`, `quest/gl4es.patch`;

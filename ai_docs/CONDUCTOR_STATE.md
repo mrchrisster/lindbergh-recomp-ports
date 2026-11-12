@@ -45,13 +45,14 @@ come from the game's main thread.
   `scratchpad/q4.sh`, T4 debug, T5 build regression + install).
 
 ## Night 2026-11-11 (sky worker) - Installed build / headset state
-- Installed: `0dbcb6e` build (fix + T5 LOD bias + FIXED_HEAD test switch),
-  regression PASSED (prize Immersive + Classic, 5 match starts). APK copy
-  `/private/tmp/claude-501/-Users-chrishelms-Desktop-Claude/786966e7-92df-442c-b205-476a682b88a2/scratchpad/w2/VirtuaTennis3VR_0dbcb6e.apk`.
-  App stopped, env.txt 0 bytes, vr.cfg = owner's (byte-identical).
-- Committed, not yet regression-run: submodule `9d68719` - Sega's sky dome
-  all round in Immersive (the seam the owner reported). APK
-  `.../w2/VirtuaTennis3VR_skyonly.apk`. Pictures `~/Desktop/Claude/vt3-sky/`.
+- Installed: submodule `9d68719` build (fix + T5 + Sega's sky dome all
+  round), regression PASSED (Immersive prize slates 601/600 + Classic prize
+  601/600, next rounds, match starts on rounds 0-2, black frames only the
+  game's own). APK copy
+  `/private/tmp/claude-501/-Users-chrishelms-Desktop-Claude/786966e7-92df-442c-b205-476a682b88a2/scratchpad/w2/VirtuaTennis3VR_skyonly.apk`;
+  previous good build `.../w2/VirtuaTennis3VR_0dbcb6e.apk`. App stopped,
+  env.txt 0 bytes, vr.cfg = owner's (byte-identical). Owner to judge the sky
+  worn; pictures `~/Desktop/Claude/vt3-sky/`.
 - T4 shadow mask: still broken, only in `ai_docs/wip/` (opt-in there).
 
 ## Headset (check first)

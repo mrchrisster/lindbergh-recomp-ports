@@ -186,6 +186,13 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
   checking the same on the old `0dbcb6e` build (O_cls, running).
   R_m0/1/2 (Immersive match starts on Ger3M / Aus1F / Fra1F, 100 s): clean,
   sky line present, shots fine (`/tmp/vt3q/X/R_m*/game_02300.ppm`).
+  O_cls (old `0dbcb6e`, Classic prize 150 s BLACK_LOG): black at 3963 = 4
+  frames into Gamesetmatch 3959 too - the game's own fade, not new.
+  **Regression of `9d68719` PASSED. Installed now: `9d68719` build**
+  (`w2/VirtuaTennis3VR_skyonly.apk`, sha256 990f1a81...), app stopped,
+  env.txt 0, vr.cfg byte-identical to the owner's, battery 84%. PAUSED for
+  the owner to judge the sky worn (Sky: Stadium default; Painted / Off in
+  the Immersive advanced page).
 - **Sky worker, group 2 (2026-11-11 night) - sky COMMITTED, regression
   of it still owed; PAUSED for the conductor.** Submodule `9d68719` (sky
   dome fix + test switches; T4 left out, kept as
