@@ -1,0 +1,898 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9ba954c..b50a398 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -195,6 +195,7 @@ function(lindbergh_runtime target generated_dir)
+         "${LINDBERGH_RUNTIME_DIR}/nn_culling.c"
+         "${LINDBERGH_RUNTIME_DIR}/hle_sega.c"
+         "${LINDBERGH_RUNTIME_DIR}/world_mode.c"
++        "${LINDBERGH_RUNTIME_DIR}/vt3_save.c"
+         "${LINDBERGH_RUNTIME_DIR}/hle_rideboard.c"
+         "${LINDBERGH_RUNTIME_DIR}/hle_glut.c"
+         "${LINDBERGH_RUNTIME_DIR}/hle_zlib.c"
+diff --git a/src/runtime/hle_sega.c b/src/runtime/hle_sega.c
+index 54deced..ab67bb3 100644
+--- a/src/runtime/hle_sega.c
++++ b/src/runtime/hle_sega.c
+@@ -29,6 +29,7 @@
+ #ifndef _WIN32
+ #include "stereo.h"
+ #include "world_mode.h"
++#include "vt3_save.h"
+ #endif
+ #endif
+ 
+@@ -1069,6 +1070,117 @@ static void h_vt3_credit_draw(CPU *c)
+  * the cabinet's backup instead of cards. LINDBERGH_VT3_CARD_RW=1 keeps the
+  * game's own setting (ai_docs/research/card-reader-top-bar.md). */
+ static void h_vt3_card_rw_off(CPU *c) { RET(0xFFFFFFFFu); }
++
++/* Save progress (T16; ai_docs/research/ic-card-save-emulation.md option C):
++ * the IC card as a save game, 1P only, one record per character, card
++ * reader kept OFF (no card screen ever). What a read card leaves behind is
++ * done by hand at character select; the record is taken back after each
++ * match's result and at the end of the session. Nothing in cardManager,
++ * the serial layer, the card cipher or the dongle is called or hooked.
++ *   load: player::reset_card_data() as called from usrMenuCharLoop::
++ *     exec_no_card's decision (return 0x0812A8DD; before decide_chartype and
++ *     setPlayerData, as a card's record would be in place), 1P's side
++ *     (player+0x958 == 0): the saved record into player+0x490 and the use-card
++ *     bit set (usrMenuCharLoop::setRealCardData + setReal_ulFlag do no more),
++ *     or, the first time for that character, the game's blank record (name
++ *     "noname", ranking 999) + character + player::setUse_card() (the
++ *     new-card branch's call); side 1P's card object (tennis+0x18[0]) given
++ *     the record as its current row, so the *_card getters ("before" values)
++ *     read it.
++ *   save: after playerManager::calcCard_data (each judge) and before
++ *     playerManager::resetUse_card (stats, session end), when that player
++ *     still has the use-card bit. */
++#define VT3_CARD_DATA 0x490u
++#define VT3_CARD_FLAGS 0x6F0u
++#define VT3_FROM_NO_CARD_DECIDE 0x0812A8DDu
++static void (*g_vt3_reset_card)(CPU *), (*g_vt3_calc_card)(CPU *), (*g_vt3_reset_use)(CPU *);
++static uint32_t g_save_player;          /* 1P's player with a loaded record, this session */
++static uint8_t g_save_before[VT3_SAVE_REC];
++static void vt3_save_describe(const char *what, uint32_t p)
++{
++    extern unsigned g_frame;
++    const uint32_t r = p + VT3_CARD_DATA;
++    char name[33]; memcpy(name, GP(r + 4), 32); name[32] = 0;
++    for (char *q = name; *q; q++) if ((unsigned char)*q < 32 || (unsigned char)*q > 126) *q = '?';
++    fprintf(stderr, "[save] frame %u: %s - player %#x side %u character %u name \"%s\" ranking %d/%d versus %u won %u lost %u "
++                    "straight %u last play %u flags %#x\n", g_frame, what, p, rd32(p + 0x958), rd8(p + 0x14), name,
++            (int)rd32(r + 0x24), (int)rd32(r + 0x28), rd32(r + 0x100), rd32(r + 0x104), rd32(r + 0x108), rd32(r + 0x5C),
++            rd32(r + 0x258), rd32(r + 0x260));
++}
++static void vt3_save_card_row(uint32_t p)
++{
++    uint32_t t = rd32(VT3_G_PTENNIS), tab = t ? rd32(t + 0x18) : 0, card = tab ? rd32(tab) : 0;
++    if (!card) return;
++    memcpy(GP(card + 0x264), GP(p + VT3_CARD_DATA), VT3_SAVE_REC);     /* row 0 = the record */
++    wr32(card + 0x1638, 1); wr32(card + 0x163C, 0);                    /* row ids: row 0 current */
++    wr32(card + 0x164C, 1); wr32(card + 0x1648, 1); wr32(card + 0x1640, 1);
++    wr32(card + 0x72C, 199); wr8(card + 0x736, 0);                     /* plays left, not a new card */
++}
++static void h_vt3_reset_card(CPU *c)
++{
++    const uint32_t p = A32(0), from = rd32(c->esp - 4u);
++    push32(c, 0xDEADBEEFu);
++    g_vt3_reset_card(c);
++    if (from != VT3_FROM_NO_CARD_DECIDE || !p || rd32(p + 0x958) != 0) return;
++    const int ch = rd8(p + 0x14);
++    const uint8_t *rec = vt3_save_find(ch);
++    if (rec) {
++        memcpy(GP(p + VT3_CARD_DATA), rec, VT3_SAVE_REC);
++        wr32(p + VT3_CARD_FLAGS, (rd32(p + VT3_CARD_FLAGS) & ~0x70u) | 1u);    /* use card; last match's "new" marks off */
++        vt3_save_describe("record loaded", p);
++    } else {
++        wr32(p + VT3_CARD_DATA, (uint32_t)ch);
++        static uint32_t set_use;
++        if (!set_use) set_use = guest_symbol("_ZN6player11setUse_cardEv");
++        uint32_t a[1] = { p };
++        if (set_use) guest_call(c, set_use, a, 1); else wr32(p + VT3_CARD_FLAGS, rd32(p + VT3_CARD_FLAGS) | 1u);
++        vt3_save_describe("fresh record (first time for this character)", p);
++    }
++    vt3_save_card_row(p);
++    {   /* the name the game shows for a card player (result slate: "(null)" without it):
++         * usrMenuCharLoop::setRealPlayerName(side 0, plno) - copies the record's name
++         * into the side's font variant; reads only its two arguments and the card row */
++        static uint32_t set_name;
++        if (!set_name) set_name = guest_symbol("_ZN15usrMenuCharLoop17setRealPlayerNameEmm");
++        uint32_t t = rd32(VT3_G_PTENNIS), tab = t ? rd32(t + 0x4) : 0, plno = 0;
++        while (tab && plno < 4 && rd32(tab + 4 * plno) != p) plno++;
++        uint32_t a[3] = { 0, 0, plno };
++        if (set_name && plno < 4) guest_call(c, set_name, a, 3);
++    }
++    memcpy(g_save_before, GP(p + VT3_CARD_DATA), VT3_SAVE_REC);
++    g_save_player = p;
++}
++static void vt3_save_take(const char *when)
++{
++    const uint32_t p = g_save_player;
++    if (!p || !(rd32(p + VT3_CARD_FLAGS) & 1u)) return;
++    const uint8_t *r = GP(p + VT3_CARD_DATA);
++    int changed = 0, first = -1, last = -1;
++    for (int i = 0; i < VT3_SAVE_REC; i++) if (r[i] != g_save_before[i]) { changed++; if (first < 0) first = i; last = i; }
++    vt3_save_describe(when, p);
++    const int ch = rd8(p + 0x14);
++    const int ok = vt3_save_store(ch, r) == 0;
++    fprintf(stderr, "[save] %d byte(s) changed since loaded (+%#x..+%#x) - %s %s\n", changed, first < 0 ? 0 : first, last < 0 ? 0 : last,
++            ok ? "written to" : "NOT written to", vt3_save_path());
++    if (getenv("LINDBERGH_VT3_SAVE_DIFF")) {        /* each changed byte, for the docs */
++        for (int i = 0; i < VT3_SAVE_REC; i++)
++            if (r[i] != g_save_before[i]) fprintf(stderr, "[save]   +%#05x: %02x -> %02x\n", i, g_save_before[i], r[i]);
++    }
++}
++static void h_vt3_calc_card(CPU *c)
++{
++    push32(c, 0xDEADBEEFu);
++    g_vt3_calc_card(c);
++    vt3_save_take("after the match's result (calcCard_data)");
++}
++static void h_vt3_reset_use(CPU *c)
++{
++    vt3_save_take("end of session (resetUse_card)");
++    if (g_save_player) vt3_save_card_row(g_save_player);
++    g_save_player = 0;
++    push32(c, 0xDEADBEEFu);
++    g_vt3_reset_use(c);
++}
+ static void h_vt3_slot_open(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot_open(c); }
+ static void h_vt3_slot(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot(c); }
+ static void h_vt3_slot_card(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot_card(c); }
+@@ -1871,12 +1983,23 @@ static void vt3_jumps(void)
+             nh += vt3_wrap("_ZN22CCardSlotWindowManager19window_slot_usecardElb", &g_vt3_slot_card, h_vt3_slot_card);
+             nh += vt3_wrap("_ZN12ab_card_info4initEv", &g_vt3_card_init, h_vt3_card_init);
+         }
+-        {   /* Classic's Card reader notice row (classic.card_notice; VR: always off), LINDBERGH_VT3_CARD_RW=1|0 */
+-            if (!world_mode_card_notice() && guest_symbol("_ZN6backup17getCard_rw_1p_useEv")) {     /* Virtua Tennis 3 only */
++        {   /* Classic's Card reader notice row (classic.card_notice; VR: always off), LINDBERGH_VT3_CARD_RW=1|0;
++             * Save progress keeps the reader off whatever the notice row says */
++            if (world_mode_save() && world_mode_card_notice() && guest_symbol("_ZN6backup17getCard_rw_1p_useEv"))
++                fprintf(stderr, "[sega] Virtua Tennis 3: Save progress on - card readers kept off (the Card reader notice row is ignored)\n");
++            if ((!world_mode_card_notice() || world_mode_save()) && guest_symbol("_ZN6backup17getCard_rw_1p_useEv")) {     /* Virtua Tennis 3 only */
+                 if (guest_override("_ZN6backup17getCard_rw_1p_useEv", h_vt3_card_rw_off) &&
+                     guest_override("_ZN6backup17getCard_rw_2p_useEv", h_vt3_card_rw_off))
+                     fprintf(stderr, "[sega] Virtua Tennis 3: card readers off (no card bar, no CARD R/W wait; LINDBERGH_VT3_CARD_RW=1 keeps the game's setting)\n");
+                 else fprintf(stderr, "[sega] Virtua Tennis 3: WARNING card reader setting not overridden\n");
++            }
++            if (world_mode_save() && guest_symbol("_ZN6player15reset_card_dataEv")) {      /* Save progress (T16) */
++                vt3_save_open(NULL);
++                if (vt3_wrap("_ZN6player15reset_card_dataEv", &g_vt3_reset_card, h_vt3_reset_card) &&
++                    vt3_wrap("_ZN13playerManager13calcCard_dataEv", &g_vt3_calc_card, h_vt3_calc_card) &&
++                    vt3_wrap("_ZN13playerManager13resetUse_cardEv", &g_vt3_reset_use, h_vt3_reset_use))
++                    fprintf(stderr, "[sega] Virtua Tennis 3: Save progress on - 1P's card record kept in %s\n", vt3_save_path());
++                else fprintf(stderr, "[sega] Virtua Tennis 3: WARNING Save progress hooks not installed\n");
+             } }
+         if (nh) { g_arcade_overlay_hooks = 1; fprintf(stderr, "[sega] Virtua Tennis 3: arcade overlays %s (%d draws hooked)\n", g_arcade_overlays ? "shown" : "hidden", nh); }
+         const char *pt = getenv("LINDBERGH_VT3_PRIZE_TRACE");
+diff --git a/src/runtime/host_menu_mac.m b/src/runtime/host_menu_mac.m
+index e5773ab..fcb3498 100644
+--- a/src/runtime/host_menu_mac.m
++++ b/src/runtime/host_menu_mac.m
+@@ -1,5 +1,5 @@
+ /*
+- * host_menu_mac.m - the macOS menu bar: Controls, Aim, Sound, Language.
++ * host_menu_mac.m - the macOS menu bar: Controls, Aim, Sound, Language, Game.
+  *
+  * Added beside the application and Window menus SDL already made. Every item
+  * reads and writes the player's settings (host_settings.c); remapping and aim
+@@ -15,6 +15,8 @@
+ #include <SDL_syswm.h>
+ 
+ #include "host_settings.h"
++#include "xr_settings.h"
++#include "world_mode.h"
+ 
+ void host_audio_toggle_mute(void);
+ 
+@@ -22,7 +24,7 @@ @interface LindberghMenu : NSObject <NSMenuDelegate>
+ @end
+ 
+ static LindberghMenu *g_target;
+-static NSMenu *g_controls, *g_aim, *g_sound, *g_lang;
++static NSMenu *g_controls, *g_aim, *g_sound, *g_lang, *g_game;
+ 
+ static NSMenuItem *item(NSMenu *m, NSString *title, SEL sel, NSInteger tag)
+ {
+@@ -73,6 +75,17 @@ - (void)menuNeedsUpdate:(NSMenu *)menu
+         item(menu, @"Japanese", @selector(setLanguage:), 0).state = st->country ? NSControlStateValueOff : NSControlStateValueOn;
+         [menu addItem:[NSMenuItem separatorItem]];
+         item(menu, @"Takes effect when the game next starts", nil, 0).enabled = NO;
++    } else if (menu == g_game) {
++        /* the game's own settings in vr.cfg (the headset panel's): Virtua Tennis 3's Save progress */
++        LgXrSettings s = LG_XR_SETTINGS_DEFAULT;
++        xr_settings_load(&s);
++        if (world_mode_capable()) {
++            item(menu, @"Save Progress (1P's card record in vt3_save.bin)", @selector(toggleSave:), 0).state =
++                s.save ? NSControlStateValueOn : NSControlStateValueOff;
++            if (world_mode_pinned(WM_SAVE)) item(menu, @"This run: set by LINDBERGH_VT3_SAVE", nil, 0).enabled = NO;
++            [menu addItem:[NSMenuItem separatorItem]];
++            item(menu, @"Takes effect when the game next starts", nil, 0).enabled = NO;
++        } else item(menu, @"(no game settings)", nil, 0).enabled = NO;
+     }
+ }
+ 
+@@ -86,6 +99,7 @@ - (void)resetAim:(id)s               { settings_reset_aim(); settings_save(); }
+ - (void)toggleMute:(id)s             { host_audio_toggle_mute(); }
+ - (void)setVolume:(NSMenuItem *)i    { settings()->volume = (int)i.tag; settings_save(); }
+ - (void)setLanguage:(NSMenuItem *)i  { settings()->country = (int)i.tag; settings_save(); }
++- (void)toggleSave:(id)s             { LgXrSettings c = LG_XR_SETTINGS_DEFAULT; xr_settings_load(&c); c.save = !c.save; xr_settings_save(&c); }
+ 
+ @end
+ 
+@@ -127,6 +141,7 @@ void host_menu_install(void)
+         g_aim      = add_menu(@"Aim");
+         g_sound    = add_menu(@"Sound");
+         g_lang     = add_menu(@"Language");
++        g_game     = add_menu(@"Game");
+         NSMutableArray *names = [NSMutableArray array];
+         for (NSMenuItem *i in NSApp.mainMenu.itemArray) [names addObject:i.title.length ? i.title : @"(app)"];
+         fprintf(stderr, "[menu] menu bar: %s\n", [[names componentsJoinedByString:@", "] UTF8String]);
+diff --git a/src/runtime/vt3_save.c b/src/runtime/vt3_save.c
+new file mode 100644
+index 0000000..3ede8ee
+--- /dev/null
++++ b/src/runtime/vt3_save.c
+@@ -0,0 +1,158 @@
++/*
++ * vt3_save.c - Virtua Tennis 3's save file (one card record per character).
++ * See vt3_save.h for the format and the safety rules.
++ */
++#include "vt3_save.h"
++
++#include <errno.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++#ifdef _WIN32
++#include <io.h>
++#define fsync _commit
++#define fileno _fileno
++#else
++#include <unistd.h>
++#endif
++
++#define HDR 32
++#define ENT (24 + VT3_SAVE_REC)
++static const char MAGIC[8] = { 'V', 'T', '3', 'S', 'A', 'V', 'E', 0 };
++static const char GAME[8] = { 'V', 'T', '3', 'L', 'H', 'D', 0, 0 };
++
++static struct { int character; uint64_t when; uint8_t rec[VT3_SAVE_REC]; } g_ent[VT3_SAVE_MAX];
++static int g_n;
++static int g_nowrite;                    /* an unreadable file could not be moved aside: never written over */
++static char g_path[512];
++
++uint32_t vt3_save_crc32(const uint8_t *p, size_t n)
++{
++    uint32_t c = 0xFFFFFFFFu;
++    for (size_t i = 0; i < n; i++) {
++        c ^= p[i];
++        for (int k = 0; k < 8; k++) c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1u)));
++    }
++    return ~c;
++}
++static uint32_t get32(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
++static void put32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24); }
++
++/* the file's entries into memory; NULL on success, else what is wrong */
++static const char *parse(const char *path, int *missing)
++{
++    *missing = 0;
++    FILE *f = fopen(path, "rb");
++    if (!f) { *missing = errno == ENOENT; return *missing ? "no file" : strerror(errno); }
++    uint8_t *b = malloc(HDR + VT3_SAVE_MAX * ENT + 1);
++    size_t n = b ? fread(b, 1, HDR + VT3_SAVE_MAX * ENT + 1, f) : 0;
++    fclose(f);
++    const char *why = NULL;
++    if (!b) return "out of memory";
++    if (n < HDR || memcmp(b, MAGIC, 8)) why = "not a save file (magic)";
++    else if (get32(b + 8) != 1) why = "unknown version";
++    else if (get32(b + 12) != VT3_SAVE_REC) why = "wrong record size";
++    else if (get32(b + 16) > VT3_SAVE_MAX || n != HDR + (size_t)get32(b + 16) * ENT) why = "truncated or wrong length";
++    else if (vt3_save_crc32(b + HDR, n - HDR) != get32(b + 20)) why = "checksum";
++    else if (memcmp(b + 24, GAME, 8)) why = "another game's save";
++    if (!why) {
++        const int cnt = (int)get32(b + 16);
++        for (int i = 0; i < cnt && !why; i++) {
++            const uint8_t *e = b + HDR + (size_t)i * ENT;
++            if (vt3_save_crc32(e + 24, VT3_SAVE_REC) != get32(e + 16)) why = "record checksum";
++        }
++        if (!why) {
++            g_n = cnt;
++            for (int i = 0; i < cnt; i++) {
++                const uint8_t *e = b + HDR + (size_t)i * ENT;
++                g_ent[i].character = (int)get32(e);
++                g_ent[i].when = (uint64_t)get32(e + 8) | (uint64_t)get32(e + 12) << 32;
++                memcpy(g_ent[i].rec, e + 24, VT3_SAVE_REC);
++            }
++        }
++    }
++    free(b);
++    return why;
++}
++
++const char *vt3_save_path(void) { return g_path; }
++int vt3_save_count(void) { return g_n; }
++
++int vt3_save_open(const char *path)
++{
++    if (!path) { const char *e = getenv("LINDBERGH_VT3_SAVE_FILE"); path = e && *e ? e : "vt3_save.bin"; }
++    snprintf(g_path, sizeof g_path, "%s", path);
++    g_n = 0; g_nowrite = 0;
++    int missing = 0;
++    const char *why = parse(g_path, &missing);
++    if (!why) { fprintf(stderr, "[save] %s: %d record(s) loaded\n", g_path, g_n); return VT3_SAVE_LOADED; }
++    char bak[540];
++    snprintf(bak, sizeof bak, "%s.bak", g_path);
++    int bmissing = 0;
++    const char *bwhy = parse(bak, &bmissing);
++    if (missing) {      /* no file: a backup left by a write cut short, or by a file moved aside, else nothing yet */
++        if (!bwhy) { fprintf(stderr, "[save] %s missing: %d record(s) loaded from the backup %s\n", g_path, g_n, bak); return VT3_SAVE_FROM_BAK; }
++        g_n = 0;
++        fprintf(stderr, "[save] %s: no save yet - a fresh one is made after the first match\n", g_path);
++        return VT3_SAVE_FRESH;
++    }
++    /* the bad file is moved aside either way: never written over */
++    char aside[560];
++    snprintf(aside, sizeof aside, "%s.unreadable-%ld", g_path, (long)time(NULL));
++    int moved = rename(g_path, aside) == 0;
++    if (!moved) g_nowrite = 1;
++    fprintf(stderr, "[save] %s unreadable (%s)%s%s\n", g_path, why, moved ? " - kept as " : " - could not move it aside", moved ? aside : "");
++    if (!bwhy) { fprintf(stderr, "[save] %s: %d record(s) loaded from the backup\n", bak, g_n); return VT3_SAVE_FROM_BAK; }
++    g_n = 0;
++    fprintf(stderr, "[save] backup %s %s - starting a fresh save\n", bak, bmissing ? "missing" : bwhy);
++    return VT3_SAVE_BAD_FRESH;
++}
++
++const uint8_t *vt3_save_find(int character)
++{
++    for (int i = 0; i < g_n; i++) if (g_ent[i].character == character) return g_ent[i].rec;
++    return NULL;
++}
++
++int vt3_save_store(int character, const uint8_t rec[VT3_SAVE_REC])
++{
++    if (!g_path[0]) vt3_save_open(NULL);
++    int k = -1;
++    for (int i = 0; i < g_n; i++) if (g_ent[i].character == character) k = i;
++    if (k < 0) {
++        if (g_n >= VT3_SAVE_MAX) { fprintf(stderr, "[save] no room for character %d\n", character); return -1; }
++        k = g_n++;
++        g_ent[k].character = character;
++    }
++    memcpy(g_ent[k].rec, rec, VT3_SAVE_REC);
++    g_ent[k].when = (uint64_t)time(NULL);
++    if (g_nowrite) { fprintf(stderr, "[save] not written: %s is unreadable and could not be moved aside\n", g_path); return -1; }
++    /* the whole file */
++    const size_t n = HDR + (size_t)g_n * ENT;
++    uint8_t *b = calloc(1, n);
++    if (!b) return -1;
++    memcpy(b, MAGIC, 8);
++    put32(b + 8, 1); put32(b + 12, VT3_SAVE_REC); put32(b + 16, (uint32_t)g_n);
++    memcpy(b + 24, GAME, 8);
++    for (int i = 0; i < g_n; i++) {
++        uint8_t *e = b + HDR + (size_t)i * ENT;
++        put32(e, (uint32_t)g_ent[i].character);
++        put32(e + 8, (uint32_t)g_ent[i].when); put32(e + 12, (uint32_t)(g_ent[i].when >> 32));
++        put32(e + 16, vt3_save_crc32(g_ent[i].rec, VT3_SAVE_REC));
++        memcpy(e + 24, g_ent[i].rec, VT3_SAVE_REC);
++    }
++    put32(b + 20, vt3_save_crc32(b + HDR, n - HDR));
++    char tmp[540], bak[540];
++    snprintf(tmp, sizeof tmp, "%s.tmp", g_path);
++    snprintf(bak, sizeof bak, "%s.bak", g_path);
++    FILE *f = fopen(tmp, "wb");
++    int ok = f && fwrite(b, 1, n, f) == n;
++    if (f) { ok = fflush(f) == 0 && ok; ok = fsync(fileno(f)) == 0 && ok; ok = fclose(f) == 0 && ok; }
++    free(b);
++    if (!ok) { fprintf(stderr, "[save] could not write %s (%s)\n", tmp, strerror(errno)); remove(tmp); return -1; }
++    FILE *old = fopen(g_path, "rb");
++    if (old) { fclose(old); remove(bak); if (rename(g_path, bak) != 0) fprintf(stderr, "[save] could not keep %s as %s\n", g_path, bak); }
++    if (rename(tmp, g_path) != 0) { fprintf(stderr, "[save] could not put %s in place (%s)\n", g_path, strerror(errno)); return -1; }
++    return 0;
++}
+diff --git a/src/runtime/vt3_save.h b/src/runtime/vt3_save.h
+new file mode 100644
+index 0000000..dfadbb9
+--- /dev/null
++++ b/src/runtime/vt3_save.h
+@@ -0,0 +1,51 @@
++/*
++ * vt3_save.h - Virtua Tennis 3's IC card as a save game: the file side
++ * (ai_docs/research/ic-card-save-emulation.md, option C).
++ *
++ * The game keeps a card player's data, decrypted, as one 612-byte record
++ * (CARD_DATA, player+0x490). With Save progress on, hle_sega.c puts 1P's saved
++ * record into the player at character select and takes it back after each
++ * match's result; this file keeps one record per character in vt3_save.bin.
++ * No guest memory here: plain bytes in and out (unit-tested).
++ *
++ * File (little-endian): header 32 bytes - "VT3SAVE\0", version 1, record size
++ * 0x264, count, CRC-32 of the entries, "VT3LHD\0\0"; then per entry 24 + 612
++ * bytes - character, 0, saved time (64-bit), CRC-32 of the record, 0, record.
++ * Written whole to <file>.tmp, flushed and synced, the old file renamed to
++ * <file>.bak, the new one renamed into place. A file that cannot be read is
++ * never overwritten: <file>.bak is tried, else it is renamed
++ * <file>.unreadable-<time> and the save starts fresh (logged).
++ */
++#ifndef VT3_SAVE_H
++#define VT3_SAVE_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define VT3_SAVE_REC 0x264
++#define VT3_SAVE_MAX 64              /* characters (the game has far fewer) */
++
++/* where results came from */
++enum { VT3_SAVE_FRESH, VT3_SAVE_LOADED, VT3_SAVE_FROM_BAK, VT3_SAVE_BAD_FRESH };
++
++/* reads the file (path; NULL: LINDBERGH_VT3_SAVE_FILE, else "vt3_save.bin")
++ * into memory; returns VT3_SAVE_* and logs what happened. Never fails: an
++ * unreadable save means a fresh one. */
++int vt3_save_open(const char *path);
++const char *vt3_save_path(void);
++int vt3_save_count(void);
++/* the character's record, or NULL (none saved yet) */
++const uint8_t *vt3_save_find(int character);
++/* keep the record for the character and write the file; 0 written, -1 not
++ * (logged; memory keeps it, the next store tries again) */
++int vt3_save_store(int character, const uint8_t rec[VT3_SAVE_REC]);
++uint32_t vt3_save_crc32(const uint8_t *p, size_t n);
++
++#ifdef __cplusplus
++}
++#endif
++#endif
+diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
+index d198b7f..a5b6424 100644
+--- a/src/runtime/world_mode.c
++++ b/src/runtime/world_mode.c
+@@ -25,12 +25,12 @@
+ static const char *const ENV_NAME[WM_COUNT] = {
+     "LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+     "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY",
+-    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_MSAA" };
++    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE" };
+ static const char *const KEY_CLASSIC[WM_COUNT] = {
+-    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language", "msaa" };
++    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language", "msaa", "save" };
+ static const char *const KEY_IMMERSIVE[WM_COUNT] = {
+     "mode", "immersive.replays", "immersive.overlays", "immersive.cutaways", "immersive.shadow",
+-    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "msaa" };
++    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "msaa", "save" };
+ 
+ const char *world_mode_env_name(int key) { return key >= 0 && key < WM_COUNT ? ENV_NAME[key] : NULL; }
+ const char *world_mode_key(int key, int immersive)
+@@ -123,6 +123,8 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     if ((v = env(WM_CARD))) { o->card_notice = *v == '1'; k[WM_CARD] = WM_SRC_ENV; }
+     o->language = s->language;
+     o->msaa = s->msaa;
++    o->save = s->save;
++    if ((v = env(WM_SAVE))) { o->save = *v == '1' || !strcmp(v, "on"); k[WM_SAVE] = WM_SRC_ENV; }
+     if ((v = env(WM_MSAA))) { int n = atoi(v); o->msaa = n >= 4 ? 4 : n >= 2 ? 2 : 0; k[WM_MSAA] = WM_SRC_ENV; }
+     if ((v = env(WM_LANGUAGE))) { o->language = !(*v == '0' || !strcmp(v, "japanese")); k[WM_LANGUAGE] = WM_SRC_ENV; }
+     if ((v = env(WM_SKY))) { o->sky = world_mode_sky_value(v); k[WM_SKY] = WM_SRC_ENV; }
+@@ -180,13 +182,13 @@ void world_mode_init(int capable)
+     world_mode_resolve(&s, -1, capable, present, &g_wm, src);
+     static const char *const SRC[] = { "default", "vr.cfg", "env" };
+     fprintf(stderr, "[world] mode %s (%s) dolly %.0f (%s) back %.0f (%s) height %.0f (%s) sky %s (%s) shadow %d (%s) "
+-                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s) msaa %d (%s)%s\n",
++                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s) msaa %d (%s) save %s (%s)%s\n",
+             g_wm.immersive ? "immersive" : "classic", SRC[src[WM_MODE]],
+             g_wm.dolly, SRC[src[WM_DOLLY]], g_wm.back, SRC[src[WM_BACK]], g_wm.height, SRC[src[WM_HEIGHT]],
+             sky_name(g_wm.sky), SRC[src[WM_SKY]], g_wm.shadow, SRC[src[WM_SHADOW]],
+             view_label(g_wm.replays, g_wm.replay_view, g_wm.immersive), SRC[src[WM_REPLAYS]], g_wm.overlays ? "on" : "off", SRC[src[WM_OVERLAYS]],
+             view_label(g_wm.cutaways, g_wm.cutaway_view, g_wm.immersive), SRC[src[WM_CUTAWAYS]],
+-            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], g_wm.msaa, SRC[src[WM_MSAA]], capable ? "" : " - this game has no world mode");
++            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], g_wm.msaa, SRC[src[WM_MSAA]], g_wm.save ? "on" : "off", SRC[src[WM_SAVE]], capable ? "" : " - this game has no world mode");
+     g_start = g_game = g_panel_req = g_wm.immersive;
+     atomic_store(&g_target, g_start);
+     atomic_store(&g_gl, g_start);
+@@ -282,6 +284,7 @@ int world_mode_cutaways(void) { return wm()->cutaways; }
+ int world_mode_card_notice(void) { return wm()->card_notice; }
+ int world_mode_language(void) { return wm()->language; }
+ int world_mode_msaa(void) { return wm()->msaa; }
++int world_mode_save(void) { return wm()->save; }
+ int world_mode_replay_view(void) { return wm()->replay_view; }
+ int world_mode_cutaway_view(void) { return wm()->cutaway_view; }
+ int world_mode_sky(void) { return wm()->sky; }
+diff --git a/src/runtime/world_mode.h b/src/runtime/world_mode.h
+index 3d91548..94133fe 100644
+--- a/src/runtime/world_mode.h
++++ b/src/runtime/world_mode.h
+@@ -19,7 +19,7 @@ extern "C" {
+ 
+ /* the values, for their env variables, sources and pins */
+ enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_HEIGHT,
+-       WM_CARD, WM_LANGUAGE, WM_MSAA, WM_COUNT };
++       WM_CARD, WM_LANGUAGE, WM_MSAA, WM_SAVE, WM_COUNT };
+ enum { WM_SRC_DEFAULT, WM_SRC_FILE, WM_SRC_ENV };
+ 
+ typedef struct {
+@@ -39,6 +39,7 @@ typedef struct {
+                                  * VR: 0); LINDBERGH_VT3_CARD_RW=1|0; at registration, so on restart */
+     int language;               /* 1 English, 0 Japanese (vr.cfg language, LINDBERGH_VT3_LANGUAGE); on restart */
+     int msaa;                   /* anti-aliasing samples asked for: 0, 2, 4 (vr.cfg msaa, LINDBERGH_MSAA); on restart */
++    int save;                   /* Save progress: 1P's card record kept in vt3_save.bin (vr.cfg save, LINDBERGH_VT3_SAVE); on restart */
+ } WmValues;
+ 
+ /* the env variable that pins a value for a run (LINDBERGH_REPLAYS, ...) */
+@@ -99,6 +100,7 @@ int world_mode_cutaways(void);
+ int world_mode_card_notice(void);
+ int world_mode_language(void);
+ int world_mode_msaa(void);
++int world_mode_save(void);
+ /* LG_VIEW_FLAT / _WORLD / _CAMERA (live) */
+ int world_mode_replay_view(void);
+ int world_mode_cutaway_view(void);
+diff --git a/src/runtime/xr_settings.c b/src/runtime/xr_settings.c
+index f7c5081..f60ea55 100644
+--- a/src/runtime/xr_settings.c
++++ b/src/runtime/xr_settings.c
+@@ -22,7 +22,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+                "sight %s\ncrosshair %s\ngun %s\nhud_pitch %d\ndual %s\nstats %s\nfoveation %s\noverlays %s\nreplays %s\n"
+                "mode %s\nclassic.shadow %d\nclassic.cutaways %s\nimmersive.replays %s\nimmersive.overlays %s\n"
+                "immersive.cutaways %s\nimmersive.sky %s\nimmersive.shadow %d\n"
+-               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nmsaa %d\n",
++               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nmsaa %d\nsave %s\n",
+             c->scale, c->screen, c->aim, c->resolution, c->width, c->refresh, c->left_handed ? "left" : "right",
+             LASER_NAME[c->laser], c->auto_coins ? "auto" : "manual",
+             SIGHT_NAME[c->sight], c->crosshair ? "on" : "off", c->show_gun ? "on" : "off", c->hud_pitch, c->dual ? "on" : "off", c->show_stats ? "on" : "off",
+@@ -30,7 +30,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+             c->world_mode ? "immersive" : "classic", c->classic_shadow, c->classic_cutaways ? "on" : "off",
+             view_name(c->imm_replays), c->imm_overlays ? "on" : "off", view_name(c->imm_cutaways),
+             c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow,
+-            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese", c->msaa);
++            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese", c->msaa, c->save ? "on" : "off");
+ }
+ 
+ /* LINDBERGH_XR_SET's keys are for its run only: the save writes those keys as
+@@ -137,6 +137,7 @@ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+         else if (!strcmp(key, "classic.card_notice")) c->classic_card_notice = !strcmp(val, "on");
+         else if (!strcmp(key, "language")) c->language = strcmp(val, "japanese") != 0;
+         else if (!strcmp(key, "msaa")) c->msaa = atoi(val);
++        else if (!strcmp(key, "save")) c->save = !strcmp(val, "on");
+         else if (!strcmp(key, "foveation")) {
+             for (int i = 0; i < 4; i++) if (!strcmp(val, FOVEATION_NAME[i])) c->foveation = i;
+         }
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index f38a7b7..158bc86 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -40,6 +40,8 @@ typedef struct {
+                                  * Japanese; applies on the next start (Virtua Tennis 3) */
+     int msaa;                   /* "msaa 0|2|4": anti-aliasing samples of the eyes' framebuffer (VR and
+                                  * Classic on the headset; 0 off, today's); applies on the next start */
++    int save;                   /* "save on|off": Save progress - 1P's card record kept in vt3_save.bin
++                                 * (Virtua Tennis 3, both modes; default off); applies on the next start */
+ } LgXrSettings;
+ /* Each eye's image by default: the headset's own panel, pixel for pixel.
+  * OpenXR reports only a runtime-scaled recommendation, so the panel is the
+@@ -61,7 +63,7 @@ typedef struct {
+  * 2048, Camera height Medium (+1 m; T13). (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0}
++                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,0}
+ /* Immersive's (VR's) Camera height choices (immersive.height), game units
+  * (0.1 m): Low / Medium / High; a stored value off the list is read as the
+  * nearest (xr_settings_nearest; the first of two equally near) - an older
+diff --git a/src/runtime/xr_world_panel.c b/src/runtime/xr_world_panel.c
+index c993c6b..1ccd50e 100644
+--- a/src/runtime/xr_world_panel.c
++++ b/src/runtime/xr_world_panel.c
+@@ -47,6 +47,7 @@ static int wm_key(int item)
+     case XW_CARD: return WM_CARD;
+     case XW_LANGUAGE: return WM_LANGUAGE;
+     case XW_MSAA: return WM_MSAA;
++    case XW_SAVE: return WM_SAVE;
+     case XW_SKY: return WM_SKY;
+     default: return -1;
+     }
+@@ -61,7 +62,7 @@ static int pinned(const XwState *w, int item)
+ {
+     const int k = wm_key(item);
+     if (k < 0 || !(w->pins >> k & 1)) return 0;
+-    return k == WM_MODE || k == WM_LANGUAGE || k == WM_MSAA || page_mode(w) == w->running;
++    return k == WM_MODE || k == WM_LANGUAGE || k == WM_MSAA || k == WM_SAVE || page_mode(w) == w->running;
+ }
+ 
+ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+@@ -72,13 +73,13 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+     switch (w->page) {
+     case XW_PAGE_CLASSIC: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_REPLAYS), XW_ROW(XW_CUTAWAYS), XW_ROW(XW_OVERLAYS),
+-                                 XW_ROW(XW_CARD), XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_CARD), XW_ROW(XW_SAVE), XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     case XW_PAGE_IMMERSIVE: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_HEIGHT),
+                                  XW_ROW(XW_REPLAYS), XW_ROW(XW_CUTAWAYS), XW_ROW(XW_OVERLAYS), XW_ROW(XW_SKY),
+-                                 XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_SAVE), XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     default:
+@@ -140,6 +141,11 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     it[XW_CARD].label = "Card reader notice";
+     it[XW_LANGUAGE].label = "Language";
+     it[XW_MSAA].label = "Anti-aliasing";
++    it[XW_SAVE].label = "Save progress";
++    {
++        const int v = pinned(w, XW_SAVE) ? w->eff.save : cfg->save;
++        snprintf(it[XW_SAVE].value, 40, "%s%s", on_off(v), !pinned(w, XW_SAVE) && v != w->eff.save ? " (on restart)" : "");
++    }
+     {
+         const int m = pinned(w, XW_MSAA) ? w->eff.msaa : cfg->msaa;
+         snprintf(it[XW_MSAA].value, 40, "%s%s", m >= 4 ? "4x" : m >= 2 ? "2x" : "Off",
+@@ -232,6 +238,7 @@ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+     case XW_HEIGHT: if (!im) return 0; c->imm_height = next_step(c->imm_height, LG_XR_HEIGHT_STEPS, LG_XR_HEIGHT_NSTEPS); fx |= live; break;
+     case XW_CARD: if (im || page_mode(w) < 0) return 0; c->classic_card_notice = !c->classic_card_notice; break;   /* on restart */
+     case XW_LANGUAGE: c->language = !c->language; break;                                                     /* on restart */
++    case XW_SAVE: if (page_mode(w) < 0) return 0; c->save = !c->save; break;                               /* on restart */
+     case XW_MSAA: c->msaa = c->msaa >= 4 ? 0 : c->msaa >= 2 ? 4 : 2; break;                                 /* Off > 2x > 4x, on restart */
+     case XW_SHADOW: {
+         int *s = im ? &c->imm_shadow : &c->classic_shadow, k = 0;
+diff --git a/src/runtime/xr_world_panel.h b/src/runtime/xr_world_panel.h
+index cfad973..23e2405 100644
+--- a/src/runtime/xr_world_panel.h
++++ b/src/runtime/xr_world_panel.h
+@@ -17,7 +17,9 @@ extern "C" {
+  * XW_MODE (a toggle), XW_DOLLY and XW_STEPBACK are no rows any more (T12). */
+ enum { XW_MODE, XW_RESTART, XW_ADVANCED, XW_BACK, XW_DOLLY, XW_STEPBACK, XW_REPLAYS, XW_CUTAWAYS,
+        XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_MODE_CLASSIC, XW_MODE_VR,
+-       XW_CARD, XW_LANGUAGE, XW_MSAA, XW_COUNT };   /* + the main page's Anti-aliasing (on restart) */    /* Classic's Card reader notice; the main page's Language (both on restart) */
++       XW_CARD, XW_LANGUAGE, XW_MSAA, XW_SAVE, XW_COUNT };
++/* Classic's Card reader notice; the main page's Language and Anti-aliasing; both
++ * Advanced pages' Save progress (one value for both modes) - all on restart */
+ enum { XW_PAGE_MAIN, XW_PAGE_CLASSIC, XW_PAGE_IMMERSIVE, XW_PAGES };
+ /* xw_choose's effects, beside XP_SAVE and XP_RESTART */
+ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or, live, the mode) changed: world_mode_update */
+diff --git a/tests/test_vt3_save.py b/tests/test_vt3_save.py
+new file mode 100644
+index 0000000..6ef93d8
+--- /dev/null
++++ b/tests/test_vt3_save.py
+@@ -0,0 +1,122 @@
++"""Virtua Tennis 3's save file (vt3_save.c): one card record per character, safe writes."""
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import tempfile
++import unittest
++
++REC = 0x264
++HDR = 32
++ENT = 24 + REC
++
++
++class Vt3SaveTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cc = shutil.which("cc")
++        if not cc: raise unittest.SkipTest("host C compiler unavailable")
++        cls.temp = tempfile.TemporaryDirectory()
++        rt = Path(__file__).resolve().parents[1] / "src/runtime"
++        src = Path(cls.temp.name) / "sv.c"
++        src.write_text(r'''#include "vt3_save.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++/* sv <file> open | store <ch> <fill> [<ch> <fill> ...] : prints the open result, the count, each character's first byte */
++int main(int argc, char **argv) {
++    int r = vt3_save_open(argv[1]);
++    printf("%d %d", r, vt3_save_count());
++    for (int i = 3; i + 1 < argc; i += 2) {
++        unsigned char rec[VT3_SAVE_REC];
++        memset(rec, atoi(argv[i + 1]), sizeof rec);
++        rec[0] = (unsigned char)atoi(argv[i]);
++        printf(" w%d", vt3_save_store(atoi(argv[i]), rec));
++    }
++    for (int ch = 0; ch < 40; ch++) {
++        const unsigned char *p = vt3_save_find(ch);
++        if (p) printf(" %d:%d", ch, p[1]);
++    }
++    printf("\n");
++    return 0;
++}''')
++        cls.bin = Path(cls.temp.name) / "sv"
++        subprocess.run([cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", str(rt), str(src), str(rt / "vt3_save.c"),
++                        "-o", str(cls.bin)], check=True)
++
++    @classmethod
++    def tearDownClass(cls): cls.temp.cleanup()
++
++    def sv(self, path, *args):
++        p = subprocess.run([str(self.bin), str(path), "x", *map(str, args)], text=True, capture_output=True, check=True)
++        return p.stdout.strip(), p.stderr
++
++    def test_missing_file_is_fresh_and_no_file_until_stored(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            out, log = self.sv(f)
++            self.assertEqual(out, "0 0")
++            self.assertIn("no save yet", log)
++            self.assertFalse(f.exists())
++
++    def test_store_and_load_per_character(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            self.assertEqual(self.sv(f, 3, 7)[0], "0 0 w0 3:7")
++            self.assertEqual(f.stat().st_size, HDR + ENT)
++            self.assertFalse((Path(d) / "vt3_save.bin.tmp").exists())
++            self.assertEqual(self.sv(f, 5, 9)[0], "1 1 w0 3:7 5:9")              # a second character
++            self.assertTrue((Path(d) / "vt3_save.bin.bak").exists())            # the previous file kept
++            self.assertEqual((Path(d) / "vt3_save.bin.bak").stat().st_size, HDR + ENT)
++            self.assertEqual(self.sv(f, 3, 11)[0], "1 2 w0 3:11 5:9")             # replaced, not added
++            self.assertEqual(self.sv(f)[0], "1 2 3:11 5:9")
++            self.assertEqual(f.read_bytes()[:8], b"VT3SAVE\0")
++
++    def test_corrupt_file_falls_back_to_backup_and_is_kept_aside(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            self.sv(f, 3, 7); self.sv(f, 3, 8)                                   # .bak has 7, file 8
++            b = bytearray(f.read_bytes()); b[HDR + 24 + 100] ^= 0xFF; f.write_bytes(bytes(b))
++            out, log = self.sv(f)
++            self.assertEqual(out, "2 1 3:7")
++            self.assertIn("unreadable (checksum)", log)
++            aside = [p for p in os.listdir(d) if p.startswith("vt3_save.bin.unreadable-")]
++            self.assertEqual(len(aside), 1)
++            self.assertFalse(f.exists())                                          # never written over
++            self.assertEqual(self.sv(f, 3, 9)[0], "2 1 w0 3:9")                   # no file: the backup again; the next store writes a good file
++            self.assertEqual(self.sv(f)[0], "1 1 3:9")
++
++    def test_corrupt_file_and_backup_start_fresh(self):
++        for bad in (b"garbage", b"", None):
++            with tempfile.TemporaryDirectory() as d:
++                f = Path(d) / "vt3_save.bin"
++                self.sv(f, 3, 7)
++                good = f.read_bytes()
++                f.write_bytes(bad if bad is not None else good[:-5])              # junk, empty, truncated
++                out, log = self.sv(f)
++                self.assertEqual(out, "3 0", bad)
++                self.assertIn("starting a fresh save", log)
++                self.assertTrue(any(p.startswith("vt3_save.bin.unreadable-") for p in os.listdir(d)))
++
++    def test_missing_file_with_backup_loads_the_backup(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            self.sv(f, 3, 7); self.sv(f, 3, 8)
++            f.unlink()                                                            # a write cut between its two renames
++            out, log = self.sv(f)
++            self.assertEqual(out, "2 1 3:7")
++            self.assertIn("loaded from the backup", log)
++
++    def test_record_checksum_and_length_checked(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            self.sv(f, 3, 7)
++            good = f.read_bytes()
++            f.write_bytes(good + b"\0")                                            # extra byte
++            self.assertIn("wrong length", self.sv(f)[1])
++            b = bytearray(good); b[12] = 0x10; f.write_bytes(bytes(b))            # another record size
++            self.assertIn("wrong record size", self.sv(f)[1])
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index 5e2d075..1a5b43b 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -10,7 +10,7 @@ ENV_KEYS = ["LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OV
+             "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK",
+             "LINDBERGH_VT3_SKY", "LINDBERGH_VT3_HEIGHT", "LINDBERGH_XR_SET", "LINDBERGH_XR_SCALE", "LINDBERGH_VT3_LIVE_SWITCH",
+             "LINDBERGH_VT3_MODE_AT", "LINDBERGH_VT3_REPLAY_VIEW", "LINDBERGH_VT3_CUTAWAY_VIEW",
+-            "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_REGION", "LINDBERGH_MSAA"]
++            "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_REGION", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE"]
+ 
+ 
+ class WorldModeTests(unittest.TestCase):
+@@ -39,7 +39,8 @@ int main(int argc, char **argv) {
+         return 0;
+     }
+     if (argc > 2 && !strcmp(argv[2], "msaa")) {     /* anti-aliasing samples, its pin, the getter */
+-        printf(" | %d %d %d\n", v->msaa, world_mode_pinned(WM_MSAA), world_mode_msaa());
++        printf(" | %d %d %d | %d %d %d\n", v->msaa, world_mode_pinned(WM_MSAA), world_mode_msaa(),
++               v->save, world_mode_pinned(WM_SAVE), world_mode_save());
+         return 0;
+     }
+     if (argc > 2 && !strcmp(argv[2], "views")) {    /* replays / cutaways: on, view; and the pins */
+@@ -129,6 +130,13 @@ int main(int argc, char **argv) {
+ 
+     def test_antialiasing(self):
+         m = lambda cfg=None, env=None: self.run_wm(cfg, env, args=("1", "msaa"))[0].split(" | ")[1]
++        sv = lambda cfg=None, env=None: self.run_wm(cfg, env, args=("1", "msaa"))[0].split(" | ")[2]
++        self.assertEqual(sv(), "0 0 0")                                                  # Save progress off by default (T16)
++        self.assertEqual(sv("save on\n"), "1 0 1")
++        self.assertEqual(sv("mode immersive\nsave on\n"), "1 0 1")                       # one value for both modes
++        self.assertEqual(sv("save on\n", {"LINDBERGH_VT3_SAVE": "0"}), "0 1 0")
++        self.assertEqual(sv(None, {"LINDBERGH_VT3_SAVE": "1"}), "1 1 1")
++        self.assertIn("save on (vr.cfg)", self.run_wm("save on\n")[1])
+         self.assertEqual(m(), "0 0 0")                                                   # Off by default (T17)
+         self.assertEqual(m("msaa 4\n"), "4 0 4")
+         self.assertEqual(m("mode immersive\nmsaa 2\n"), "2 0 2")                         # one value for both modes
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index ac06af8..77cf1e4 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -58,7 +58,7 @@ int main(void) {
+ 
+     MODE_KEYS={"mode":"classic","classic.shadow":"1024","classic.cutaways":"on","immersive.replays":"off",
+                "immersive.overlays":"off","immersive.cutaways":"off","immersive.sky":"stadium","immersive.shadow":"2048",
+-               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0"}
++               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0","save":"off"}
+ 
+     @staticmethod
+     def parse(text):
+@@ -77,7 +77,7 @@ int main(void) {
+     def test_mode_keys_round_trip(self):
+         cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"camera",
+              "immersive.overlays":"on","immersive.cutaways":"camera","immersive.sky":"painted","immersive.shadow":"1024",
+-             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4"}
++             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4","save":"on"}
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("".join(f"{k} {v}\n" for k,v in cfg.items()))
+             self.run_settings(d)
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index bc870c5..3995da0 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -52,7 +52,7 @@ int main(void) {
+     /* Advanced goes to the saved mode's page */
+     assert(xw_choose(&w, &c, XW_ADVANCED) == XW_PAGE_CHANGED && w.page == XW_PAGE_IMMERSIVE);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 12 && r[0] == XW_ROW(XW_MODE_CLASSIC) && r[2] == XW_ROW(XW_BACK) && r[3] == XW_ROW(XW_HEIGHT) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
++    assert(n == 13 && r[0] == XW_ROW(XW_MODE_CLASSIC) && r[2] == XW_ROW(XW_BACK) && r[3] == XW_ROW(XW_HEIGHT) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
+     assert(!has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_STEPBACK)));
+     xw_items(&w, &c, it);
+     assert(!strcmp(xw_title(&w), "VR mode - advanced settings"));
+@@ -100,7 +100,7 @@ int main(void) {
+     c.world_mode = 0; w.page = XW_PAGE_CLASSIC;
+     fx = xw_choose(&w, &c, XW_CUTAWAYS); assert((fx & XW_LIVE_CHANGED) && c.classic_cutaways == 0);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 11 && has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
++    assert(n == 12 && has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
+     assert(xw_choose(&w, &c, XW_SKY) == 0);             /* not a Classic row */
+     w.pins = 1u << WM_REPLAYS; w.eff.replays = 0;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "Off (env.txt)"));
+@@ -158,6 +158,21 @@ int main(void) {
+       aw.pins = 1u << WM_MSAA; aw.eff.msaa = 2;
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "2x (env.txt)"));
+       assert(xw_choose(&aw, &ac, XW_MSAA) == 0 && ac.msaa == 0); }
++    /* Save progress on both Advanced pages (one value), Off by default, on restart; not on the main page (T16) */
++    { XwState sw; memset(&sw, 0, sizeof sw); LgXrSettings sc = LG_XR_SETTINGS_DEFAULT;
++      world_mode_resolve(&sc, 0, 1, 0, &sw.eff, NULL);
++      int sr[XW_ROWS_MAX], sn = xw_page_rows(&sw, &sc, sr);
++      assert(!has(sr, sn, XW_ROW(XW_SAVE)) && sc.save == 0 && sw.eff.save == 0);
++      sw.page = XW_PAGE_CLASSIC; sn = xw_page_rows(&sw, &sc, sr); assert(has(sr, sn, XW_ROW(XW_SAVE)));
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].label, "Save progress") && !strcmp(it[XW_SAVE].value, "Off"));
++      assert(xw_choose(&sw, &sc, XW_SAVE) == XP_SAVE && sc.save == 1);
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "On (on restart)"));
++      sw.page = XW_PAGE_IMMERSIVE; sn = xw_page_rows(&sw, &sc, sr); assert(has(sr, sn, XW_ROW(XW_SAVE)));
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "On (on restart)"));          /* the same value on VR's page */
++      xw_restore_defaults(&sc, 1); xw_restore_defaults(&sc, 0); assert(sc.save == 1);             /* Restore defaults keeps it */
++      sw.pins = 1u << WM_SAVE; sw.eff.save = 0;
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "Off (env.txt)"));
++      assert(xw_choose(&sw, &sc, XW_SAVE) == 0 && sc.save == 1); }
+     /* a mode button on an Advanced page: that mode's page */
+     w.pins = 0; w.running = 0; w.page = XW_PAGE_CLASSIC; c.world_mode = 0;
+     fx = xw_choose(&w, &c, XW_MODE_VR); assert((fx & XP_SAVE) && c.world_mode == 1 && w.page == XW_PAGE_IMMERSIVE);
+@@ -236,7 +251,7 @@ int main(void) {
+             b = Path(temp) / "wp"
+             subprocess.run([cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", str(rt), str(src), str(rt / "xr_world_panel.c"),
+                             str(rt / "world_mode.c"), str(rt / "xr_menu.c"), str(rt / "xr_panel.c"), str(rt / "stereo_projection.c"), str(rt / "xr_settings.c"), "-pthread", "-lm", "-o", str(b)], check=True)
+-            self.assertEqual(subprocess.run([str(b)], check=True, capture_output=True, text=True).stdout.strip(), "ok")
++            r = subprocess.run([str(b)], capture_output=True, text=True); self.assertEqual(r.stdout.strip(), "ok", r.stderr)
+ 
+ 
+ if __name__ == "__main__": unittest.main()

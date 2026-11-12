@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T16 (save game) step 1 - written, UNCOMMITTED, macOS runs in
+  progress** (safety diff `ai_docs/wip/t16-save-lindberghrecomp.diff`):
+  `vt3_save.c/.h` (file: versioned header, CRC-32, tmp+fsync+rename, .bak,
+  unreadable file moved aside), `hle_sega.c` hooks (player::reset_card_data
+  from exec_no_card's decision 0x0812A8DD = load; playerManager::calcCard_data
+  = save; playerManager::resetUse_card = save at session end), setting
+  `save on|off` / `LINDBERGH_VT3_SAVE` / `LINDBERGH_VT3_SAVE_FILE`, panel row
+  "Save progress" on both Advanced pages, macOS Game menu. Run 1 (fresh save,
+  prize): record created at frame 1501, saved at the match's judge (20 bytes
+  changed), no stall; the result slate showed "(null)" under the name (fixed
+  since by calling setRealPlayerName, not yet rerun). Next: run 2 (load),
+  Off baseline, corrupt file, then docs + commit.
 - **2026-11-12 T17 COMMITTED locally - macOS-checked, Quest smoke run OWED**
   (anti-aliasing; guide section 8 "Anti-aliasing (T17)"). Default Off = today's
   path (no gl4es call, same GL calls); 2x / 4x opt-in by panel row / vr.cfg
