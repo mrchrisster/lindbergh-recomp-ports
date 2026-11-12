@@ -168,6 +168,14 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 6 - seq3 RUNNING** (`.../786966e7-.../scratchpad/seq3.sh`,
+  log `/tmp/vt3q/T8b/seq3.out`, marker `SEQ3_DONE`): S-20/S0/S20 serve meter
+  (round0, SERVESHOT **needs `LINDBERGH_VT3_SERVELOG=1`** - the first S
+  runs had none and took no shots), V1 Classic 1944-1960, MP panel dump
+  (Immersive page), L-20/L20 slate at 3500, Q_imm/Q_cls 220 s regression.
+  Installed: T8+T9 test build. If cut off: wait for / kill seq3 by PID, then
+  judge, commit T9 (`git -C lindberghrecomp add -A src tests` minus
+  .DS_Store), install, restore `/tmp/vt3q/T8b/vr.cfg.owner2251`.
 - **T8b worker, step 5 - T9 height verified (shots).** H-20/-10/10/20
   (`/tmp/vt3q/T8b/H*`, cab 0): the eye moves along up as set, both eyes;
   sheet `~/Desktop/Claude/vt3-view/camera_height_steps.png` (game moment at
