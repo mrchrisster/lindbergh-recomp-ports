@@ -128,6 +128,18 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-12 **T16: Save progress (IC card as a save game) - macOS-verified,
+  Quest smoke run OWED, default Off** (guide section 8 "Save progress";
+  research Outcome). `vt3_save.c` + `hle_sega.c` hooks; `save on|off`,
+  `LINDBERGH_VT3_SAVE`, `LINDBERGH_VT3_SAVE_FILE` (**tests: always point it at
+  a scratch file**, never the owner's), `LINDBERGH_VT3_SAVE_DIFF=1`. macOS
+  prize runs: session 1 fresh record (frame 1501), saved at the match's
+  judge; sessions 2 and 3 loaded it and counters went on (+0xA8 1/2/3); Off:
+  no file, no `[save]` line, flow = T15's (Gamesetmatch 3482, Stats 3572,
+  Load 4173, Start 4417); corrupt file -> moved aside, fresh, no crash.
+  **Changed for tests when on:** round 0 venue Milan (save's King level),
+  longer rallies (match end 3260-3798).
+
 - 2026-11-12 **T17: Anti-aliasing switch - built, macOS-checked, Quest smoke
   run OWED** (guide section 8 "Anti-aliasing (T17)"). Main-page row
   Anti-aliasing Off / 2x / 4x (on restart), vr.cfg `msaa 0|2|4` (default 0),

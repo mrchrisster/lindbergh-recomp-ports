@@ -168,6 +168,25 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T16 COMMITTED locally - macOS-verified, Quest smoke run OWED**
+  (Save progress; guide section 8, research Outcome). Default Off. macOS
+  evidence: `/tmp/vt3t16/run1..3`, `off`, `corrupt` (vt3.log), pictures
+  `~/Desktop/Claude/vt3-save/result_slate_off_on.png`, `record_bytes.txt`.
+  Quest APK builds (`/tmp/vt3q/T16/VirtuaTennis3VR_t16.apk` = T13-T17 + T16).
+  **Owed, ONE Quest run (~2.5 min)** (after the combined smoke run; the save
+  file goes to a scratch name so the owner's save is never touched):
+  ```
+  R=/tmp/vt3q/T16; adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.before
+  OUT=$R/save LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0 LINDBERGH_VT3_SAVE=1 LINDBERGH_VT3_SAVE_FILE=vt3_save_test.bin LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh prize quest 150
+  adb shell ls -l /sdcard/VirtuaTennis3/vt3_Lindbergh/ | grep vt3_save; adb shell rm /sdcard/VirtuaTennis3/vt3_Lindbergh/vt3_save_test.bin*
+  adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg $R/vr.cfg.after; cmp $R/vr.cfg.before $R/vr.cfg.after; adb shell wc -c /sdcard/VirtuaTennis3/env.txt
+  grep -E '^\[save\]|Save progress|\[flow\] frame [0-9]+: (Judge|Gameset|Stats|Load)' $R/save/vt3.log
+  ```
+  Pass: `Save progress on`, `fresh record` at ~1500, `written to
+  vt3_save_test.bin` at the match's judge, Gamesetmatch -> Stats -> Load, the
+  file listed (2 records' worth: 32 + 636 bytes = 668), no FATAL. Then the
+  owner tries it worn: set "Save progress: On", restart, play, quit, play
+  again - and says whether it should default On.
 - **2026-11-12 T16 (save game) step 1 - written, UNCOMMITTED, macOS runs in
   progress** (safety diff `ai_docs/wip/t16-save-lindberghrecomp.diff`):
   `vt3_save.c/.h` (file: versioned header, CRC-32, tmp+fsync+rename, .bak,

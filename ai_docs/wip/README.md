@@ -34,3 +34,5 @@ dropped. T5 (LOD bias) is committed.
   side (multisampled multiview attachments), resolve accounting for mid-frame
   reads, alpha-to-coverage, unit tests, docs.
   Restore: `git -C lindberghrecomp apply ../ai_docs/wip/t17-antialiasing-lindberghrecomp.diff`.
+- `t16-save-lindberghrecomp.diff` - historical (T16 committed; this copy is
+  from before the name fix and the last tests).

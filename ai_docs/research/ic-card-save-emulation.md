@@ -347,6 +347,60 @@ game's default.
   should keep it quiet (inferred).
 - Doubles with 1P using a card (pair slot) - not traced.
 
+
+## Outcome (2026-11-12, T16 build worker - option C built, macOS-verified, Quest smoke run owed)
+
+Built as designed, with these choices (code: `vt3_save.c/.h`, `hle_sega.c`
+"Save progress (T16)"):
+- **Load hook:** `player::reset_card_data()` when it returns to
+  `usrMenuCharLoop::exec_no_card`'s decision (0x0812A8DD; after
+  `decideUsePlayer`, before `decide_chartype` / `setPlayerData`, i.e. where a
+  card's record would already be in place), side 0 (`player+0x958`). Saved
+  record -> `player+0x490`, flags `| 1`, bits 4-6 ("new" marks) cleared - what
+  `setRealCardData` + `setReal_ulFlag` do; fresh: the game's own blank record +
+  character at +0 + `player::setUse_card()`. Card object row 0 = the record
+  (ids 1, `+0x1640` 1, plays left 199, not new), then
+  `usrMenuCharLoop::setRealPlayerName(0, plno)` (without it the result slate
+  shows "(null)" under the player's name).
+- **Save hooks:** after `playerManager::calcCard_data` (once per match, at the
+  match's last JudgeLoop) and before `playerManager::resetUse_card` (not seen
+  in prize runs: the StatsLoop after a won match continues the session).
+- **File:** `vt3_save.bin` in the game directory (`LINDBERGH_VT3_SAVE_FILE`
+  overrides), format as planned (header + CRC per record + CRC of all);
+  missing file -> `.bak` if good, else fresh; unreadable -> moved to
+  `.unreadable-<time>`, `.bak` tried, else fresh; never written over.
+  Unit tests `tests/test_vt3_save.py`.
+- **Setting:** `save on|off` (vr.cfg), `LINDBERGH_VT3_SAVE=1|0`, row "Save
+  progress" on both Advanced pages (one value, on restart, kept by Restore
+  defaults), macOS menu Game > Save Progress. Save on keeps the card readers
+  off even if Classic's Card reader notice is On. **Default Off** - see below.
+
+Open points, as far as macOS settles them:
+- **Name entry:** not offered - `exec_no_card` has no name-entry step; a fresh
+  save is named "noname" (the game's blank record), shown under the
+  character's name on the result slate. A name would need the record's 32
+  bytes at +0x04 written (e.g. a panel text field) - not done.
+- **Card-only pages with the reader off:** none appeared in prize runs
+  (result slate, total money, next round); the continue / game over / ending
+  card pages are reached only by losing - not exercised (prize always wins).
+- **King level:** follows the save, as with a real card: with Save progress
+  on, round 0 is Milan (King level 0 of a fresh save) instead of Dusseldorf
+  (the cabinet's level, used card-less since T15).
+- **"Update card?" prompt:** never (the card path is never entered).
+- Also seen: rallies run longer with a save (first point's judge at frame
+  2442-3004 vs 2575 Off; match end 3260-3798 vs 3353) - a card player plays
+  with the record's own play style; not investigated. `+0x258` (last play
+  time) stays 0 in our records; `+0x25C` becomes 2.
+- Carry-over (character 0, one prize match per session): `+0xA8` 1/2/3,
+  `+0xB0` and `+0xB4` 2/4/6, `+0x118` and `+0x128` 1/2/3 after sessions
+  1/2/3 (`~/Desktop/Claude/vt3-save/record_bytes.txt`).
+
+**Default Off**, because: the lose path (continue / game over / ending, where
+the card pages and card-write waits are) is untested; a save changes the
+game (King level / venue order, play style) - the owner should choose it;
+and the Quest file location is unchecked. Flip `save` in
+`LG_XR_SETTINGS_DEFAULT` (xr_settings.h) once the owner has judged it.
+
 ## 4. Legality / safety
 
 - The card is the player's own save medium, not copy protection: without

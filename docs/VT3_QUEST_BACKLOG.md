@@ -92,6 +92,13 @@ and asked that all progress and research be written to the docs.
       may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-12)
+- [x] **Save progress (IC card as a save game)** (owner, T16; macOS-verified,
+      **Quest smoke run owed**, default Off until judged): Advanced pages row
+      "Save progress: Off / On" (on restart). On: no card screens, 1P's
+      progress for each character kept in `vt3_save.bin` (counters carried
+      over three sessions on macOS). Not offered: name entry (save is
+      "noname"); untested: losing (continue / game over pages).
+      Pictures: `~/Desktop/Claude/vt3-save/`.
 - [x] **Anti-aliasing switch** (owner, T17; built, macOS-checked, **Quest
       smoke run owed**, default Off until judged worn): main-page row
       Anti-aliasing Off / 2x / 4x (on restart; vr.cfg `msaa`,
