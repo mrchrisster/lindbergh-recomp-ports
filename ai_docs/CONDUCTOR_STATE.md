@@ -179,3 +179,15 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   until the conductor grants the headset; one short smoke run per change.
 - Local, not pushed: 2c3f4f4 (T8), 688a9b9 (T9) and all outer commits after
   1f3ec0f. Push to `fork` on the owner's word.
+
+## 2026-11-12 00:50 (owner's menu changes = T12, given to the T10 worker after its commit)
+- T10 (replay / reaction views): macOS-verified by logs, owner granted two
+  short headset smoke runs; then commit + install.
+- **T12, owner's decisions:** no "camera closer" row (always default); no Step
+  back row (always 5 m); Camera height = Low / Medium / High (standard, +1 m,
+  +2 m); at the far ("back") side of the court height is High by default, the
+  three choices apply on the near side; mode choice as two large buttons
+  "Classic" / "VR" at the top of the panel (VR = Immersive; user-visible name
+  only, keys unchanged).
+- Then T11 (POV camera, `ai_docs/research/pov-camera.md`), card reader bar,
+  T4 shadow mask.
