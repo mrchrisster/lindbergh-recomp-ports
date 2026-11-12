@@ -226,3 +226,14 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   T14 cause: StartLoop snaps the court camera ~10 m nearer / 3 m lower then
   glides back (TV hides it with a cross-fade) - now eased. Next: T15 (card
   reader bar), macOS only.
+
+## 2026-11-12 ~10:10 (headset switched off; Mac-only work)
+- T13 (Camera view reframed, "In the world" removed, height default Medium)
+  and T14 (point-start glitch = StartLoop camera snap, now eased) are
+  macOS-verified; worker told to commit locally, **Quest smoke run OWED**.
+- **T15, owner's decisions:** card reader notice OFF by default, a Classic
+  row to turn it back on; language English by default (region 2 = export)
+  with a Language row. Mac only; Quest smoke owed.
+- When the headset is back: ONE combined smoke run (T13+T14+T15), install
+  the committed build, tell the owner. His vr.cfg has `immersive.height 0`
+  stored = Low; he picks Medium himself.
