@@ -12,4 +12,8 @@ dropped. T5 (LOD bias) is committed.
   3.1). In this copy it is **opt-in** (`LINDBERGH_VT3_MASK=1`). Needs a
   debug run (e.g. output `lg_mask` as colour) before use.
   Restore: `git -C lindberghrecomp apply ../ai_docs/wip/t4-on-sky-lindberghrecomp.diff`.
+- `t8-flat-and-fade-lindberghrecomp.diff` - T8 (owner's worn reports): VT3
+  Classic always flat (stereo.c `flat_all`), Immersive cross-fade quad left
+  out of world frames (stereo.c, arbprog.c `arb_fp_units`). Works in
+  test runs (HANDOFF 3.1), regression not yet run.
 - `glq-second-writer-fix.diff` - historical (committed as `373c5ae`).

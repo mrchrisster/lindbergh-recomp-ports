@@ -168,6 +168,26 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8 worker, step 1 - both bugs captured, fixes written (test build
+  installed, NOT committed).** Strips: `~/Desktop/Claude/vt3-bugs/`
+  (`classic_topdown_match_start_BEFORE/AFTER.png`,
+  `classic_match_start_GAMES_OWN_macos.png`,
+  `immersive_image_in_image_first_serve_BEFORE/AFTER.png`). (a) Classic,
+  every match start (EntranceLoop): frame 1949 stadium from above (lens 1.45),
+  1950 wrong world view, 1951-56 black - stereo.c judged them world frames;
+  fix: VT3 Classic always flat (`flat_all` default, `LINDBERGH_FLAT_ALL=0`
+  old). (b) Immersive, every StartLoop with cutaways off (~30 frames): the
+  game's cross-fade quad (fp 54, screen copies 34/40 on units 0/1, re-copied
+  each frame) drawn on the HUD plane; fix: HUD 2D into the eyes reading a
+  screen copy on any unit the program reads (`arb_fp_units`, new) is left out
+  of world frames (`LINDBERGH_VT3_CAPTURE=1` keeps). Test runs F1/F3
+  (`/tmp/vt3q/T8/`): inset gone, Classic fly-by from 1950; **the one frame
+  from above at 1949 remains in both modes** (game draws with the unset
+  camera, lens 1.45; macOS shows the VS screen there). Diff:
+  `ai_docs/wip/t8-flat-and-fade-lindberghrecomp.diff`. Installed: the test
+  build (not for the owner). Next: frame 1949; after-point strips;
+  regression (BLACK_LOG, cuts on, Classic + Immersive prize); commit;
+  reinstall a committed build.
 - **T8 worker (2026-11-11 late), step 0.** Conductor's queue now: T8
   (owner's worn reports on `9d68719`: (a) Classic, "when we switch to 3d for
   a split second the court can be seen from a top down shot"; (b) Immersive,
