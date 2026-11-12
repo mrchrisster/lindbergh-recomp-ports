@@ -92,12 +92,31 @@ and asked that all progress and research be written to the docs.
       may simply have no cards at that crowd level. Not investigated further.
 
 ## Done (2026-11-12)
+- [x] **Texture filtering row** ("Standard / Sharp 4x / Sharp 8x", both
+      Advanced pages, on restart; vr.cfg `aniso`, `LINDBERGH_ANISO`) -
+      anisotropic filtering of the game's mipmapped textures (court lines,
+      ad boards at grazing angles). macOS-verified, **Quest smoke run owed**,
+      default Standard (= unchanged).
+- [x] **Save name and Reset save** (Save progress follow-ups): vr.cfg
+      `save_name` / `LINDBERGH_VT3_SAVE_NAME` (default `PLAYER`, up to 10
+      letters / digits); "Reset save" row (pull twice) moves the save aside;
+      no "Remove Card." windows with Save on; the lose path (Continue, Game
+      over) runs (`lose` scene). macOS-verified, **Quest smoke run owed**.
+- [x] **Launcher icon: "VT3" in front of a tennis ball** (owner's brief;
+      original drawing, `quest/tools/vt3_icon.py` candidate 5). **Seen on the
+      headset: owed** (smoke run).
+- [x] **Start-up screen with the game's own logo** (owner): the "Virtua
+      Tennis 3" title logo read at start-up from the player's game files,
+      our "VR" beside it, one small row of controls; our own text title when
+      the files cannot be read. Nothing of Sega's in the app. Pictures:
+      `~/Desktop/Claude/vt3-splash/`. **Seen on the headset: owed.**
 - [x] **Save progress (IC card as a save game)** (owner, T16; macOS-verified,
       **Quest smoke run owed**, default Off until judged): Advanced pages row
       "Save progress: Off / On" (on restart). On: no card screens, 1P's
       progress for each character kept in `vt3_save.bin` (counters carried
-      over three sessions on macOS). Not offered: name entry (save is
-      "noname"); untested: losing (continue / game over pages).
+      over three sessions on macOS). Name: vr.cfg `save_name` (default
+      PLAYER; the game's own name entry not offered); losing: checked on
+      macOS (`lose` scene).
       Pictures: `~/Desktop/Claude/vt3-save/`.
 - [x] **Anti-aliasing switch** (owner, T17; built, macOS-checked, **Quest
       smoke run owed**, default Off until judged worn): main-page row
@@ -108,8 +127,8 @@ and asked that all progress and research be written to the docs.
       `~/Desktop/Claude/vt3-aa/desktop_net_off_vs_4x.png`.
 - [ ] **Net mesh and court lines still shimmer with anti-aliasing on**
       (follow-up to T17): alpha-to-coverage for alpha-tested draws (net,
-      crowd cards, fences) and anisotropic texture filtering for the court
-      lines. Not started.
+      crowd cards, fences) - not started; anisotropic texture filtering for
+      the court lines: done (Texture filtering row, above).
 - [x] **No "cannot use a card" bar, no card wait at boot; English** (owner,
       T15; macOS-verified, headset check owed): card readers off (Classic
       can turn the notice back on), Language English / Japanese on the main

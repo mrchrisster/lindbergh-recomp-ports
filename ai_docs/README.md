@@ -30,6 +30,13 @@ working on its area):
 
 ## Ground rules
 
+- **Release rule (owner, 2026-11-12): the app stays free of game data.** Ship
+  only recompiled code and original art. Anything of Sega's (logos, textures,
+  fonts, sounds) is read at run time from the player's own game files - never
+  copied into the repo, the APK, generated C or committed pictures (Desktop
+  pictures outside the repo are fine). Example: the start-up screen's logo
+  (`splash_logo.c`).
+
 - Push only to the `fork` remote (mrchrisster/...), branch `vt3-quest`:
   the `lindberghrecomp` submodule first, then this repo. **No PRs or pushes to
   lialan's upstream repos** (origin push URLs are disabled on purpose).
@@ -74,6 +81,9 @@ working on its area):
   `prize` (1P wins every
   point from 40-0: the match is over in two points), `replay`, `splitreplay`.
 - Useful switches: `LINDBERGH_VT3_WIN=1` (1P wins every point),
+  `LINDBERGH_VT3_LOSE=1` (1P loses every point; scene `lose`: Continue, Game over),
+  `LINDBERGH_ANISO=0|2|4|8|16` (Texture filtering), `LINDBERGH_VT3_SAVE_NAME=<A-Z0-9>`,
+  `LINDBERGH_SPLASH_LOGO=0` (Quest start-up screen: our own title instead of the game's logo),
   `LINDBERGH_VT3_CUTAWAYS=0|1` (the close-up after each point skipped / shown),
   `LINDBERGH_REPLAYS=0|1` (now works on macOS too), `LINDBERGH_VT3_FLOWLOG=1`
   (each arcade screen loop the game starts: `[flow] frame N: GameLoop` ...),

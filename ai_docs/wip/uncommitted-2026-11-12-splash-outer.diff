@@ -1,0 +1,396 @@
+diff --git a/quest/tools/vt3_splash.py b/quest/tools/vt3_splash.py
+index ba64640..79d4bfd 100644
+--- a/quest/tools/vt3_splash.py
++++ b/quest/tools/vt3_splash.py
+@@ -1,178 +1,244 @@
+ #!/usr/bin/env python3
+ """vt3_splash.py <out.c> [preview.png]: draws the Quest start-up screen for
+-Virtua Tennis 3 (VR edition) - original artwork, no Sega or game art - and
+-writes it as a deflated RGBA image in C for host_xr.c's splash (xr_splash.c).
++Virtua Tennis 3 (VR edition) and writes it as a deflated RGBA image in C for
++host_xr.c's splash (splash_art.c).
++
++Release rule (owner, 2026-11-12): everything drawn here is our own art - no
++Sega logo, texture or font. The game's own title logo is NOT in this file:
++the panel leaves a place for it, and at start-up host_xr.c reads the logo
++from the player's game files and composites it there with our "VR" badge
++beside it (lindberghrecomp/src/runtime/splash_logo.c). Without readable game
++files our own text title "VIRTUA TENNIS 3 VR" goes in that place instead.
+ 
+ The image is an atlas, top to bottom:
+-  the panel, PANEL_W x PANEL_H: title, controller map, the countdown's frame
+-  a row of cells: the digits 0-9 (white on clear) and a solid white cell
++  the panel, PANEL_W x PANEL_H: background, the controls, the countdown's frame
++  a row of cells: the digits 0-9 (white on clear) and a solid cell (the bar)
++  a row of parts composited at start-up: the VR badge, the fallback title
+ The countdown's digits and the progress bar are drawn over the panel as
+-their own layers from those cells, at the places written into the C file.
++their own layers from the cells, at the places written into the C file.
++[preview.png] shows the panel as it looks without game files (fallback
++title, "32" seconds, a 40 % bar); the logo version is previewed by the same
++C compositing code (lindberghrecomp/tests/test_splash_logo.py).
+ Needs Pillow and the macOS system fonts."""
+-import sys, zlib, math
+-from PIL import Image, ImageDraw, ImageFont, ImageFilter
++import sys, zlib
++from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
+ 
+ PANEL_W, PANEL_H = 1536, 864
+ CELL_W, CELL_H = 64, 96
+-W, H = PANEL_W, PANEL_H + CELL_H
++PARTS_H = 360
++W, H = PANEL_W, PANEL_H + CELL_H + PARTS_H
+ 
+ F = '/System/Library/Fonts/'
+ S = F + 'Supplemental/'
+ def font(path, size, index=0):
+     return ImageFont.truetype(path, size, index=index)
+ 
+-title_f = font(F + 'Avenir Next Condensed.ttc', 150, 8)     # Heavy Italic
+-sub_f = font(F + 'Avenir Next Condensed.ttc', 54, 6)        # Demi Bold Italic
+-label_f = font(F + 'Avenir Next.ttc', 30, 2)                # Demi Bold
+-small_f = font(F + 'Avenir Next.ttc', 24, 0)
++HEAVY_I = (F + 'Avenir Next Condensed.ttc', 9)     # Heavy Italic
++label_f = font(F + 'Avenir Next.ttc', 28, 2)       # Demi Bold
++act_f = font(F + 'Avenir Next Condensed.ttc', 34, 9)
++small_f = font(F + 'Avenir Next.ttc', 22, 0)
+ digit_f = font(S + 'DIN Condensed Bold.ttf', 104)
+-btn_f = font(F + 'Avenir Next.ttc', 22, 2)
++btn_f = font(F + 'Avenir Next.ttc', 20, 2)
+ 
+-BG0, BG1 = (6, 14, 34), (2, 4, 10)
+-ACCENT = (198, 232, 58)          # tennis-ball yellow-green
+-COURT = (40, 92, 170)
++# the game's own colours (its title screen: navy, chrome white, ball lime, orange)
++BG0, BG1 = (10, 22, 54), (2, 5, 14)
++LIME = (200, 220, 70)
++ORANGE = (240, 92, 24)
+ WHITE = (240, 244, 250)
+-GREY = (150, 160, 178)
+-BODY = (34, 38, 48)
+-FACE = (52, 58, 72)
+-EDGE = (110, 118, 136)
++GREY = (150, 162, 184)
++CHIP = (20, 32, 64)
++EDGE = (70, 92, 140)
+ 
+ img = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+ panel = Image.new('RGBA', (PANEL_W, PANEL_H), BG1 + (255,))
+ d = ImageDraw.Draw(panel)
+ 
+-# background: vertical gradient, faint court lines in perspective
++# background: vertical gradient, a soft light behind the title
+ for y in range(PANEL_H):
+     t = y / PANEL_H
+     c = tuple(int(BG0[k] * (1 - t) + BG1[k] * t) for k in range(3))
+     d.line([(0, y), (PANEL_W, y)], fill=c + (255,))
+-lines = Image.new('RGBA', (PANEL_W, PANEL_H), (0, 0, 0, 0))
+-ld = ImageDraw.Draw(lines)
+-vx, vy = PANEL_W / 2, -900           # vanishing point above the panel
+-for x in (-1400, -900, -520, 520, 900, 1400):
+-    ld.line([(vx, vy), (vx + x * 1.6, PANEL_H + 200)], fill=COURT + (70,), width=3)
+-for y in (520, 700):
+-    ld.line([(0, y), (PANEL_W, y)], fill=COURT + (55,), width=3)
+-panel.alpha_composite(lines)
+-
+-# a tennis ball, top left, with its seam
+-def ball(cx, cy, r):
+-    glow = Image.new('RGBA', (PANEL_W, PANEL_H), (0, 0, 0, 0))
+-    ImageDraw.Draw(glow).ellipse([cx - r * 1.5, cy - r * 1.5, cx + r * 1.5, cy + r * 1.5], fill=ACCENT + (60,))
+-    panel.alpha_composite(glow.filter(ImageFilter.GaussianBlur(r * 0.4)))
+-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=ACCENT + (255,))
+-    d.ellipse([cx - r * .55, cy - r * .7, cx + r * .1, cy - r * .1], fill=(230, 250, 140, 255))   # highlight
+-    d.ellipse([cx - r * .5, cy - r * .62, cx + r * .02, cy - r * .18], fill=ACCENT + (255,))
+-    seam = Image.new('RGBA', (PANEL_W, PANEL_H), (0, 0, 0, 0))
+-    sd = ImageDraw.Draw(seam)
+-    for s in (-1, 1):       # two arcs bulging towards each other, as a ball's seam looks
+-        ox = cx + s * r * 1.35
+-        sd.ellipse([ox - r, cy - r * 1.05, ox + r, cy + r * 1.05], outline=WHITE + (255,), width=max(3, r // 9))
+-    mask = Image.new('L', (PANEL_W, PANEL_H), 0)
+-    ImageDraw.Draw(mask).ellipse([cx - r + 2, cy - r + 2, cx + r - 2, cy + r - 2], fill=255)
+-    clipped = Image.new('RGBA', (PANEL_W, PANEL_H), (0, 0, 0, 0))
+-    clipped.paste(seam, (0, 0), mask)
+-    panel.alpha_composite(clipped)
+-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(150, 180, 40, 255), width=3)
+-
+-ball(206, 170, 92)
+-
+-# title
+-d.text((340, 52), 'VIRTUA TENNIS 3', font=title_f, fill=WHITE + (255,))
+-tw = d.textlength('VIRTUA TENNIS 3', font=title_f)
+-d.rectangle([344, 232, 340 + tw, 238], fill=ACCENT + (255,))
+-d.text((346, 246), 'VR EDITION', font=sub_f, fill=ACCENT + (255,))
+-d.text((346 + d.textlength('VR EDITION  ', font=sub_f), 262), 'for Meta Quest 3', font=small_f, fill=GREY + (255,))
+-
+-# controllers: a plain drawing of each, face up, labels either side
+-def controller(cx, cy, left):
+-    s = -1 if left else 1
+-    # ring-less head and handle
+-    d.rounded_rectangle([cx - 120, cy - 110, cx + 120, cy + 70], radius=80, fill=BODY + (255,), outline=EDGE + (255,), width=3)
+-    d.polygon([(cx - 70, cy + 40), (cx + 70, cy + 40), (cx + 50 + s * 20, cy + 170), (cx - 50 + s * 20, cy + 170)], fill=BODY + (255,))
+-    d.ellipse([cx - 50 + s * 20, cy + 148, cx + 50 + s * 20, cy + 192], fill=BODY + (255,), outline=EDGE + (255,), width=3)
+-    d.line([(cx - 70, cy + 52), (cx - 50 + s * 20, cy + 170)], fill=EDGE + (255,), width=3)
+-    d.line([(cx + 70, cy + 52), (cx + 50 + s * 20, cy + 170)], fill=EDGE + (255,), width=3)
+-    d.rounded_rectangle([cx - 104, cy - 94, cx + 104, cy + 54], radius=64, fill=FACE + (255,))
+-    # trigger, seen past the top edge
+-    d.rounded_rectangle([cx - 46, cy - 136, cx + 46, cy - 104], radius=14, fill=(70, 76, 92, 255), outline=ACCENT + (255,), width=3)
+-    # thumbstick (inner side) and two buttons (outer side)
+-    sx = cx - s * 44
+-    d.ellipse([sx - 34, cy - 54, sx + 34, cy + 14], fill=(24, 26, 32, 255), outline=ACCENT + (255,), width=3)
+-    d.ellipse([sx - 20, cy - 40, sx + 20, cy], fill=(60, 64, 76, 255))
+-    bx = cx + s * 50
+-    names = ('X', 'Y') if left else ('A', 'B')
+-    pos = [(bx - s * 4, cy + 2), (bx + s * 14, cy - 50)]
+-    for (x, y), n in zip(pos, names):
+-        used = True
+-        d.ellipse([x - 21, y - 21, x + 21, y + 21], fill=(24, 26, 32, 255), outline=(ACCENT if used else EDGE) + (255,), width=3)
+-        d.text((x, y), n, font=btn_f, fill=(WHITE if used else GREY) + (255,), anchor='mm')
+-    marks = {'stick': (sx, cy - 20, 36), 'trigger': (cx, cy - 120, 0), names[0]: (*pos[0], 23)}
+-    marks[names[1]] = (*pos[1], 23)
+-    if left:
+-        marks['menu'] = (cx + 6, cy + 35, 13)
+-        d.ellipse([cx - 6, cy + 24, cx + 18, cy + 46], fill=(24, 26, 32, 255), outline=ACCENT + (255,), width=2)
+-        d.line([(cx + 1, cy + 31), (cx + 11, cy + 31)], fill=WHITE + (255,), width=2)
+-        d.line([(cx + 1, cy + 35), (cx + 11, cy + 35)], fill=WHITE + (255,), width=2)
+-        d.line([(cx + 1, cy + 39), (cx + 11, cy + 39)], fill=WHITE + (255,), width=2)
+-    return marks
+-
+-def label(mark, tx, ty, head, sub, right_side):
+-    x, y, rad = mark if len(mark) == 3 else (*mark, 0)
+-    dx, dy = (tx - 14 if right_side else tx + 14) - x, ty + 18 - y
+-    n = math.hypot(dx, dy) or 1
+-    x, y = x + dx / n * rad, y + dy / n * rad
+-    ex = tx - 14 if right_side else tx + 14
+-    d.line([(x, y), (ex, ty + 18)], fill=GREY + (255,), width=2)
+-    d.ellipse([x - 5, y - 5, x + 5, y + 5], fill=ACCENT + (255,))
+-    a = 'la' if right_side else 'ra'
+-    d.text((tx, ty), head, font=label_f, fill=WHITE + (255,), anchor=a)
+-    if sub:
+-        d.text((tx, ty + 36), sub, font=small_f, fill=GREY + (255,), anchor=a)
+-
+-cy = 450
+-L = controller(560, cy, True)
+-R = controller(976, cy, False)
+-d.text((560, cy + 222), 'LEFT', font=small_f, fill=GREY + (255,), anchor='mm')
+-d.text((976, cy + 222), 'RIGHT', font=small_f, fill=GREY + (255,), anchor='mm')
+-label(L['trigger'], 400, 316, 'Trigger  TOPSPIN', None, False)
+-label(L['stick'], 400, 382, 'Thumbstick  MOVE', 'press: Start', False)
+-label(L['Y'], 400, 456, 'Y  LOB', None, False)
+-label(L['X'], 400, 512, 'X  SLICE', None, False)
+-label(L['menu'], 400, 570, 'Menu  SETTINGS', 'mode, replays, cutaways', False)
+-label(R['trigger'], 1136, 312, 'Trigger  TOPSPIN', 'and confirm in menus', True)
+-label(R['stick'], 1136, 392, 'Thumbstick  MOVE', 'press: Start', True)
+-label(R['B'], 1136, 476, 'B  LOB', 'top spin + slice together', True)
+-label(R['A'], 1136, 550, 'A  SLICE', None, True)
+-
+-# the countdown's frame: "STARTING IN" [digits] "s", a bar under it
+-BAR = (468, 800, 1068, 816)            # the bar's trough, x0 y0 x1 y1
+-DIG = (800, 704)                       # top left of the first digit cell on the panel
+-DIG_H = 72                             # digit height as drawn there
+-d.text((780, 714), 'STARTING IN', font=label_f, fill=GREY + (255,), anchor='ra')
+-d.text((DIG[0] + 2 * DIG_H * CELL_W // CELL_H + 8, 714), 'SECONDS', font=label_f, fill=GREY + (255,))
+-d.text((PANEL_W // 2, 836), 'Loading the game - your view is set when it starts', font=small_f, fill=GREY + (255,), anchor='ma')
+-d.rounded_rectangle(BAR, radius=8, fill=(30, 36, 50, 255))
++glow = Image.new('RGBA', (PANEL_W, PANEL_H), (0, 0, 0, 0))
++ImageDraw.Draw(glow).ellipse([260, -40, 1280, 470], fill=(40, 80, 160, 90))
++panel.alpha_composite(glow.filter(ImageFilter.GaussianBlur(90)))
++
++# the title's place: the game's logo (or our fallback title) is put here at
++# start-up, fitted and centred; the VR badge follows the logo's right edge
++LOGO_AT = (210, 28, 840, 360)          # x, y, w, h on the panel
++VR_AT = (-14, -26)                     # badge left = logo right + dx, badge bottom = logo bottom + dy
++
++
++# ---- lettering in the arcade style: gradient fill, dark keyline, white rim, bevel, shadow
++def vgrad(size, stops):
++    w, h = size
++    col = Image.new('RGBA', (1, 256))
++    for y in range(256):
++        t = y / 255
++        for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
++            if t0 <= t <= t1:
++                u = (t - t0) / (t1 - t0) if t1 > t0 else 0
++                col.putpixel((0, y), tuple(int(c0[i] + (c1[i] - c0[i]) * u) for i in range(3)) + (255,))
++                break
++    return col.resize((w, h), Image.BILINEAR)
++
++CHROME = [(0, (255, 255, 255)), (.44, (226, 232, 240)), (.52, (170, 180, 196)), (.64, (236, 240, 246)), (1, (196, 202, 214))]
++
++def shifted(m, dx, dy):
++    o = Image.new('L', m.size, 0); o.paste(m, (int(dx), int(dy))); return o
++
++def lettering(text, size, stops=CHROME, rim=None, key=None):
++    """the text on a transparent image, cropped: arcade-style lettering"""
++    f = font(HEAVY_I[0], size, HEAVY_I[1])
++    rim = rim if rim is not None else max(4, size // 14)
++    key = key if key is not None else max(3, size // 22)
++    probe = ImageDraw.Draw(Image.new('L', (1, 1))).textbbox((0, 0), text, font=f, stroke_width=rim)
++    w, h = probe[2] - probe[0] + 40, probe[3] - probe[1] + 40
++    at = (20 - probe[0], 20 - probe[1])
++    def mask(stroke=0):
++        m = Image.new('L', (w, h), 0)
++        ImageDraw.Draw(m).text(at, text, font=f, fill=255, stroke_width=stroke, stroke_fill=255)
++        return m
++    full, mrim, mkey = mask(), mask(rim), mask(key)
++    out = Image.new('RGBA', (w, h), (0, 0, 0, 0))
++    sh = Image.new('RGBA', (w, h), (0, 0, 0, 0))
++    sh.putalpha(shifted(mrim, size * .02, size * .05).filter(ImageFilter.GaussianBlur(size * .03)).point(lambda v: v * 190 // 255))
++    out.alpha_composite(sh)
++    for m, c in ((mrim, WHITE), (mkey, (6, 8, 18))):
++        lay = Image.new('RGBA', (w, h), c + (255,)); lay.putalpha(m); out.alpha_composite(lay)
++    bb = full.getbbox()
++    body = Image.new('RGBA', (w, h), (0, 0, 0, 0))
++    body.paste(vgrad((w, bb[3] - bb[1]), stops), (0, bb[1]))
++    body.putalpha(ImageChops.multiply(body.getchannel('A'), full))
++    out.alpha_composite(body)
++    dd = max(1, size // 60)        # bevel
++    for m, c, al in ((ImageChops.subtract(full, shifted(full, dd, dd)), (255, 255, 255), 150),
++                     (ImageChops.subtract(full, shifted(full, -dd, -dd)), (0, 10, 40), 110)):
++        lay = Image.new('RGBA', (w, h), c + (0,))
++        lay.putalpha(ImageChops.multiply(m.filter(ImageFilter.GaussianBlur(dd * .6)).point(lambda v: v * al // 255), full))
++        out.alpha_composite(lay)
++    return out.crop(out.getbbox())
++
++def underline(w, h):
++    """a lime and orange speed stripe, slanted as the lettering"""
++    s = Image.new('RGBA', (w, h), (0, 0, 0, 0))
++    sd = ImageDraw.Draw(s)
++    sl = h * .9
++    sd.polygon([(sl, 0), (w, 0), (w - sl, h * .55), (0, h * .55)], fill=LIME + (255,))
++    sd.polygon([(sl * .55, h * .62), (w * .8, h * .62), (w * .8 - sl * .45, h), (0, h)], fill=ORANGE + (255,))
++    return s
++
++# the VR badge (parts row): "VR" in the logo's chrome style, the stripe under it
++vr = lettering('VR', 150)
++VR_W, VR_H = vr.size[0] + 10, vr.size[1] + 26
++badge = Image.new('RGBA', (VR_W, VR_H), (0, 0, 0, 0))
++badge.alpha_composite(underline(VR_W - 20, 22), (14, VR_H - 24))
++badge.alpha_composite(vr, (0, 0))
++
++# the fallback title (parts row): our own lettering, the same place as the logo
++t1 = lettering('VIRTUA TENNIS 3', 132)
++t2 = lettering('VR', 132, stops=[(0, (255, 255, 230)), (.45, (240, 250, 190)), (.52, LIME), (1, (120, 150, 20))])
++gap = 24
++TITLE_W = t1.size[0] + gap + t2.size[0]
++TITLE_H = max(t1.size[1], t2.size[1]) + 40
++title = Image.new('RGBA', (TITLE_W, TITLE_H), (0, 0, 0, 0))
++title.alpha_composite(t1, (0, 0))
++title.alpha_composite(t2, (t1.size[0] + gap, 0))
++title.alpha_composite(underline(int(TITLE_W * .62), 26), (int(TITLE_W * .19), TITLE_H - 30))
++if TITLE_W > PANEL_W - 40:     # never wider than the panel
++    k = (PANEL_W - 40) / TITLE_W
++    title = title.resize((int(TITLE_W * k), int(TITLE_H * k)), Image.LANCZOS)
++    TITLE_W, TITLE_H = title.size
++TITLE_AT = ((PANEL_W - TITLE_W) // 2, LOGO_AT[1] + (LOGO_AT[3] - TITLE_H) // 2)
++
++# ---- the controls: one small row, either hand alike (xr_controls.c lever_buttons)
++def chip_trigger(cx, cy):
++    d.rounded_rectangle([cx - 30, cy - 14, cx + 30, cy + 14], radius=13, fill=CHIP + (255,), outline=LIME + (255,), width=3)
++    d.text((cx, cy), 'TRIGGER', font=font(F + 'Avenir Next.ttc', 13, 2), fill=WHITE + (255,), anchor='mm')
++
++def chip_buttons(cx, cy, a, b):
++    for i, n in enumerate((a, b)):
++        x = cx - 22 + i * 44
++        d.ellipse([x - 19, cy - 19, x + 19, cy + 19], fill=CHIP + (255,), outline=LIME + (255,), width=3)
++        d.text((x, cy + 1), n, font=btn_f, fill=WHITE + (255,), anchor='mm')
++
++def chip_stick(cx, cy):
++    d.ellipse([cx - 22, cy - 22, cx + 22, cy + 22], fill=CHIP + (255,), outline=LIME + (255,), width=3)
++    d.ellipse([cx - 11, cy - 11, cx + 11, cy + 11], fill=EDGE + (255,))
++    for dx, dy in ((0, -30), (0, 30), (-30, 0), (30, 0)):    # small arrows round it
++        x, y = cx + dx, cy + dy
++        if dx == 0:
++            s = 1 if dy > 0 else -1
++            d.polygon([(x - 6, y - 3 * s), (x + 6, y - 3 * s), (x, y + 5 * s)], fill=GREY + (255,))
++        else:
++            s = 1 if dx > 0 else -1
++            d.polygon([(x - 3 * s, y - 6), (x - 3 * s, y + 6), (x + 5 * s, y)], fill=GREY + (255,))
++
++def chip_menu(cx, cy):
++    d.ellipse([cx - 19, cy - 19, cx + 19, cy + 19], fill=CHIP + (255,), outline=LIME + (255,), width=3)
++    for k in (-6, 0, 6):
++        d.line([(cx - 8, cy + k), (cx + 8, cy + k)], fill=WHITE + (255,), width=3)
++
++ROW_Y = 520                              # the glyphs' centre line
++items = [(chip_trigger, (), 'TOP SPIN', 'trigger'),
++         (chip_buttons, ('A', 'X'), 'SLICE', 'A or X'),
++         (chip_buttons, ('B', 'Y'), 'LOB', 'B or Y'),
++         (chip_stick, (), 'MOVE', 'stick  (click: Start)'),
++         (chip_menu, (), 'SETTINGS', 'left menu button')]
++COL_W = 250
++x0 = (PANEL_W - COL_W * len(items)) // 2 + COL_W // 2
++for i, (draw, args, act, sub) in enumerate(items):
++    cx = x0 + i * COL_W
++    draw(cx, ROW_Y, *args)
++    d.text((cx, ROW_Y + 50), act, font=act_f, fill=LIME + (255,), anchor='ma')
++    d.text((cx, ROW_Y + 94), sub, font=small_f, fill=GREY + (255,), anchor='ma')
++    if i:
++        d.line([(cx - COL_W // 2, ROW_Y - 30), (cx - COL_W // 2, ROW_Y + 120)], fill=(40, 56, 96, 255), width=2)
++d.text((PANEL_W // 2, 452), 'CONTROLS  -  either hand', font=label_f, fill=WHITE + (255,), anchor='mm')
++
++# the countdown's frame: "STARTING IN" [digits] "SECONDS", a bar under it
++BAR = (468, 784, 1068, 798)            # the bar's trough, x0 y0 x1 y1
++DIG = (800, 696)                       # top left of the first digit cell on the panel
++DIG_H = 66                             # digit height as drawn there
++d.text((780, 704), 'STARTING IN', font=label_f, fill=GREY + (255,), anchor='ra')
++d.text((DIG[0] + 2 * DIG_H * CELL_W // CELL_H + 8, 704), 'SECONDS', font=label_f, fill=GREY + (255,))
++d.text((PANEL_W // 2, 820), 'Loading the game - your view is set when it starts', font=small_f, fill=GREY + (255,), anchor='ma')
++d.rounded_rectangle(BAR, radius=7, fill=(26, 34, 58, 255))
+ 
+ img.alpha_composite(panel, (0, 0))
+ 
+-# the cells: digits 0-9, then solid white
++# the cells: digits 0-9, then the bar's solid colour
+ cells = ImageDraw.Draw(img)
+ for k in range(10):
+     x = k * CELL_W
+     cells.text((x + CELL_W // 2, PANEL_H + CELL_H // 2 + 4), str(k), font=digit_f, fill=WHITE + (255,), anchor='mm')
+-cells.rectangle([10 * CELL_W + 8, PANEL_H + 8, 11 * CELL_W - 8, PANEL_H + CELL_H - 8], fill=ACCENT + (255,))
++cells.rectangle([10 * CELL_W + 8, PANEL_H + 8, 11 * CELL_W - 8, PANEL_H + CELL_H - 8], fill=LIME + (255,))
++
++# the parts row: the VR badge, then the fallback title
++PY = PANEL_H + CELL_H
++assert VR_H <= PARTS_H and TITLE_H <= PARTS_H and VR_W + 8 + TITLE_W <= W, (VR_W, VR_H, TITLE_W, TITLE_H)
++VR = (0, PY, VR_W, VR_H)
++TITLE = (VR_W + 8, PY, TITLE_W, TITLE_H)
++img.alpha_composite(badge, VR[:2])
++img.alpha_composite(title, TITLE[:2])
+ 
+ raw = img.tobytes()
+ z = zlib.compress(raw, 9)
+ with open(sys.argv[1], 'w') as f:
+     f.write('/* Generated by quest/tools/vt3_splash.py - original artwork for the\n'
+-            ' * Quest start-up screen (xr_splash.c). Do not edit; run the script. */\n')
++            ' * Quest start-up screen (host_xr.c). Do not edit; run the script.\n'
++            ' * No game art: the title logo is read from the player\'s game files at\n'
++            ' * start-up and composited into lg_splash_logo_at (splash_logo.c). */\n')
+     f.write('#include <stddef.h>\n')
+     f.write(f'const int lg_splash_w = {W}, lg_splash_h = {H}, lg_splash_panel_h = {PANEL_H};\n')
+     f.write(f'const int lg_splash_cell[2] = {{ {CELL_W}, {CELL_H} }};\n')
+     f.write(f'const int lg_splash_digits[3] = {{ {DIG[0]}, {DIG[1]}, {DIG_H} }};   /* first digit: left, top, height on the panel */\n')
+     f.write(f'const int lg_splash_bar[4] = {{ {BAR[0]}, {BAR[1]}, {BAR[2]}, {BAR[3]} }};\n')
++    f.write(f'const int lg_splash_logo_at[4] = {{ {LOGO_AT[0]}, {LOGO_AT[1]}, {LOGO_AT[2]}, {LOGO_AT[3]} }};   /* the logo\'s place: x, y, w, h */\n')
++    f.write(f'const int lg_splash_vr[4] = {{ {VR[0]}, {VR[1]}, {VR[2]}, {VR[3]} }};   /* the VR badge in the atlas */\n')
++    f.write(f'const int lg_splash_vr_at[2] = {{ {VR_AT[0]}, {VR_AT[1]} }};   /* from the fitted logo\'s bottom right */\n')
++    f.write(f'const int lg_splash_title[4] = {{ {TITLE[0]}, {TITLE[1]}, {TITLE[2]}, {TITLE[3]} }};   /* our own title in the atlas */\n')
++    f.write(f'const int lg_splash_title_at[2] = {{ {TITLE_AT[0]}, {TITLE_AT[1]} }};   /* where it goes without the logo */\n')
++    f.write('const char lg_splash_logo_file[] = "resource/sprite/I_ADV_titlelogo_us_KB.abr";   /* the player\'s, in the game folder */\n')
+     f.write(f'const size_t lg_splash_zlen = {len(z)};\n')
+     f.write('const unsigned char lg_splash_z[] = {\n')
+     for i in range(0, len(z), 24):
+@@ -180,12 +246,11 @@ with open(sys.argv[1], 'w') as f:
+     f.write('};\n')
+ print(f'{W}x{H}, {len(raw)} bytes -> {len(z)} deflated')
+ if len(sys.argv) > 2:
+-    prev = img.copy()
+-    pd = ImageDraw.Draw(prev)
+-    # preview with "32" and a 40 % bar, as the headset shows it
++    prev = img.crop((0, 0, PANEL_W, PANEL_H))
++    prev.alpha_composite(title, TITLE_AT)
+     for i, ch in enumerate('32'):
+         k = int(ch); cw = DIG_H * CELL_W // CELL_H
+         cell = img.crop((k * CELL_W, PANEL_H, (k + 1) * CELL_W, PANEL_H + CELL_H)).resize((cw, DIG_H))
+         prev.alpha_composite(cell, (DIG[0] + i * cw, DIG[1]))
+-    pd.rounded_rectangle([BAR[0], BAR[1], BAR[0] + (BAR[2] - BAR[0]) * 0.4, BAR[3]], radius=8, fill=ACCENT + (255,))
++    ImageDraw.Draw(prev).rounded_rectangle([BAR[0], BAR[1], BAR[0] + (BAR[2] - BAR[0]) * 0.4, BAR[3]], radius=7, fill=LIME + (255,))
+     prev.save(sys.argv[2])

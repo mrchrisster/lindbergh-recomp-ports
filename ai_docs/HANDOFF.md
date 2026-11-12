@@ -168,6 +168,17 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~14:45 build worker: TASK 1 COMMITTED (submodule 992a066)
+  - macOS-verified, Quest smoke run OWED.** Texture filtering (aniso),
+  save name (default PLAYER), Reset save, card result windows shut, LOSE,
+  `lose` scene. Headless macOS: `/tmp/vt3w/aniso` (`[gl] texture filtering:
+  anisotropic 8x`, flow same as `/tmp/vt3w/aniso0`), `/tmp/vt3w/name`
+  (record named ACE, written at both judges), `/tmp/vt3w/lose` (Stats ->
+  Continue 4544 -> Gameover 5206, then attract; frame 4560 shows CONTINUE?).
+  Icon committed (outer 9fcb08f). Splash: `splash_logo.c` (logo read at
+  start-up, DXT5 decode, fallback) written + tested; the owner then asked
+  for a FRESH splash design (left/right controller drawings, no big
+  digits) - in progress.
 - **2026-11-12 ~15:00 build worker (inherited aniso / save name / lose / Reset
   save) - reviewed, UNCOMMITTED, macOS runs in progress.** The diff is more
   than the conductor listed: also a **Reset save** row (both Advanced pages,
