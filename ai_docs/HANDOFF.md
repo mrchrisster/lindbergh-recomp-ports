@@ -168,6 +168,28 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker (2026-11-11 23:00), step 1 - state found.** The T8 worker
+  went on after its last checkpoint: hold for frame 1949 written (wip diff
+  now refreshed from the working tree, outer `ae51cd3`), APK built 21:10
+  (`quest/VirtuaTennis3VR.apk` sha256 0fa1b111..., copy
+  `.../123aec40-.../scratchpad/VirtuaTennis3VR_t8.apk`); a rebuild of the
+  working tree now gives the **same bytes**, and that is what is installed.
+  Its regression ran on it (`.../123aec40-.../scratchpad/t8reg.sh`, results
+  `/tmp/vt3q/T8/{P1,R_imm,R_cls,R_cuts,R_m0,R_m1,R_m2}`, `REG_DONE`), unit
+  tests OK (`/tmp/vt3q/T8/ut_*.txt`). F6-F8 (Classic) show 1949 held both
+  eyes (F4 = an earlier blit version: right eye still from above). R_imm:
+  Stats->Load 3082->3442 (360: the menu script's tap at 3440 skips it),
+  6974->7574 (600), round 3 reached; black only the game's own; R_cls
+  flow fine; R_cuts fine; no FATAL/WARNING/watchdog. **BLACK_LOG is blind in
+  Classic now** (flat: only frames 0-1 logged) - judge Classic by game shots.
+  **The owner played worn on this build ~22:30-22:51 and confirmed all
+  three T8 fixes** (conductor). He changed vr.cfg himself at 22:51 (mode
+  immersive, immersive replays/overlays/cutaways on): **that is now the
+  owner's vr.cfg** - `/tmp/vt3q/T8b/vr.cfg.owner2251` (restore this one, not
+  the 20:31 `vr.cfg.owner`). His session log: `/tmp/vt3q/T8b/owner_session_vt3.log`.
+  Next: GPU_TIME run + Immersive 1944-1985 capture (`/tmp/vt3q/T8b/`, helper
+  `.../786966e7-.../scratchpad/t8run.sh`), commit T8, then T9 (viewer
+  distance 5/6/7/8 m + camera height row).
 - **T8 worker, step 1 - both bugs captured, fixes written (test build
   installed, NOT committed).** Strips: `~/Desktop/Claude/vt3-bugs/`
   (`classic_topdown_match_start_BEFORE/AFTER.png`,
