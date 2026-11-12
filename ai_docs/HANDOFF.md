@@ -168,6 +168,13 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 5 - T9 height verified (shots).** H-20/-10/10/20
+  (`/tmp/vt3q/T8b/H*`, cab 0): the eye moves along up as set, both eyes;
+  sheet `~/Desktop/Claude/vt3-view/camera_height_steps.png` (game moment at
+  2300 differs per run). The 3200 shot is Gamesetmatch (flat close-up, fine),
+  not the slate - slate shots at 3500 for -20/+20 added to seq3 (runs L-20,
+  L20). Guide / backlog text for T9 written (uncommitted). Next: S* serve
+  meter runs (running), then seq3.
 - **T8b worker, step 4 - T8 COMMITTED (submodule `2c3f4f4`, outer
   `44efc1a`), T9 step back verified.** D50-D80 (`/tmp/vt3q/T8b/D*`): the
   view steps back as set, both eyes; sheet
