@@ -191,3 +191,15 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   only, keys unchanged).
 - Then T11 (POV camera, `ai_docs/research/pov-camera.md`), card reader bar,
   T4 shadow mask.
+
+## 2026-11-12 ~01:30 (T10/T12 worker)
+- **T10 committed + installed** (submodule 2e61a2c, outer 77a006a): replays /
+  point cutaways Off / Flat screen / In the world / Camera view; Quest S1+S2
+  smoke runs, vr.cfg restored byte-identical; strips ~/Desktop/Claude/vt3-replay/.
+  Known: the game's replay intro wipe shows as a plate in the world; near
+  ground washed white in replay frames (glare).
+- **T12** (owner's menu changes): Classic / VR buttons on top, VR label,
+  Camera closer / Step back removed (fixed 20 m / 5 m), Camera height Low /
+  Medium / High, High at the far end (the far end exists: after a change of
+  ends 1P plays from the far side; latched in the StartLoop after it).
+  Status: see HANDOFF 3.1 top entry.

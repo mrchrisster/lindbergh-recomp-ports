@@ -58,12 +58,6 @@ and asked that all progress and research be written to the docs.
       shader link key's world bit, flat frames forced in Classic. Today the
       Mode row applies on the next start ("Restart now"). Groundwork: see
       In progress.
-- [ ] Pick the defaults for the camera's forward move (Camera closer, 20 m)
-      and step back (6 m) - adjustable in Immersive's advanced settings.
-      2026-11-11 late (owner): Step back is now 5 / 6 / 7 / 8 m (3 and 9 m
-      were too far in / out) and there is a **Camera height** row (2 m lower
-      .. 2 m higher, Standard default) - owner to judge worn. Pictures:
-      `~/Desktop/Claude/vt3-view/`.
 - [ ] Sky (owner to judge worn): Immersive's Sky row - Stadium (default) is
       now Sega's own sky all round and overhead (each court's full sky dome,
       which the headset used to cut down to a cone in front - the "two
@@ -90,6 +84,21 @@ and asked that all progress and research be written to the docs.
       `make(bool, level)` per round (attendance grows through the
       tournament); no camera-end rule was found in it, so the empty sections
       may simply have no cards at that crowd level. Not investigated further.
+
+## Done (2026-11-12)
+- [x] **Settings panel: Classic / VR buttons on top** (owner, T12). Two big
+      buttons above everything, the chosen one highlighted, a line under them
+      saying which runs and whether a restart is needed (Restart now right
+      below). "Immersive" is called "VR" on the panel (vr.cfg and env names
+      unchanged). Picture: `~/Desktop/Claude/vt3-view/panel_T12.png`.
+- [x] **VR viewpoint fixed: 20 m closer, 5 m back** (owner, T12) - the
+      Camera closer and Step back rows are gone; old vr.cfg values ignored.
+      **Camera height** is Low / Medium / High (camera's own, +1 m, +2 m);
+      when your player is at the far end (after a change of ends) it is
+      always High.
+- [x] **Replays and point cutaways in the world** (T10): Off / Flat screen /
+      In the world / Camera view in VR's advanced settings (default Off).
+      Owner to judge worn. Strips: `~/Desktop/Claude/vt3-replay/`.
 
 ## Done (2026-11-11)
 - [x] **Sky in Immersive: one sky.** The court's own sky (Sega's 360-degree

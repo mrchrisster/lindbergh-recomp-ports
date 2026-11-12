@@ -89,7 +89,7 @@ working on its area):
   unknown keys are dropped at the next save): `mode classic|immersive`;
   Classic: `replays`, `overlays`, `classic.cutaways`, `classic.shadow
   1024|2048|4096`; Immersive: `immersive.replays`, `.overlays`, `.cutaways`
-  (on/off), `.dolly`, `.back` (game units, 0.1 m), `.sky stadium|painted|off`,
+  (`.replays` / `.cutaways` off|flat|world|camera), `.height 0|10|20`, `.sky stadium|painted|off`,
   `.shadow` (`immersive.stand_y` is gone, ignored when read). A run's env variable wins over each, and is
   never written to vr.cfg (nor are `LINDBERGH_XR_SET` values). The run's
   values are logged at start: `[world] mode immersive (vr.cfg) dolly 200
@@ -120,6 +120,15 @@ working on its area):
   several files). Symbols are mangled, e.g. `_ZN3hud14drawServePowerEv`.
 
 ## Done (see the backlog's Done list for the full set)
+
+- 2026-11-12 **T12: owner's menu changes** (guide section 8 "Panel and
+  viewpoint, T12"): Classic / VR buttons on top of every page, "Immersive"
+  shown as "VR", Camera closer / Step back rows removed (fixed 20 m / 5 m),
+  Camera height Low / Medium / High, High always with your player at the
+  far end. vr.cfg now has no `immersive.dolly` / `.back`;
+  `immersive.height 0|10|20`. Test switches: `LINDBERGH_VT3_DOLLY` / `_BACK`
+  / `_HEIGHT`, `LINDBERGH_VT3_FAR_HIGH=0`. Panel picture (unit test painter,
+  `LINDBERGH_TEST_PANEL_PPM`): `~/Desktop/Claude/vt3-view/panel_T12.png`.
 
 - 2026-11-12 **T10: replays and point cutaways in the world** (guide section
   8 "Replays and point cutaways in the world"). Immersive rows Replays /
