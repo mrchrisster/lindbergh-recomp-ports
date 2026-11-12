@@ -123,3 +123,6 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Owner asks whether replay cameras can be immersive in Immersive mode:
   read-only research worker writing `ai_docs/research/immersive-replay-cameras.md`
   (not committed by it; conductor commits).
+- **Owner's decision (replays in Immersive): option 1/A - the viewer stays
+  where they are and the point replays in the world.** Research worker told to
+  design that in depth; implementation is the task after T9.
