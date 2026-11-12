@@ -168,6 +168,12 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **Sky worker, group 3 - conductor's go; regression of `9d68719` RUNNING**
+  (`.../w2/reg.sh`: installs `VirtuaTennis3VR_skyonly.apk`, then R_imm prize
+  Immersive 330 s FLOWLOG+BLACK_LOG, R_cls Classic 330 s, R_m0/1/2 Immersive
+  match starts rounds 0-2 100 s; results `/tmp/vt3q/X/R_*`). Owner's vr.cfg
+  unchanged after his worn session. If cut off: check `R_*` logs, then
+  `adb shell am force-stop org.lindbergh.vt3.vr`, empty env.txt.
 - **Sky worker, group 2 (2026-11-11 night) - sky COMMITTED, regression
   of it still owed; PAUSED for the conductor.** Submodule `9d68719` (sky
   dome fix + test switches; T4 left out, kept as
