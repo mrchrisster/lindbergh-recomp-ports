@@ -1,0 +1,1148 @@
+diff --git a/src/runtime/hle_gl_posix.c b/src/runtime/hle_gl_posix.c
+index 887ff22..7aaac22 100644
+--- a/src/runtime/hle_gl_posix.c
++++ b/src/runtime/hle_gl_posix.c
+@@ -13,12 +13,14 @@
+ #include <math.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ 
+ #include "gl_posix.h"
+ #include "arbprog.h"
+ #include "glsl_pp.h"
+ #include "glsl_compat.h"
+ #include "stereo.h"
++#include "world_mode.h"
+ 
+ int g_gl_trace;
+ int g_list_log;
+@@ -546,6 +548,10 @@ static void h_glGetError(CPU *c)
+     RET(GL_NO_ERROR);
+ }
+ 
++#ifndef LINDBERGH_VULKAN
++static float g_aniso;                   /* Texture filtering, below */
++static void aniso_upload(GLenum target, GLint level);
++#endif
+ static void h_glTexImage2D(CPU *c)
+ {
+     {   /* LINDBERGH_CUBE_LOG=1: uploads into a cube map's faces */
+@@ -567,9 +573,11 @@ static void h_glTexImage2D(CPU *c)
+         glTexImage2D(A32(0), AI32(1), GL_RGBA, w, h, AI32(5), GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+         glPixelStorei(GL_UNPACK_ALIGNMENT, was);
+         free(rgba);
++        if (g_aniso != 0) aniso_upload(A32(0), AI32(1));
+         return;
+     }
+     glTexImage2D(A32(0), AI32(1), ifmt, w, h, AI32(5), fmt, type, px);
++    if (g_aniso != 0) aniso_upload(A32(0), AI32(1));
+ }
+ 
+ static void h_glTexSubImage2D(CPU *c)
+@@ -776,6 +784,141 @@ static void h_glIsEnabled(CPU *c)
+     int on;
+     if (arb_is_enabled(A32(0), &on)) RET(on); else RET(glIsEnabled(A32(0)));
+ }
++/* Texture filtering (vr.cfg aniso, LINDBERGH_ANISO=0|2|4|8|16; Virtua Tennis
++ * 3's Advanced pages, on restart): anisotropic filtering for the game's
++ * mipmapped 2D textures - the court lines, the net, the ad boards seen at a
++ * grazing angle stay sharp instead of blurring to a coarser mip level (MSAA
++ * does nothing for a texture's inside). Given where the game itself sets a
++ * mip-using minification filter (glTexParameteri / f, GL_TEXTURE_MIN_FILTER
++ * *_MIPMAP_*): GL_TEXTURE_MAX_ANISOTROPY_EXT set right after, on the same
++ * texture - inside a display list too (Virtua Tennis 3 sets texture state in
++ * lists; the extra call is compiled with it and replays with it). A filter
++ * without mips sets it back to 1. VT3 makes no mipmaps itself (no
++ * glGenerateMipmap: its mip levels come from files), so a mip filter means a
++ * file texture: render targets, depth textures and screen copies never have
++ * one, and a texture the stereo layer has seen rendered / copied into is
++ * skipped anyway. HUD and font atlases with mips are drawn screen-aligned,
++ * where anisotropic filtering samples as before. The runtime's own textures
++ * (splash, panel, sky) are made with direct GL calls, not through here.
++ * Off (the default): the game's call as it was, nothing added. Decided at
++ * the first call (world_mode is resolved by then). Not on the Vulkan host. */
++#ifndef LINDBERGH_VULKAN
++static float g_aniso = -1;      /* -1 not decided yet, 0 off, else the level (clamped to the driver's) */
++static unsigned g_aniso_sets, g_aniso_resets, g_aniso_skipped;
++static void aniso_decide(void)
++{
++    const char *e = getenv("LINDBERGH_ANISO");
++    int want = world_mode_aniso();
++    if (!world_mode_capable() && !(e && *e)) want = 0;     /* another game: only by env */
++    g_aniso = 0;
++    if (want < 2) return;
++    const char *ext = (const char *)glGetString(GL_EXTENSIONS);
++    GLfloat max = 0;
++    if (ext && strstr(ext, "GL_EXT_texture_filter_anisotropic")) glGetFloatv(0x84FF /* GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT */, &max);
++    if (max < 2) { fprintf(stderr, "[gl] texture filtering: %dx asked, the driver has no anisotropic filtering - standard\n", want); return; }
++    g_aniso = (float)want < max ? (float)want : max;
++    fprintf(stderr, "[gl] texture filtering: anisotropic %.0fx (asked %d, driver max %.0f) on mipmapped textures\n", g_aniso, want, max);
++}
++static void aniso_after(GLenum target, GLenum pname, GLint param)
++{
++    if (g_aniso < 0) aniso_decide();
++    if (g_aniso <= 0 || target != GL_TEXTURE_2D || pname != GL_TEXTURE_MIN_FILTER) return;
++    const int mip = param == GL_NEAREST_MIPMAP_NEAREST || param == GL_LINEAR_MIPMAP_NEAREST ||
++                    param == GL_NEAREST_MIPMAP_LINEAR || param == GL_LINEAR_MIPMAP_LINEAR;
++    if (mip) {
++        GLint bound = 0;
++        glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
++        if (stereo_texture_is_target((unsigned)bound)) { g_aniso_skipped++; return; }
++    }
++    glTexParameterf(GL_TEXTURE_2D, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, mip ? g_aniso : 1.0f);
++    if (mip) g_aniso_sets++; else g_aniso_resets++;
++    if ((mip ? g_aniso_sets : g_aniso_resets) == 1 || g_aniso_sets % 5000 == 1)
++        fprintf(stderr, "[gl] texture filtering: %u mipmapped filter sets given %.0fx, %u plain set back to 1, %u render targets skipped\n",
++                g_aniso_sets, g_aniso, g_aniso_resets, g_aniso_skipped);
++}
++/* ...and at a texture's upload (glTexImage2D / glCompressedTexImage2D, level 0) when its filter
++ * is a mip filter then: most of VT3's textures never set one and keep GL's default,
++ * NEAREST_MIPMAP_LINEAR, and get their mips from GL_GENERATE_MIPMAP - the parameter calls alone
++ * reached 1 texture by frame 2600 (macOS log). A mip filter on a texture without mips samples
++ * black, so the game makes mips for every such texture. */
++static unsigned g_aniso_uploads;
++static void aniso_upload(GLenum target, GLint level)
++{
++    if (g_aniso < 0) aniso_decide();
++    {   static int lg = -1, n;      /* LINDBERGH_ANISO_LOG=1: each upload seen (60 at most) */
++        if (lg < 0) { const char *v = getenv("LINDBERGH_ANISO_LOG"); lg = v && *v == '1'; }
++        if (lg && n++ < 60) { GLint b = 0, mf = 0; glGetIntegerv(GL_TEXTURE_BINDING_2D, &b); glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &mf);
++                              fprintf(stderr, "[gl] upload target %#x level %d texture %d min filter %#x\n", target, level, b, mf); } }
++    if (g_aniso <= 0 || target != GL_TEXTURE_2D || level != 0) return;
++    GLint bound = 0, minf = 0;
++    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
++    glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minf);
++    if (minf != GL_NEAREST_MIPMAP_NEAREST && minf != GL_LINEAR_MIPMAP_NEAREST && minf != GL_NEAREST_MIPMAP_LINEAR && minf != GL_LINEAR_MIPMAP_LINEAR) return;
++    if (stereo_texture_is_target((unsigned)bound)) { g_aniso_skipped++; return; }
++    glTexParameterf(GL_TEXTURE_2D, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, g_aniso);
++    if (++g_aniso_uploads == 1 || g_aniso_uploads % 500 == 0)
++        fprintf(stderr, "[gl] texture filtering: %u mipmapped textures given %.0fx at their upload (last: texture %d, min filter %#x)\n",
++                g_aniso_uploads, g_aniso, bound, minf);
++}
++static void h_glCompressedTexImage2D(CPU *c)
++{
++    glCompressedTexImage2D(A32(0), AI32(1), A32(2), AI32(3), AI32(4), AI32(5), AI32(6), APTR(7));
++    if (g_aniso != 0) aniso_upload(A32(0), AI32(1));
++}
++#ifndef LINDBERGH_GL4ES
++static void h_glTexImage2D_desk(CPU *c)
++{
++    glTexImage2D(A32(0), AI32(1), AI32(2), AI32(3), AI32(4), AI32(5), A32(6), A32(7), APTR(8));
++    if (g_aniso != 0) aniso_upload(A32(0), AI32(1));
++}
++#endif
++/* the game's own anisotropy (VT3 asks 2x on its court texture): with Texture filtering on, the
++ * larger of the two */
++static unsigned g_aniso_game[2];        /* the game's own anisotropy calls: kept, raised */
++static float aniso_game(GLenum target, float v)
++{
++    if (g_aniso < 0) aniso_decide();
++    int raise = 0;
++    if (g_aniso > v && target == GL_TEXTURE_2D) {      /* a mipmapped file texture only, as above */
++        GLint bound = 0, minf = 0;
++        glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
++        glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minf);
++        raise = (minf == GL_NEAREST_MIPMAP_NEAREST || minf == GL_LINEAR_MIPMAP_NEAREST || minf == GL_NEAREST_MIPMAP_LINEAR ||
++                 minf == GL_LINEAR_MIPMAP_LINEAR) && !stereo_texture_is_target((unsigned)bound);
++    }
++    if (g_aniso_game[raise]++ == 0)
++        fprintf(stderr, "[gl] the game asks %.0fx anisotropic filtering on a texture%s\n", v,
++                raise ? " - Texture filtering raises it" : g_aniso > v ? " - kept (no mip filter)" : " - kept");
++    return raise ? g_aniso : v;
++}
++static void h_glTexParameteri(CPU *c)
++{
++    if (A32(1) == 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */ && g_aniso != 0) {
++        glTexParameterf(A32(0), A32(1), aniso_game(A32(0), (float)AI32(2)));
++        return;
++    }
++    glTexParameteri(A32(0), A32(1), AI32(2));
++    if (g_aniso != 0) aniso_after(A32(0), A32(1), AI32(2));
++}
++static void h_glTexParameterf(CPU *c)
++{
++    uint32_t raw = A32(2); float f; memcpy(&f, &raw, 4);
++#ifndef LINDBERGH_GL4ES
++    if (A32(1) == 0x8501 /* GL_TEXTURE_LOD_BIAS */) {
++        /* LINDBERGH_LOD_BIAS=0 on the desktop: the game's bias (-1 on the crowd, boards, court) left
++         * out, as GLES had it before T5 - for comparing pictures (the desktop applies it natively) */
++        static int keep = -1;
++        if (keep < 0) { const char *v = getenv("LINDBERGH_LOD_BIAS"); keep = !(v && *v == '0');
++                        if (!keep) fprintf(stderr, "[gl] the game's texture LOD bias left out (LINDBERGH_LOD_BIAS=0)\n"); }
++        if (!keep) return;
++    }
++#endif
++    if (A32(1) == 0x84FE && g_aniso != 0) f = aniso_game(A32(0), f);
++    glTexParameterf(A32(0), A32(1), f);
++    if (g_aniso != 0) aniso_after(A32(0), A32(1), (GLint)f);
++}
++#endif
++
+ static void h_glPushAttrib(CPU *c) { arb_push_attrib(A32(0)); glPushAttrib(A32(0)); }
+ static void h_glPopAttrib(CPU *c)  { arb_pop_attrib(); glPopAttrib(); }
+ 
+@@ -941,6 +1084,15 @@ void hle_register_gl(void)
+     hle_bind("glGetUniformLocationARB", h_glGetUniformLocationARB); gl_bind_named("glGetUniformLocationARB", h_glGetUniformLocationARB);
+     hle_bind("glGetAttribLocationARB", h_glGetAttribLocationARB); gl_bind_named("glGetAttribLocationARB", h_glGetAttribLocationARB);
+     hle_bind("glGetObjectParameterivARB", h_glGetObjectParameterivARB); gl_bind_named("glGetObjectParameterivARB", h_glGetObjectParameterivARB);
++#ifndef LINDBERGH_VULKAN
++    hle_bind("glTexParameteri", h_glTexParameteri); gl_bind_named("glTexParameteri", h_glTexParameteri);
++    hle_bind("glTexParameterf", h_glTexParameterf); gl_bind_named("glTexParameterf", h_glTexParameterf);
++    hle_bind("glCompressedTexImage2DARB", h_glCompressedTexImage2D); gl_bind_named("glCompressedTexImage2DARB", h_glCompressedTexImage2D);
++    hle_bind("glCompressedTexImage2D", h_glCompressedTexImage2D); gl_bind_named("glCompressedTexImage2D", h_glCompressedTexImage2D);
++#endif
++#if !defined(LINDBERGH_GL4ES) && !defined(LINDBERGH_VULKAN)
++    hle_bind("glTexImage2D", h_glTexImage2D_desk); gl_bind_named("glTexImage2D", h_glTexImage2D_desk);
++#endif
+ #ifdef LINDBERGH_GL4ES
+     hle_bind("glTexImage2D", h_glTexImage2D); gl_bind_named("glTexImage2D", h_glTexImage2D);
+     hle_bind("glGetError", h_glGetError); gl_bind_named("glGetError", h_glGetError);
+diff --git a/src/runtime/hle_sega.c b/src/runtime/hle_sega.c
+index ab67bb3..91a92b2 100644
+--- a/src/runtime/hle_sega.c
++++ b/src/runtime/hle_sega.c
+@@ -882,6 +882,8 @@ static int watch_route(void)
+  *   LINDBERGH_VT3_WIN=1     1P wins every point (the point's winner, match
+  *                           +0x61, is set to player 0 before match::calcPoint
+  *                           scores it): matches won in a few rallies
++ *   LINDBERGH_VT3_LOSE=1    the mirror: every point to the other side (1) -
++ *                           the lose path (continue, game over, ranking)
+  *   LINDBERGH_VT3_PRIZE_TRACE=N  LINDBERGH_TRACE_VP starts N frames after the
+  *                           result slate's first prize coin sound (its
+  *                           counter rolling), whatever frame that lands on */
+@@ -978,9 +980,10 @@ static void h_vt3_rand(CPU *c)
+     g_vt3_rand(c);
+ }
+ static void (*g_vt3_calc_point)(CPU *);
++static uint8_t g_vt3_point_to;              /* LINDBERGH_VT3_WIN=1: 0 (1P), LINDBERGH_VT3_LOSE=1: 1 (the opponent) */
+ static void h_vt3_calc_point(CPU *c)
+ {
+-    wr8(A32(0) + 0x61, 0);                  /* the point goes to 1P */
++    wr8(A32(0) + 0x61, g_vt3_point_to);     /* the point goes to 1P (WIN) or the other side (LOSE) */
+     push32(c, 0xDEADBEEFu);
+     g_vt3_calc_point(c);
+ }
+@@ -1095,6 +1098,7 @@ static void h_vt3_card_rw_off(CPU *c) { RET(0xFFFFFFFFu); }
+ #define VT3_FROM_NO_CARD_DECIDE 0x0812A8DDu
+ static void (*g_vt3_reset_card)(CPU *), (*g_vt3_calc_card)(CPU *), (*g_vt3_reset_use)(CPU *);
+ static uint32_t g_save_player;          /* 1P's player with a loaded record, this session */
++static unsigned g_save_gen;             /* vt3_save_generation() when it was loaded: a Reset save since drops it */
+ static uint8_t g_save_before[VT3_SAVE_REC];
+ static void vt3_save_describe(const char *what, uint32_t p)
+ {
+@@ -1136,6 +1140,17 @@ static void h_vt3_reset_card(CPU *c)
+         if (set_use) guest_call(c, set_use, a, 1); else wr32(p + VT3_CARD_FLAGS, rd32(p + VT3_CARD_FLAGS) | 1u);
+         vt3_save_describe("fresh record (first time for this character)", p);
+     }
++    {   /* the record's name (+0x04, 32 bytes, NUL-padded; the game's blank record says "noname"):
++         * vr.cfg save_name / LINDBERGH_VT3_SAVE_NAME, default PLAYER - up to 10 of A-Z 0-9, as the
++         * game's own name entry (nameEntry::decideNameEntry: 10 characters, copied to player+0x494) */
++        const char *nm = world_mode_save_name();
++        uint8_t *dst = GP(p + VT3_CARD_DATA + 4);
++        if (nm && *nm && strncmp((const char *)dst, nm, 32)) {
++            memset(dst, 0, 32);
++            memcpy(dst, nm, strlen(nm) < 31 ? strlen(nm) : 31);
++            vt3_save_describe("named", p);
++        }
++    }
+     vt3_save_card_row(p);
+     {   /* the name the game shows for a card player (result slate: "(null)" without it):
+          * usrMenuCharLoop::setRealPlayerName(side 0, plno) - copies the record's name
+@@ -1149,11 +1164,17 @@ static void h_vt3_reset_card(CPU *c)
+     }
+     memcpy(g_save_before, GP(p + VT3_CARD_DATA), VT3_SAVE_REC);
+     g_save_player = p;
++    g_save_gen = vt3_save_generation();
+ }
+ static void vt3_save_take(const char *when)
+ {
+     const uint32_t p = g_save_player;
+     if (!p || !(rd32(p + VT3_CARD_FLAGS) & 1u)) return;
++    if (g_save_gen != vt3_save_generation()) {      /* Reset save since this record was loaded: not written back */
++        extern unsigned g_frame;
++        fprintf(stderr, "[save] frame %u: %s - the save was reset during this game: this record is not kept\n", g_frame, when);
++        return;
++    }
+     const uint8_t *r = GP(p + VT3_CARD_DATA);
+     int changed = 0, first = -1, last = -1;
+     for (int i = 0; i < VT3_SAVE_REC; i++) if (r[i] != g_save_before[i]) { changed++; if (first < 0) first = i; last = i; }
+@@ -1181,6 +1202,22 @@ static void h_vt3_reset_use(CPU *c)
+     push32(c, 0xDEADBEEFu);
+     g_vt3_reset_use(c);
+ }
++/* The card result windows (CCardResultWindowManager: "Remove Card.", card
++ * written / not written - opened by the stats, game over, to-be-continued
++ * and ending game over loops' draw_card for a player with the use-card bit)
++ * talk about a card that is not there: with Save progress on they stay shut.
++ * Draw-only (nothing waits on them; the loops' timing is their own): window_open,
++ * window_open_card and set_message_mode do nothing. */
++static void h_vt3_card_result_open(CPU *c)
++{
++    static int once;
++    extern unsigned g_frame;
++    if (!once++) fprintf(stderr, "[save] frame %u: card result window (side %u, message %u) left shut - no card to remove\n", g_frame, A32(1), A32(2));
++    (void)c;
++}
++/* ...and their lines' messages (set on a window the game opened just before:
++ * an empty bar drew where the ending's game over set two) */
++static void h_vt3_card_result_msg(CPU *c) { (void)c; }
+ static void h_vt3_slot_open(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot_open(c); }
+ static void h_vt3_slot(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot(c); }
+ static void h_vt3_slot_card(CPU *c) { if (!g_arcade_overlays) return; push32(c, 0xDEADBEEFu); g_vt3_slot_card(c); }
+@@ -1385,7 +1422,11 @@ static void vt3_camlog_install(void)
+     X(GameoverLoop, "_ZN17usrAcGameoverLoop4initEv") \
+     X(ChangeendLoop, "_ZN18usrAcChangeendLoop4initEv") \
+     X(GamesetmatchLoop, "_ZN21usrAcGamesetmatchLoop4initEv") \
+-    X(TobecontinuedLoop, "_ZN22usrAcTobecontinuedLoop4initEv")
++    X(TobecontinuedLoop, "_ZN22usrAcTobecontinuedLoop4initEv") \
++    X(RankingLoop, "_ZN16usrAcRankingLoop4initEv") \
++    X(NameentryLoop, "_ZN18usrAcNameentryLoop4initEv") \
++    X(StaffrollLoop, "_ZN18usrAcStaffrollLoop4initEv") \
++    X(EndingGameoverLoop, "_ZN23usrAcEndingGameoverLoop4initEv")
+ /* Virtua Tennis 3, each match's start (usrAcEntranceLoop::init): the game's
+  * next frame draws the stadium through the menus' camera (from high above,
+  * lens 1.45) before the intro's camera is set - not seen on the arcade, a
+@@ -1997,7 +2038,10 @@ static void vt3_jumps(void)
+                 vt3_save_open(NULL);
+                 if (vt3_wrap("_ZN6player15reset_card_dataEv", &g_vt3_reset_card, h_vt3_reset_card) &&
+                     vt3_wrap("_ZN13playerManager13calcCard_dataEv", &g_vt3_calc_card, h_vt3_calc_card) &&
+-                    vt3_wrap("_ZN13playerManager13resetUse_cardEv", &g_vt3_reset_use, h_vt3_reset_use))
++                    vt3_wrap("_ZN13playerManager13resetUse_cardEv", &g_vt3_reset_use, h_vt3_reset_use) &&
++                    guest_override("_ZN24CCardResultWindowManager11window_openElm", h_vt3_card_result_open) &&
++                    guest_override("_ZN24CCardResultWindowManager16window_open_cardEl", h_vt3_card_result_open) &&
++                    guest_override("_ZN24CCardResultWindowManager16set_message_modeElmlb", h_vt3_card_result_msg))
+                     fprintf(stderr, "[sega] Virtua Tennis 3: Save progress on - 1P's card record kept in %s\n", vt3_save_path());
+                 else fprintf(stderr, "[sega] Virtua Tennis 3: WARNING Save progress hooks not installed\n");
+             } }
+@@ -2057,9 +2101,11 @@ static void vt3_jumps(void)
+                     fprintf(stderr, "[sega] Virtua Tennis 3: match::isHeatup not wrapped - big-point serve close-ups stay\n");
+                 fprintf(stderr, "[sega] Virtua Tennis 3: point cutaways %s\n", g_cutaways ? "on" : "off (skipped)");
+             } }
+-        const char *w = getenv("LINDBERGH_VT3_WIN");
+-        if (w && *w == '1' && vt3_wrap("_ZN5match9calcPointEv", &g_vt3_calc_point, h_vt3_calc_point))
+-            fprintf(stderr, "[sega] Virtua Tennis 3: 1P wins every point\n");
++        const char *w = getenv("LINDBERGH_VT3_WIN"), *lo = getenv("LINDBERGH_VT3_LOSE");
++        const int lose = lo && *lo == '1' && !(w && *w == '1');     /* WIN wins if both are set */
++        g_vt3_point_to = lose ? 1 : 0;
++        if (((w && *w == '1') || lose) && vt3_wrap("_ZN5match9calcPointEv", &g_vt3_calc_point, h_vt3_calc_point))
++            fprintf(stderr, "[sega] Virtua Tennis 3: %s every point\n", lose ? "1P loses" : "1P wins");
+         const char *sp = getenv("LINDBERGH_VT3_SPLIT");
+         g_vt3_split = sp && *sp == '1';
+         /* the close-up's pick: forced split (test), or no split while the cutaways
+diff --git a/src/runtime/host_menu_mac.m b/src/runtime/host_menu_mac.m
+index fcb3498..2ea793d 100644
+--- a/src/runtime/host_menu_mac.m
++++ b/src/runtime/host_menu_mac.m
+@@ -17,6 +17,7 @@
+ #include "host_settings.h"
+ #include "xr_settings.h"
+ #include "world_mode.h"
++#include "vt3_save.h"
+ 
+ void host_audio_toggle_mute(void);
+ 
+@@ -83,6 +84,7 @@ - (void)menuNeedsUpdate:(NSMenu *)menu
+             item(menu, @"Save Progress (1P's card record in vt3_save.bin)", @selector(toggleSave:), 0).state =
+                 s.save ? NSControlStateValueOn : NSControlStateValueOff;
+             if (world_mode_pinned(WM_SAVE)) item(menu, @"This run: set by LINDBERGH_VT3_SAVE", nil, 0).enabled = NO;
++            item(menu, @"Reset Save…", @selector(resetSave:), 0);
+             [menu addItem:[NSMenuItem separatorItem]];
+             item(menu, @"Takes effect when the game next starts", nil, 0).enabled = NO;
+         } else item(menu, @"(no game settings)", nil, 0).enabled = NO;
+@@ -99,6 +101,16 @@ - (void)resetAim:(id)s               { settings_reset_aim(); settings_save(); }
+ - (void)toggleMute:(id)s             { host_audio_toggle_mute(); }
+ - (void)setVolume:(NSMenuItem *)i    { settings()->volume = (int)i.tag; settings_save(); }
+ - (void)setLanguage:(NSMenuItem *)i  { settings()->country = (int)i.tag; settings_save(); }
++- (void)resetSave:(id)s
++{
++    /* the desktop's "pull twice": a confirmation; the file is moved aside, not deleted (vt3_save_reset) */
++    NSAlert *a = [[NSAlert alloc] init];
++    a.messageText = @"Reset the saved progress?";
++    a.informativeText = @"The save is moved aside (kept as a .bak file next to it). The next game starts a fresh save.";
++    [a addButtonWithTitle:@"Reset Save"];
++    [a addButtonWithTitle:@"Cancel"];
++    if ([a runModal] == NSAlertFirstButtonReturn) vt3_save_reset();
++}
+ - (void)toggleSave:(id)s             { LgXrSettings c = LG_XR_SETTINGS_DEFAULT; xr_settings_load(&c); c.save = !c.save; xr_settings_save(&c); }
+ 
+ @end
+diff --git a/src/runtime/host_xr.c b/src/runtime/host_xr.c
+index 662ea13..f8db32e 100644
+--- a/src/runtime/host_xr.c
++++ b/src/runtime/host_xr.c
+@@ -82,6 +82,7 @@
+ #include "xr_menu.h"
+ #include "xr_world_panel.h"
+ #include "world_mode.h"
++#include "vt3_save.h"
+ 
+ /* a debug switch, looked up once */
+ #define ENV_ON(name) ({ static int _on = -1; if (_on < 0) _on = getenv(name) != NULL; _on; })
+@@ -531,6 +532,7 @@ static void menu_choose(int row)
+     if((effects&XP_RATE_CHANGED)&&request_rate)request_rate(session,(float)cfg.refresh);
+     if(effects&XP_RECENTER)anchor_pending=1;
+     if(effects&XP_SAVE)cfg_save();
++    if(effects&XW_RESET_SAVE_FX){int n=vt3_save_reset();fprintf(stderr,"[xr] Reset save: %d file(s) moved aside - a fresh save at the next character select\n",n);}
+     if(effects&XP_RESTART)reset_game();
+ }
+ 
+@@ -761,7 +763,7 @@ static void input_frame(XrTime t)
+     if (fake_menu && views_ok && !fake_placed) { fake_placed = 1; menu_place(); menu.dirty = 1; }
+     if (xp_menu_button(&menu,menu_btn,prev[HAND_L][6])) {
+         fprintf(stderr, "[xr] settings panel %s\n", menu.open ? "open" : "closed");
+-        if (menu.open) { menu_place(); menu.hover = -1; menu.dirty = 1; wpanel.page = XW_PAGE_MAIN; wpanel.restore_armed = 0; }
++        if (menu.open) { menu_place(); menu.hover = -1; menu.dirty = 1; wpanel.page = XW_PAGE_MAIN; wpanel.restore_armed = 0; wpanel.reset_save_armed = 0; }
+     }
+     int g = gun_hand, off = 1 - g;
+ 
+@@ -790,7 +792,7 @@ static void input_frame(XrTime t)
+     /* (not on a lever cabinet: there Y is a shot - the lob, held while it charges -
+      * and the left controller's menu button opens the panel) */
+     if(!lever_cab && xp_hold_button(&menu,btn_b[off],prev[off][3],dual,t,&panel_held)) {
+-        if (menu.open) { menu_place(); menu.hover = -1; menu.dirty = 1; wpanel.page = XW_PAGE_MAIN; wpanel.restore_armed = 0; }
++        if (menu.open) { menu_place(); menu.hover = -1; menu.dirty = 1; wpanel.page = XW_PAGE_MAIN; wpanel.restore_armed = 0; wpanel.reset_save_armed = 0; }
+         rumble(off, 0.3f, 20);
+         fprintf(stderr, "[xr] settings panel %s (held button)\n", menu.open ? "open" : "closed");
+     }
+diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
+index 7685048..992c17c 100644
+--- a/src/runtime/stereo.c
++++ b/src/runtime/stereo.c
+@@ -2631,6 +2631,19 @@ static void fix_query(CPU *c, int k)
+     }
+ }
+ 
++/* a texture the game renders or copies into (a framebuffer's colour or depth
++ * texture, a copy of the screen, a view): never given anisotropic filtering
++ * (hle_gl_posix.c's Texture filtering). Known only once seen. */
++int stereo_texture_is_target(unsigned tex)
++{
++    if (!tex) return 0;
++    for (unsigned i = 0; i < g_nfb_color; i++) if (g_fb_color[i].tex == tex) return 1;
++    for (unsigned i = 0; i < g_nfb_depth; i++) if (g_fb_depth[i].depth == tex) return 1;
++    for (unsigned i = 0; i < g_nscreen_copy; i++) if (g_screen_copy[i] == tex) return 1;
++    for (int i = 0; i < g_n_view_tex; i++) if (g_view_tex[i] == tex) return 1;
++    return 0;
++}
++
+ static void exec(CPU *c, HleId id, HleHandler fn)
+ {
+     int k = cls(id)->kind;
+@@ -3767,7 +3780,47 @@ static void stereo_gl_call_inner(CPU *c, HleId id, HleHandler fn)
+             else if (cur && nl < 20000) { nl++; fprintf(stderr, "[list] %#x %s %#x %#x %#x %#x\n", cur, nm, A32(0), A32(1), A32(2), A32(3)); }
+         }
+     }
+-    if (!g_on) { fn(c); return; }
++    if (!g_on) {
++        /* LINDBERGH_PICK=<frame>,<x0>,<y>[,<x1>] (desktop, flat): every draw of that frame that changes
++         * a pixel of the row x0..x1 at y (from the bottom left of the bound framebuffer), with its
++         * texture and state - which draw is the net, and how it is drawn (alpha test / blend, filter,
++         * mips). A glBegin's pixels are read at the glBegin (none can be read inside it). */
++        static long pf = -2; static int px, py, px1;
++        static unsigned char row0[4 * 256];
++        if (pf == -2) { const char *v = getenv("LINDBERGH_PICK"); pf = -1;
++                        if (v) { int n = sscanf(v, "%ld,%d,%d,%d", &pf, &px, &py, &px1); if (n < 3) pf = -1; if (n < 4) px1 = px;
++                                 if (px1 < px) px1 = px; if (px1 - px > 255) px1 = px + 255; } }
++        const int k = cls(id)->kind;
++        if ((long)g_frame == pf && (is_draw(k) || k == K_END || k == K_BEGIN)) {
++            const int n = px1 - px + 1;
++            unsigned char b[4 * 256];
++            if (k == K_BEGIN) { glReadPixels(px, py, n, 1, GL_RGBA, GL_UNSIGNED_BYTE, row0); fn(c); return; }
++            if (k != K_END) glReadPixels(px, py, n, 1, GL_RGBA, GL_UNSIGNED_BYTE, row0);
++            fn(c);
++            glReadPixels(px, py, n, 1, GL_RGBA, GL_UNSIGNED_BYTE, b);
++            int changed = 0, first = -1;
++            for (int i = 0; i < n; i++) if (memcmp(row0 + 4 * i, b + 4 * i, 4)) { changed++; if (first < 0) first = i; }
++            if (changed) {
++                const unsigned char *a = row0 + 4 * first, *z = b + 4 * first;
++                GLint t2 = 0, fb = 0, minf = 0, magf = 0, maxl = 0, w = 0, h = 0, af = 0, unit = 0, gm = 0; GLfloat aref = 0, an = 0, lodb = 0;
++                glGetIntegerv(GL_ACTIVE_TEXTURE, &unit); glActiveTexture(GL_TEXTURE0);
++                glGetIntegerv(GL_TEXTURE_BINDING_2D, &t2); glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
++                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minf); glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, &magf);
++                glGetTexParameteriv(GL_TEXTURE_2D, 0x813D /* MAX_LEVEL */, &maxl); glGetTexParameterfv(GL_TEXTURE_2D, 0x84FE, &an);
++                glGetTexParameterfv(GL_TEXTURE_2D, 0x8501 /* LOD_BIAS */, &lodb); glGetTexParameteriv(GL_TEXTURE_2D, 0x8191 /* GENERATE_MIPMAP */, &gm);
++                glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w); glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
++                glGetIntegerv(GL_ALPHA_TEST_FUNC, &af); glGetFloatv(GL_ALPHA_TEST_REF, &aref);
++                glActiveTexture((GLenum)unit);
++                GLint fp = 0; int fpon = 0; glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_BINDING_ARB, &fp); arb_is_enabled(GL_FRAGMENT_PROGRAM_ARB, &fpon);
++                fprintf(stderr, "[pick] frame %u %s: %d of %d pixels (first x %d: %02x%02x%02x%02x -> %02x%02x%02x%02x) | fb %d tex %d %dx%d min %#x mag %#x maxlevel %d "
++                                "genmip %d aniso %.0f lodbias %.1f | alpha test %d func %#x ref %.2f blend %d depth %d fp %d%s\n", g_frame, hle_name(id), changed, n,
++                        px + first, a[0], a[1], a[2], a[3], z[0], z[1], z[2], z[3], fb, t2, w, h, minf, magf, maxl, gm, an, lodb,
++                        glIsEnabled(GL_ALPHA_TEST), af, aref, glIsEnabled(GL_BLEND), glIsEnabled(GL_DEPTH_TEST), fp, fpon ? "" : "(off)");
++            }
++            return;
++        }
++        fn(c); return;
++    }
+     const char *n = hle_name(id);
+ #ifdef LINDBERGH_GL4ES
+     if (gl4es_mv_trace) {   /* the dump frame with LIBGL_MV_CHECK: which call fails */
+diff --git a/src/runtime/stereo.h b/src/runtime/stereo.h
+index 35f50a8..dc7cee6 100644
+--- a/src/runtime/stereo.h
++++ b/src/runtime/stereo.h
+@@ -13,6 +13,7 @@ int  stereo_wide(int *w, int *h, float *k); /* its size, and the 4:3 picture's s
+ int  stereo_enabled(void);
+ void stereo_frame_begin(void);          /* before the game draws a frame */
+ void stereo_frame_end(void);            /* at the swap: draws the second eye */
++int  stereo_texture_is_target(unsigned tex);   /* rendered / copied into by the game (seen so far) */
+ /* glXMakeCurrent: draw into the eyes, as the window does */
+ void stereo_bind_window(void);
+ /* glXCreatePbuffer: the game draws into pbuffers, which are the eyes too */
+diff --git a/src/runtime/vt3_save.c b/src/runtime/vt3_save.c
+index 3ede8ee..a6b734f 100644
+--- a/src/runtime/vt3_save.c
++++ b/src/runtime/vt3_save.c
+@@ -5,6 +5,7 @@
+ #include "vt3_save.h"
+ 
+ #include <errno.h>
++#include <pthread.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -26,6 +27,9 @@ static struct { int character; uint64_t when; uint8_t rec[VT3_SAVE_REC]; } g_ent
+ static int g_n;
+ static int g_nowrite;                    /* an unreadable file could not be moved aside: never written over */
+ static char g_path[512];
++static unsigned g_gen;
++/* the panel's Reset save comes from the host's thread, the stores from the game's */
++static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
+ 
+ uint32_t vt3_save_crc32(const uint8_t *p, size_t n)
+ {
+@@ -115,9 +119,51 @@ const uint8_t *vt3_save_find(int character)
+     return NULL;
+ }
+ 
++static int store_locked(int character, const uint8_t rec[VT3_SAVE_REC]);
+ int vt3_save_store(int character, const uint8_t rec[VT3_SAVE_REC])
+ {
+     if (!g_path[0]) vt3_save_open(NULL);
++    pthread_mutex_lock(&g_lock);
++    const int r = store_locked(character, rec);
++    pthread_mutex_unlock(&g_lock);
++    return r;
++}
++
++static void default_path(void)
++{
++    if (g_path[0]) return;
++    const char *e = getenv("LINDBERGH_VT3_SAVE_FILE");
++    snprintf(g_path, sizeof g_path, "%s", e && *e ? e : "vt3_save.bin");
++}
++
++unsigned vt3_save_generation(void) { return g_gen; }
++
++int vt3_save_reset(void)
++{
++    pthread_mutex_lock(&g_lock);
++    default_path();
++    char bak[540], to[600], to_prev[620];
++    const long t = (long)time(NULL);
++    snprintf(bak, sizeof bak, "%s.bak", g_path);
++    snprintf(to, sizeof to, "%s.reset-%ld.bak", g_path, t);
++    snprintf(to_prev, sizeof to_prev, "%s.reset-%ld.prev.bak", g_path, t);
++    int moved = 0, bad = 0;
++    FILE *f = fopen(g_path, "rb");
++    if (f) { fclose(f); if (rename(g_path, to) == 0) moved++; else bad = 1; }
++    f = bad ? NULL : fopen(bak, "rb");      /* else the next start would load the backup */
++    if (f) { fclose(f); if (rename(bak, to_prev) == 0) moved++; else bad = 1; }
++    if (bad) fprintf(stderr, "[save] reset: could not move %s aside (%s) - the save is kept\n", g_path, strerror(errno));
++    else {
++        g_n = 0; g_nowrite = 0; g_gen++;
++        fprintf(stderr, "[save] reset: %s%s%s - a fresh save at the next character select\n",
++                moved ? "kept as " : "no save file yet", moved ? to : "", moved > 1 ? " (and its backup)" : "");
++    }
++    pthread_mutex_unlock(&g_lock);
++    return bad ? -1 : moved;
++}
++
++static int store_locked(int character, const uint8_t rec[VT3_SAVE_REC])
++{
+     int k = -1;
+     for (int i = 0; i < g_n; i++) if (g_ent[i].character == character) k = i;
+     if (k < 0) {
+diff --git a/src/runtime/vt3_save.h b/src/runtime/vt3_save.h
+index dfadbb9..f6ca464 100644
+--- a/src/runtime/vt3_save.h
++++ b/src/runtime/vt3_save.h
+@@ -44,6 +44,16 @@ const uint8_t *vt3_save_find(int character);
+  * (logged; memory keeps it, the next store tries again) */
+ int vt3_save_store(int character, const uint8_t rec[VT3_SAVE_REC]);
+ uint32_t vt3_save_crc32(const uint8_t *p, size_t n);
++/* Reset save (panel row / desktop menu): the save file is renamed
++ * <file>.reset-<time>.bak and its backup <file>.bak to
++ * <file>.reset-<time>.prev.bak (both kept, nothing deleted), the records in
++ * memory are dropped and the generation goes up, so a record loaded before
++ * is not written back (hle_sega.c) - the next character select starts a
++ * fresh one. Any thread. Returns the files moved (0: there was none), -1
++ * when one could not be moved (then nothing is dropped). */
++int vt3_save_reset(void);
++/* bumped by each reset */
++unsigned vt3_save_generation(void);
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/src/runtime/world_mode.c b/src/runtime/world_mode.c
+index a5b6424..0236aa1 100644
+--- a/src/runtime/world_mode.c
++++ b/src/runtime/world_mode.c
+@@ -25,12 +25,12 @@
+ static const char *const ENV_NAME[WM_COUNT] = {
+     "LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OVERLAYS", "LINDBERGH_VT3_CUTAWAYS",
+     "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK", "LINDBERGH_VT3_SKY",
+-    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE" };
++    "LINDBERGH_VT3_HEIGHT", "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE", "LINDBERGH_ANISO" };
+ static const char *const KEY_CLASSIC[WM_COUNT] = {
+-    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language", "msaa", "save" };
++    "mode", "replays", "overlays", "classic.cutaways", "classic.shadow", NULL, NULL, NULL, NULL, "classic.card_notice", "language", "msaa", "save", "aniso" };
+ static const char *const KEY_IMMERSIVE[WM_COUNT] = {
+     "mode", "immersive.replays", "immersive.overlays", "immersive.cutaways", "immersive.shadow",
+-    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "msaa", "save" };
++    "immersive.dolly", "immersive.back", "immersive.sky", "immersive.height", NULL, "language", "msaa", "save", "aniso" };
+ 
+ const char *world_mode_env_name(int key) { return key >= 0 && key < WM_COUNT ? ENV_NAME[key] : NULL; }
+ const char *world_mode_key(int key, int immersive)
+@@ -125,6 +125,10 @@ void world_mode_resolve(const LgXrSettings *s, int mode, int capable, unsigned p
+     o->msaa = s->msaa;
+     o->save = s->save;
+     if ((v = env(WM_SAVE))) { o->save = *v == '1' || !strcmp(v, "on"); k[WM_SAVE] = WM_SRC_ENV; }
++    o->aniso = xr_settings_aniso(s->aniso);
++    if ((v = env(WM_ANISO))) { o->aniso = xr_settings_aniso(atoi(v)); k[WM_ANISO] = WM_SRC_ENV; }
++    {   const char *nm = getenv("LINDBERGH_VT3_SAVE_NAME");
++        if (!(nm && *nm && xr_settings_save_name(nm, o->save_name))) xr_settings_save_name(s->save_name, o->save_name); }
+     if ((v = env(WM_MSAA))) { int n = atoi(v); o->msaa = n >= 4 ? 4 : n >= 2 ? 2 : 0; k[WM_MSAA] = WM_SRC_ENV; }
+     if ((v = env(WM_LANGUAGE))) { o->language = !(*v == '0' || !strcmp(v, "japanese")); k[WM_LANGUAGE] = WM_SRC_ENV; }
+     if ((v = env(WM_SKY))) { o->sky = world_mode_sky_value(v); k[WM_SKY] = WM_SRC_ENV; }
+@@ -178,17 +182,29 @@ void world_mode_init(int capable)
+     xr_settings_load(&s);                   /* the headset's stored settings (a scratch copy) */
+     world_mode_resolve(&s, -1, capable, 0, &g_wm, NULL);
+     present = file_present(g_wm.immersive);
++#else
++    {   /* the desktop: only the game settings its Game menu writes to vr.cfg (host_menu_mac.m:
++         * save, save_name) - display settings stay the headset's */
++        LgXrSettings f = LG_XR_SETTINGS_DEFAULT;
++        FILE *t = fopen("vr.cfg", "r");
++        if (t) {
++            fclose(t);
++            xr_settings_load(&f);
++            s.save = f.save; memcpy(s.save_name, f.save_name, sizeof s.save_name);
++            present = 1u << WM_SAVE;
++        }
++    }
+ #endif
+     world_mode_resolve(&s, -1, capable, present, &g_wm, src);
+     static const char *const SRC[] = { "default", "vr.cfg", "env" };
+     fprintf(stderr, "[world] mode %s (%s) dolly %.0f (%s) back %.0f (%s) height %.0f (%s) sky %s (%s) shadow %d (%s) "
+-                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s) msaa %d (%s) save %s (%s)%s\n",
++                    "replays %s (%s) overlays %s (%s) cutaways %s (%s) card notice %s (%s) language %s (%s) msaa %d (%s) save %s (%s) aniso %d (%s) save name %s%s\n",
+             g_wm.immersive ? "immersive" : "classic", SRC[src[WM_MODE]],
+             g_wm.dolly, SRC[src[WM_DOLLY]], g_wm.back, SRC[src[WM_BACK]], g_wm.height, SRC[src[WM_HEIGHT]],
+             sky_name(g_wm.sky), SRC[src[WM_SKY]], g_wm.shadow, SRC[src[WM_SHADOW]],
+             view_label(g_wm.replays, g_wm.replay_view, g_wm.immersive), SRC[src[WM_REPLAYS]], g_wm.overlays ? "on" : "off", SRC[src[WM_OVERLAYS]],
+             view_label(g_wm.cutaways, g_wm.cutaway_view, g_wm.immersive), SRC[src[WM_CUTAWAYS]],
+-            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], g_wm.msaa, SRC[src[WM_MSAA]], g_wm.save ? "on" : "off", SRC[src[WM_SAVE]], capable ? "" : " - this game has no world mode");
++            g_wm.card_notice ? "on" : "off", SRC[src[WM_CARD]], g_wm.language ? "english" : "japanese", SRC[src[WM_LANGUAGE]], g_wm.msaa, SRC[src[WM_MSAA]], g_wm.save ? "on" : "off", SRC[src[WM_SAVE]], g_wm.aniso, SRC[src[WM_ANISO]], g_wm.save_name, capable ? "" : " - this game has no world mode");
+     g_start = g_game = g_panel_req = g_wm.immersive;
+     atomic_store(&g_target, g_start);
+     atomic_store(&g_gl, g_start);
+@@ -285,6 +301,8 @@ int world_mode_card_notice(void) { return wm()->card_notice; }
+ int world_mode_language(void) { return wm()->language; }
+ int world_mode_msaa(void) { return wm()->msaa; }
+ int world_mode_save(void) { return wm()->save; }
++int world_mode_aniso(void) { return wm()->aniso; }
++const char *world_mode_save_name(void) { return wm()->save_name; }
+ int world_mode_replay_view(void) { return wm()->replay_view; }
+ int world_mode_cutaway_view(void) { return wm()->cutaway_view; }
+ int world_mode_sky(void) { return wm()->sky; }
+diff --git a/src/runtime/world_mode.h b/src/runtime/world_mode.h
+index 94133fe..5aa755a 100644
+--- a/src/runtime/world_mode.h
++++ b/src/runtime/world_mode.h
+@@ -19,7 +19,7 @@ extern "C" {
+ 
+ /* the values, for their env variables, sources and pins */
+ enum { WM_MODE, WM_REPLAYS, WM_OVERLAYS, WM_CUTAWAYS, WM_SHADOW, WM_DOLLY, WM_BACK, WM_SKY, WM_HEIGHT,
+-       WM_CARD, WM_LANGUAGE, WM_MSAA, WM_SAVE, WM_COUNT };
++       WM_CARD, WM_LANGUAGE, WM_MSAA, WM_SAVE, WM_ANISO, WM_COUNT };
+ enum { WM_SRC_DEFAULT, WM_SRC_FILE, WM_SRC_ENV };
+ 
+ typedef struct {
+@@ -40,6 +40,10 @@ typedef struct {
+     int language;               /* 1 English, 0 Japanese (vr.cfg language, LINDBERGH_VT3_LANGUAGE); on restart */
+     int msaa;                   /* anti-aliasing samples asked for: 0, 2, 4 (vr.cfg msaa, LINDBERGH_MSAA); on restart */
+     int save;                   /* Save progress: 1P's card record kept in vt3_save.bin (vr.cfg save, LINDBERGH_VT3_SAVE); on restart */
++    int aniso;                  /* anisotropic filtering of mipmapped world textures: 0 (off), 2, 4, 8, 16
++                                 * (vr.cfg aniso, LINDBERGH_ANISO); on restart */
++    char save_name[16];         /* the save record's name (vr.cfg save_name, LINDBERGH_VT3_SAVE_NAME; checked:
++                                 * xr_settings_save_name) */
+ } WmValues;
+ 
+ /* the env variable that pins a value for a run (LINDBERGH_REPLAYS, ...) */
+@@ -101,6 +105,8 @@ int world_mode_card_notice(void);
+ int world_mode_language(void);
+ int world_mode_msaa(void);
+ int world_mode_save(void);
++int world_mode_aniso(void);
++const char *world_mode_save_name(void);
+ /* LG_VIEW_FLAT / _WORLD / _CAMERA (live) */
+ int world_mode_replay_view(void);
+ int world_mode_cutaway_view(void);
+diff --git a/src/runtime/xr_settings.c b/src/runtime/xr_settings.c
+index f60ea55..6e1bc5a 100644
+--- a/src/runtime/xr_settings.c
++++ b/src/runtime/xr_settings.c
+@@ -22,7 +22,7 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+                "sight %s\ncrosshair %s\ngun %s\nhud_pitch %d\ndual %s\nstats %s\nfoveation %s\noverlays %s\nreplays %s\n"
+                "mode %s\nclassic.shadow %d\nclassic.cutaways %s\nimmersive.replays %s\nimmersive.overlays %s\n"
+                "immersive.cutaways %s\nimmersive.sky %s\nimmersive.shadow %d\n"
+-               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nmsaa %d\nsave %s\n",
++               "immersive.height %d\nclassic.card_notice %s\nlanguage %s\nmsaa %d\nsave %s\naniso %d\nsave_name %s\n",
+             c->scale, c->screen, c->aim, c->resolution, c->width, c->refresh, c->left_handed ? "left" : "right",
+             LASER_NAME[c->laser], c->auto_coins ? "auto" : "manual",
+             SIGHT_NAME[c->sight], c->crosshair ? "on" : "off", c->show_gun ? "on" : "off", c->hud_pitch, c->dual ? "on" : "off", c->show_stats ? "on" : "off",
+@@ -30,7 +30,29 @@ static int render(const LgXrSettings *c, char *b, size_t n)
+             c->world_mode ? "immersive" : "classic", c->classic_shadow, c->classic_cutaways ? "on" : "off",
+             view_name(c->imm_replays), c->imm_overlays ? "on" : "off", view_name(c->imm_cutaways),
+             c->imm_sky == LG_SKY_OFF ? "off" : c->imm_sky == LG_SKY_PAINTED ? "painted" : "stadium", c->imm_shadow,
+-            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese", c->msaa, c->save ? "on" : "off");
++            c->imm_height, c->classic_card_notice ? "on" : "off", c->language ? "english" : "japanese", c->msaa, c->save ? "on" : "off",
++            xr_settings_aniso(c->aniso), c->save_name[0] ? c->save_name : LG_XR_SAVE_NAME_DEFAULT);
++}
++
++int xr_settings_save_name(const char *in, char out[16])
++{
++    char b[16];
++    size_t n = in ? strlen(in) : 0;
++    int ok = n >= 1 && n <= LG_XR_SAVE_NAME_MAX;
++    for (size_t i = 0; ok && i < n; i++) {
++        char ch = in[i];
++        if (ch >= 'a' && ch <= 'z') ch = (char)(ch - 'a' + 'A');
++        if (!((ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'))) ok = 0;
++        b[i] = ch;
++    }
++    if (ok) { memcpy(out, b, n); out[n] = 0; }
++    else snprintf(out, 16, "%s", LG_XR_SAVE_NAME_DEFAULT);
++    return ok;
++}
++
++int xr_settings_aniso(int v)
++{
++    return v >= 16 ? 16 : v >= 8 ? 8 : v >= 4 ? 4 : v >= 2 ? 2 : 0;
+ }
+ 
+ /* LINDBERGH_XR_SET's keys are for its run only: the save writes those keys as
+@@ -96,6 +118,8 @@ void xr_settings_load(LgXrSettings *c)
+     if (c->imm_sky < LG_SKY_OFF || c->imm_sky > LG_SKY_PAINTED) c->imm_sky = d.imm_sky;
+     c->imm_dolly = d.imm_dolly; c->imm_back = d.imm_back;
+     if (c->msaa != 0 && c->msaa != 2 && c->msaa != 4) c->msaa = c->msaa > 4 ? 4 : c->msaa > 0 ? 2 : 0;
++    c->aniso = xr_settings_aniso(c->aniso);
++    { char nm[16]; xr_settings_save_name(c->save_name, nm); memcpy(c->save_name, nm, sizeof nm); }
+     if (c->imm_replays < LG_VIEW_OFF || c->imm_replays > LG_VIEW_CAMERA) c->imm_replays = d.imm_replays;
+     if (c->imm_cutaways < LG_VIEW_OFF || c->imm_cutaways > LG_VIEW_CAMERA) c->imm_cutaways = d.imm_cutaways;
+     /* the panel's choices (xr_world_panel.c); any other stored value - an
+@@ -138,6 +162,8 @@ void xr_settings_set(LgXrSettings *c,const char *key,const char *val)
+         else if (!strcmp(key, "language")) c->language = strcmp(val, "japanese") != 0;
+         else if (!strcmp(key, "msaa")) c->msaa = atoi(val);
+         else if (!strcmp(key, "save")) c->save = !strcmp(val, "on");
++        else if (!strcmp(key, "aniso")) c->aniso = atoi(val);
++        else if (!strcmp(key, "save_name")) snprintf(c->save_name, sizeof c->save_name, "%s", val);   /* checked at load */
+         else if (!strcmp(key, "foveation")) {
+             for (int i = 0; i < 4; i++) if (!strcmp(val, FOVEATION_NAME[i])) c->foveation = i;
+         }
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index 158bc86..2d72592 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -42,6 +42,11 @@ typedef struct {
+                                  * Classic on the headset; 0 off, today's); applies on the next start */
+     int save;                   /* "save on|off": Save progress - 1P's card record kept in vt3_save.bin
+                                  * (Virtua Tennis 3, both modes; default off); applies on the next start */
++    int aniso;                  /* "aniso 0|2|4|8|16": anisotropic filtering of the game's mipmapped world
++                                 * textures (Texture filtering Standard / Sharp 4x / Sharp 8x; 0 = the
++                                 * game's own filtering); applies on the next start */
++    char save_name[16];         /* "save_name PLAYER": the name a Save progress record carries (shown on the
++                                 * result slate; up to 10 of A-Z 0-9 - xr_settings_save_name); no panel row */
+ } LgXrSettings;
+ /* Each eye's image by default: the headset's own panel, pixel for pixel.
+  * OpenXR reports only a runtime-scaled recommendation, so the panel is the
+@@ -63,7 +68,15 @@ typedef struct {
+  * 2048, Camera height Medium (+1 m; T13). (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,0}
++                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,0,0,LG_XR_SAVE_NAME_DEFAULT}
++/* Save progress's record name (save_name): Virtua Tennis 3's name entry
++ * takes up to 10 characters; letters and digits only (the font's, and one
++ * vr.cfg token) */
++#define LG_XR_SAVE_NAME_DEFAULT "PLAYER"
++#define LG_XR_SAVE_NAME_MAX 10
++/* Texture filtering (aniso): the panel's choices; 2 and 16 by env / vr.cfg */
++#define LG_XR_ANISO_NSTEPS 3
++static const int LG_XR_ANISO_STEPS[LG_XR_ANISO_NSTEPS] = { 0, 4, 8 };
+ /* Immersive's (VR's) Camera height choices (immersive.height), game units
+  * (0.1 m): Low / Medium / High; a stored value off the list is read as the
+  * nearest (xr_settings_nearest; the first of two equally near) - an older
+@@ -82,6 +95,11 @@ static inline int xr_settings_nearest(int v, const int *steps, int n)
+ void xr_settings_load(LgXrSettings *settings);
+ void xr_settings_set(LgXrSettings *settings,const char *key,const char *value);
+ void xr_settings_save(const LgXrSettings *settings);
++/* in, upper-cased, into out when it is 1..LG_XR_SAVE_NAME_MAX letters / digits
++ * (returns 1); else out = LG_XR_SAVE_NAME_DEFAULT (returns 0) */
++int xr_settings_save_name(const char *in, char out[16]);
++/* an anisotropy value as stored: 0 (off), 2, 4, 8 or 16 - others the nearest below (1 = 0) */
++int xr_settings_aniso(int v);
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/runtime/xr_world_panel.c b/src/runtime/xr_world_panel.c
+index 1ccd50e..71d333c 100644
+--- a/src/runtime/xr_world_panel.c
++++ b/src/runtime/xr_world_panel.c
+@@ -11,7 +11,9 @@
+  * VR advanced: camera height (Low / Medium / High; your player at the far
+  * end is always High - stereo.c), the same three (replays and cutaways Off /
+  * Flat screen / Camera view), sky (Stadium / Painted / Off),
+- * shadow quality. Camera closer and Step back are gone (fixed 20 m / 5 m,
++ * shadow quality; both: Save progress, Reset save (pull twice) and Texture
++ * filtering (one value each for both modes, on restart; the main page is
++ * full). Camera closer and Step back are gone (fixed 20 m / 5 m,
+  * T12). Replays, cutaways, overlays, camera height and sky are live for the
+  * running mode; shadow quality and the mode apply on restart. A row whose env
+  * variable is set shows "(env.txt)" with the run's value and ignores clicks.
+@@ -48,6 +50,7 @@ static int wm_key(int item)
+     case XW_LANGUAGE: return WM_LANGUAGE;
+     case XW_MSAA: return WM_MSAA;
+     case XW_SAVE: return WM_SAVE;
++    case XW_ANISO: return WM_ANISO;
+     case XW_SKY: return WM_SKY;
+     default: return -1;
+     }
+@@ -62,7 +65,7 @@ static int pinned(const XwState *w, int item)
+ {
+     const int k = wm_key(item);
+     if (k < 0 || !(w->pins >> k & 1)) return 0;
+-    return k == WM_MODE || k == WM_LANGUAGE || k == WM_MSAA || k == WM_SAVE || page_mode(w) == w->running;
++    return k == WM_MODE || k == WM_LANGUAGE || k == WM_MSAA || k == WM_SAVE || k == WM_ANISO || page_mode(w) == w->running;
+ }
+ 
+ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+@@ -73,13 +76,13 @@ int xw_page_rows(const XwState *w, const LgXrSettings *cfg, int *rows)
+     switch (w->page) {
+     case XW_PAGE_CLASSIC: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_REPLAYS), XW_ROW(XW_CUTAWAYS), XW_ROW(XW_OVERLAYS),
+-                                 XW_ROW(XW_CARD), XW_ROW(XW_SAVE), XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_CARD), XW_ROW(XW_SAVE), XW_ROW(XW_RESET_SAVE), XW_ROW(XW_SHADOW), XW_ROW(XW_ANISO), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     case XW_PAGE_IMMERSIVE: {
+         static const int r[] = { XW_ROW(XW_BACK), XW_ROW(XW_HEIGHT),
+                                  XW_ROW(XW_REPLAYS), XW_ROW(XW_CUTAWAYS), XW_ROW(XW_OVERLAYS), XW_ROW(XW_SKY),
+-                                 XW_ROW(XW_SAVE), XW_ROW(XW_SHADOW), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
++                                 XW_ROW(XW_SAVE), XW_ROW(XW_RESET_SAVE), XW_ROW(XW_SHADOW), XW_ROW(XW_ANISO), XP_STATS, XW_ROW(XW_RESTORE), XP_CLOSE };
+         for (size_t i = 0; i < sizeof r / sizeof *r; i++) rows[n++] = r[i];
+         break; }
+     default:
+@@ -142,6 +145,14 @@ void xw_items(const XwState *w, const LgXrSettings *cfg, XmItem *it)
+     it[XW_LANGUAGE].label = "Language";
+     it[XW_MSAA].label = "Anti-aliasing";
+     it[XW_SAVE].label = "Save progress";
++    it[XW_RESET_SAVE].label = "Reset save";
++    snprintf(it[XW_RESET_SAVE].value, 40, "%s", w->reset_save_armed ? "Pull again to erase" : w->reset_save_done ? "Done (fresh at next game)" : "");
++    it[XW_ANISO].label = "Texture filtering";
++    {
++        const int a = pinned(w, XW_ANISO) ? w->eff.aniso : xr_settings_aniso(cfg->aniso);
++        if (a >= 2) snprintf(it[XW_ANISO].value, 40, "Sharp %dx%s", a, !pinned(w, XW_ANISO) && a != w->eff.aniso ? " (on restart)" : "");
++        else snprintf(it[XW_ANISO].value, 40, "Standard%s", !pinned(w, XW_ANISO) && a != w->eff.aniso ? " (on restart)" : "");
++    }
+     {
+         const int v = pinned(w, XW_SAVE) ? w->eff.save : cfg->save;
+         snprintf(it[XW_SAVE].value, 40, "%s%s", on_off(v), !pinned(w, XW_SAVE) && v != w->eff.save ? " (on restart)" : "");
+@@ -211,9 +222,15 @@ void xw_restore_defaults(LgXrSettings *c, int immersive)
+ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+ {
+     if (item < 0 || item >= XW_COUNT) return 0;
+-    const int armed = w->restore_armed;
+-    w->restore_armed = 0;
+-    if (pinned(w, item)) return armed ? XW_PAGE_CHANGED : 0;     /* (env.txt): the run's own value */
++    const int armed = w->restore_armed, save_armed = w->reset_save_armed;
++    w->restore_armed = 0; w->reset_save_armed = 0;
++    if (item == XW_RESET_SAVE) {        /* an action, not a setting: nothing stored, no env pin */
++        if (page_mode(w) < 0) return 0;
++        if (!save_armed) { w->reset_save_armed = 1; return XW_PAGE_CHANGED; }
++        w->reset_save_done = 1;
++        return XW_RESET_SAVE_FX | XW_PAGE_CHANGED;
++    }
++    if (pinned(w, item)) return armed || save_armed ? XW_PAGE_CHANGED : 0;     /* (env.txt): the run's own value */
+     const int im = page_mode(w) == 1;
+     const unsigned live = page_mode(w) == w->running ? XW_LIVE_CHANGED : 0;   /* the other mode's: saved for later */
+     unsigned fx = XP_SAVE;
+@@ -240,6 +257,7 @@ unsigned xw_choose(XwState *w, LgXrSettings *c, int item)
+     case XW_LANGUAGE: c->language = !c->language; break;                                                     /* on restart */
+     case XW_SAVE: if (page_mode(w) < 0) return 0; c->save = !c->save; break;                               /* on restart */
+     case XW_MSAA: c->msaa = c->msaa >= 4 ? 0 : c->msaa >= 2 ? 4 : 2; break;                                 /* Off > 2x > 4x, on restart */
++    case XW_ANISO: c->aniso = next_step(xr_settings_aniso(c->aniso), LG_XR_ANISO_STEPS, LG_XR_ANISO_NSTEPS); break;   /* Standard > 4x > 8x, on restart */
+     case XW_SHADOW: {
+         int *s = im ? &c->imm_shadow : &c->classic_shadow, k = 0;
+         while (k < 3 && SHADOWS[k] <= *s) k++;
+diff --git a/src/runtime/xr_world_panel.h b/src/runtime/xr_world_panel.h
+index 23e2405..b0eda7f 100644
+--- a/src/runtime/xr_world_panel.h
++++ b/src/runtime/xr_world_panel.h
+@@ -17,13 +17,16 @@ extern "C" {
+  * XW_MODE (a toggle), XW_DOLLY and XW_STEPBACK are no rows any more (T12). */
+ enum { XW_MODE, XW_RESTART, XW_ADVANCED, XW_BACK, XW_DOLLY, XW_STEPBACK, XW_REPLAYS, XW_CUTAWAYS,
+        XW_OVERLAYS, XW_SKY, XW_SHADOW, XW_RESTORE, XW_HEIGHT, XW_MODE_CLASSIC, XW_MODE_VR,
+-       XW_CARD, XW_LANGUAGE, XW_MSAA, XW_SAVE, XW_COUNT };
+-/* Classic's Card reader notice; the main page's Language and Anti-aliasing; both
+- * Advanced pages' Save progress (one value for both modes) - all on restart */
++       XW_CARD, XW_LANGUAGE, XW_MSAA, XW_SAVE, XW_ANISO, XW_RESET_SAVE, XW_COUNT };
++/* Classic's Card reader notice; the main page's Language and Anti-aliasing;
++ * both Advanced pages' Save progress and Texture filtering (one value each
++ * for both modes) - all on restart. Reset save (both Advanced pages, below Save
++ * progress): pull twice, like Restore defaults - returns XW_RESET_SAVE */
+ enum { XW_PAGE_MAIN, XW_PAGE_CLASSIC, XW_PAGE_IMMERSIVE, XW_PAGES };
+ /* xw_choose's effects, beside XP_SAVE and XP_RESTART */
+ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or, live, the mode) changed: world_mode_update */
+-       XW_PAGE_CHANGED = 1 << 17 };    /* the page or its rows changed */
++       XW_PAGE_CHANGED = 1 << 17,      /* the page or its rows changed */
++       XW_RESET_SAVE_FX = 1 << 18 };   /* Reset save confirmed: the host moves the save aside (vt3_save_reset) */
+ /* a page's row, as host_xr.c's menu_ids hold them: an XP_ item, or XP_COUNT + an XW_ item */
+ #define XW_ROW(x) (XP_COUNT + (x))
+ #define XW_ROWS_MAX (XP_COUNT + XW_COUNT)
+@@ -31,6 +34,8 @@ enum { XW_LIVE_CHANGED = 1 << 16,      /* a live value of the running mode (or,
+ typedef struct {
+     int page;                   /* XW_PAGE_ */
+     int restore_armed;          /* "Restore ... defaults" pulled once */
++    int reset_save_armed;       /* "Reset save" pulled once */
++    int reset_save_done;        /* the save was reset this run (the row says so) */
+     int running;                /* the mode this run started in: 0 Classic, 1 Immersive */
+     unsigned pins;              /* WM_ bits whose env variable is set (for the running mode's rows) */
+     WmValues eff;               /* the running values (world_mode_values) */
+diff --git a/tests/test_vt3_save.py b/tests/test_vt3_save.py
+index 6ef93d8..aad192d 100644
+--- a/tests/test_vt3_save.py
++++ b/tests/test_vt3_save.py
+@@ -23,9 +23,16 @@ class Vt3SaveTests(unittest.TestCase):
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-/* sv <file> open | store <ch> <fill> [<ch> <fill> ...] : prints the open result, the count, each character's first byte */
++/* sv <file> open | store <ch> <fill> [<ch> <fill> ...] : prints the open result, the count, each character's first byte
++ * sv <file> reset : opens, resets (prints "R<moved> g<generation> n<count>"), then stores nothing */
+ int main(int argc, char **argv) {
+     int r = vt3_save_open(argv[1]);
++    if (argc > 2 && !strcmp(argv[2], "reset")) {
++        unsigned g = vt3_save_generation();
++        int m = vt3_save_reset();
++        printf("R%d g%u n%d\n", m, vt3_save_generation() - g, vt3_save_count());
++        return 0;
++    }
+     printf("%d %d", r, vt3_save_count());
+     for (int i = 3; i + 1 < argc; i += 2) {
+         unsigned char rec[VT3_SAVE_REC];
+@@ -107,6 +114,32 @@ int main(int argc, char **argv) {
+             self.assertEqual(out, "2 1 3:7")
+             self.assertIn("loaded from the backup", log)
+ 
++    def reset(self, path):
++        p = subprocess.run([str(self.bin), str(path), "reset"], text=True, capture_output=True, check=True)
++        return p.stdout.strip(), p.stderr
++
++    def test_reset_moves_the_save_and_its_backup_aside(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            self.sv(f, 3, 7); self.sv(f, 3, 8)                                   # file + .bak
++            out, log = self.reset(f)
++            self.assertEqual(out, "R2 g1 n0")                                    # both moved, records dropped
++            self.assertIn("a fresh save at the next character select", log)
++            self.assertFalse(f.exists()); self.assertFalse((Path(d) / "vt3_save.bin.bak").exists())
++            kept = sorted(p for p in os.listdir(d) if ".reset-" in p)
++            self.assertEqual(len(kept), 2)
++            self.assertTrue(kept[0].endswith(".bak") and kept[1].endswith(".prev.bak"), kept)
++            self.assertEqual(self.sv(f)[0], "0 0")                               # the next start: fresh (not the backup)
++            # the moved file is still a good save (recoverable by renaming it back)
++            main = Path(d) / [p for p in kept if not p.endswith(".prev.bak")][0]
++            shutil.copy(main, f); self.assertEqual(self.sv(f)[0], "1 1 3:8")
++
++    def test_reset_without_a_save(self):
++        with tempfile.TemporaryDirectory() as d:
++            f = Path(d) / "vt3_save.bin"
++            self.assertEqual(self.reset(f)[0], "R0 g1 n0")
++            self.assertEqual(os.listdir(d), [])
++
+     def test_record_checksum_and_length_checked(self):
+         with tempfile.TemporaryDirectory() as d:
+             f = Path(d) / "vt3_save.bin"
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index 1a5b43b..a3de907 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -10,7 +10,8 @@ ENV_KEYS = ["LINDBERGH_VT3_IMMERSIVE", "LINDBERGH_REPLAYS", "LINDBERGH_ARCADE_OV
+             "LINDBERGH_SHADOW_SCALE", "LINDBERGH_VT3_DOLLY", "LINDBERGH_VT3_BACK",
+             "LINDBERGH_VT3_SKY", "LINDBERGH_VT3_HEIGHT", "LINDBERGH_XR_SET", "LINDBERGH_XR_SCALE", "LINDBERGH_VT3_LIVE_SWITCH",
+             "LINDBERGH_VT3_MODE_AT", "LINDBERGH_VT3_REPLAY_VIEW", "LINDBERGH_VT3_CUTAWAY_VIEW",
+-            "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_REGION", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE"]
++            "LINDBERGH_VT3_CARD_RW", "LINDBERGH_VT3_LANGUAGE", "LINDBERGH_REGION", "LINDBERGH_MSAA", "LINDBERGH_VT3_SAVE",
++            "LINDBERGH_ANISO", "LINDBERGH_VT3_SAVE_NAME"]
+ 
+ 
+ class WorldModeTests(unittest.TestCase):
+@@ -43,6 +44,10 @@ int main(int argc, char **argv) {
+                v->save, world_mode_pinned(WM_SAVE), world_mode_save());
+         return 0;
+     }
++    if (argc > 2 && !strcmp(argv[2], "aniso")) {    /* texture filtering, its pin, the getter; the save's name */
++        printf(" | %d %d %d | %s %s\n", v->aniso, world_mode_pinned(WM_ANISO), world_mode_aniso(), v->save_name, world_mode_save_name());
++        return 0;
++    }
+     if (argc > 2 && !strcmp(argv[2], "views")) {    /* replays / cutaways: on, view; and the pins */
+         printf(" | %d %d %d %d %d %d\n", v->replays, v->replay_view, v->cutaways, v->cutaway_view,
+                world_mode_pinned(WM_REPLAYS), world_mode_pinned(WM_CUTAWAYS));
+@@ -149,6 +154,24 @@ int main(int argc, char **argv) {
+         _, log = self.run_wm()
+         self.assertIn("msaa 0 (default)", log)
+ 
++    def test_texture_filtering_and_save_name(self):
++        a = lambda cfg=None, env=None, **k: self.run_wm(cfg, env, args=("1", "aniso"), **k)[0].split(" | ")
++        self.assertEqual(a()[1:], ["0 0 0", "PLAYER PLAYER"])                                # defaults: Standard, PLAYER
++        self.assertEqual(a("aniso 8\n")[1], "8 0 8")
++        self.assertEqual(a("mode immersive\naniso 4\n")[1], "4 0 4")                         # one value for both modes
++        self.assertEqual(a("aniso 6\n")[1], "4 0 4")                                          # off the list: the nearer below
++        self.assertEqual(a("aniso 8\n", {"LINDBERGH_ANISO": "16"})[1], "16 1 16")             # env wins, pinned
++        self.assertEqual(a("aniso 8\n", {"LINDBERGH_ANISO": "0"})[1], "0 1 0")
++        self.assertEqual(a("save_name chris\n")[2], "CHRIS CHRIS")
++        self.assertEqual(a("save_name chris\n", {"LINDBERGH_VT3_SAVE_NAME": "Ace"})[2], "ACE ACE")
++        self.assertEqual(a("save_name chris\n", {"LINDBERGH_VT3_SAVE_NAME": "bad name"})[2], "CHRIS CHRIS")  # a bad env name: vr.cfg's
++        self.assertIn("aniso 8 (vr.cfg)", self.run_wm("aniso 8\n")[1])
++        # the desktop: only Save progress and its name from vr.cfg (its Game menu writes them)
++        d = lambda cfg, env=None: self.run_wm(cfg, env, args=("1", "aniso"), binary=self.desk)[0].split(" | ")
++        self.assertEqual(d("aniso 8\nsave_name chris\n")[1:], ["0 0 0", "CHRIS CHRIS"])
++        self.assertEqual(d("aniso 8\n", {"LINDBERGH_ANISO": "8"})[1], "8 1 8")
++        self.assertEqual(self.run_wm("save on\nmode immersive\n", args=("1", "msaa"), binary=self.desk)[0].split(" | ")[2], "1 0 1")
++
+     def test_defaults_are_classic(self):
+         out, log = self.run_wm()
+         self.assertEqual(out, "0 1 1 1 1024 200 50 1 0.0")
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index 77cf1e4..c916f7b 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -58,7 +58,8 @@ int main(void) {
+ 
+     MODE_KEYS={"mode":"classic","classic.shadow":"1024","classic.cutaways":"on","immersive.replays":"off",
+                "immersive.overlays":"off","immersive.cutaways":"off","immersive.sky":"stadium","immersive.shadow":"2048",
+-               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0","save":"off"}
++               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0","save":"off",
++               "aniso":"0","save_name":"PLAYER"}
+ 
+     @staticmethod
+     def parse(text):
+@@ -77,7 +78,8 @@ int main(void) {
+     def test_mode_keys_round_trip(self):
+         cfg={"mode":"immersive","classic.shadow":"4096","classic.cutaways":"off","immersive.replays":"camera",
+              "immersive.overlays":"on","immersive.cutaways":"camera","immersive.sky":"painted","immersive.shadow":"1024",
+-             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4","save":"on"}
++             "immersive.height":"10","classic.card_notice":"on","language":"japanese","msaa":"4","save":"on",
++             "aniso":"8","save_name":"CHRIS"}
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("".join(f"{k} {v}\n" for k,v in cfg.items()))
+             self.run_settings(d)
+@@ -93,6 +95,22 @@ int main(void) {
+                 self.run_settings(d)
+                 self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())["msaa"],want,stored)
+ 
++    def test_aniso_off_the_list(self):
++        for stored,want in (("4","4"),("16","16"),("3","2"),("1","0"),("12","8"),("64","16"),("-1","0"),("bogus","0")):
++            with tempfile.TemporaryDirectory() as d:
++                (Path(d)/"vr.cfg").write_text(f"aniso {stored}\n")
++                self.run_settings(d)
++                self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())["aniso"],want,stored)
++
++    def test_save_name_checked(self):
++        # up to 10 letters / digits, upper-cased; anything else is the default PLAYER
++        for stored,want in (("Chris","CHRIS"),("P1","P1"),("ABCDEFGHIJ","ABCDEFGHIJ"),("ABCDEFGHIJK","PLAYER"),
++                            ("no-name","PLAYER"),("caf\u00e9","PLAYER"),("x_y","PLAYER")):
++            with tempfile.TemporaryDirectory() as d:
++                (Path(d)/"vr.cfg").write_text(f"save_name {stored}\n")
++                self.run_settings(d)
++                self.assertEqual(self.parse((Path(d)/"vr.cfg").read_text())["save_name"],want,stored)
++
+     def test_old_on_reads_as_flat_screen(self):
+         with tempfile.TemporaryDirectory() as d:
+             (Path(d)/"vr.cfg").write_text("immersive.replays on\nimmersive.cutaways off\n")
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index 3995da0..e8ef1b5 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -52,7 +52,7 @@ int main(void) {
+     /* Advanced goes to the saved mode's page */
+     assert(xw_choose(&w, &c, XW_ADVANCED) == XW_PAGE_CHANGED && w.page == XW_PAGE_IMMERSIVE);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 13 && r[0] == XW_ROW(XW_MODE_CLASSIC) && r[2] == XW_ROW(XW_BACK) && r[3] == XW_ROW(XW_HEIGHT) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
++    assert(n == 15 && r[0] == XW_ROW(XW_MODE_CLASSIC) && r[2] == XW_ROW(XW_BACK) && r[3] == XW_ROW(XW_HEIGHT) && has(r, n, XP_STATS) && r[n - 1] == XP_CLOSE);
+     assert(!has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_STEPBACK)));
+     xw_items(&w, &c, it);
+     assert(!strcmp(xw_title(&w), "VR mode - advanced settings"));
+@@ -100,7 +100,7 @@ int main(void) {
+     c.world_mode = 0; w.page = XW_PAGE_CLASSIC;
+     fx = xw_choose(&w, &c, XW_CUTAWAYS); assert((fx & XW_LIVE_CHANGED) && c.classic_cutaways == 0);
+     n = xw_page_rows(&w, &c, r);
+-    assert(n == 12 && has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
++    assert(n == 14 && has(r, n, XW_ROW(XW_CARD)) && !has(r, n, XW_ROW(XW_DOLLY)) && !has(r, n, XW_ROW(XW_SKY)));
+     assert(xw_choose(&w, &c, XW_SKY) == 0);             /* not a Classic row */
+     w.pins = 1u << WM_REPLAYS; w.eff.replays = 0;
+     xw_items(&w, &c, it); assert(!strcmp(it[XW_REPLAYS].value, "Off (env.txt)"));
+@@ -173,6 +173,50 @@ int main(void) {
+       sw.pins = 1u << WM_SAVE; sw.eff.save = 0;
+       xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "Off (env.txt)"));
+       assert(xw_choose(&sw, &sc, XW_SAVE) == 0 && sc.save == 1); }
++    /* Reset save below Save progress on both Advanced pages: pull twice (like Restore defaults), an action - nothing stored */
++    { XwState rw; memset(&rw, 0, sizeof rw); LgXrSettings rc = LG_XR_SETTINGS_DEFAULT, before;
++      world_mode_resolve(&rc, 0, 1, 0, &rw.eff, NULL);
++      int rr[XW_ROWS_MAX], rn = xw_page_rows(&rw, &rc, rr);
++      assert(!has(rr, rn, XW_ROW(XW_RESET_SAVE)));
++      for (int pg = XW_PAGE_CLASSIC; pg <= XW_PAGE_IMMERSIVE; pg++) {
++          rw.page = pg; rn = xw_page_rows(&rw, &rc, rr);
++          assert(find(&rw, &rc, XW_ROW(XW_RESET_SAVE)) == find(&rw, &rc, XW_ROW(XW_SAVE)) + 1);
++          assert(rn <= XM_MODE_ROWS);
++          rw.reset_save_done = 0;
++          xw_items(&rw, &rc, it); assert(!strcmp(it[XW_RESET_SAVE].label, "Reset save") && !it[XW_RESET_SAVE].value[0]);
++          before = rc;
++          assert(xw_choose(&rw, &rc, XW_RESET_SAVE) == XW_PAGE_CHANGED && rw.reset_save_armed);   /* first pull: armed */
++          xw_items(&rw, &rc, it); assert(!strcmp(it[XW_RESET_SAVE].value, "Pull again to erase"));
++          unsigned f2 = xw_choose(&rw, &rc, XW_RESET_SAVE);
++          assert((f2 & XW_RESET_SAVE_FX) && !(f2 & XP_SAVE) && !rw.reset_save_armed && !memcmp(&before, &rc, sizeof rc));
++          xw_items(&rw, &rc, it); assert(!strcmp(it[XW_RESET_SAVE].value, "Done (fresh at next game)"));
++          /* armed, then another row: disarmed, no reset */
++          xw_choose(&rw, &rc, XW_RESET_SAVE); assert(rw.reset_save_armed);
++          assert(!(xw_choose(&rw, &rc, XW_SHADOW) & XW_RESET_SAVE_FX) && !rw.reset_save_armed);
++          assert(!(xw_choose(&rw, &rc, XW_RESET_SAVE) & XW_RESET_SAVE_FX));                        /* one pull again: armed only */
++          rw.reset_save_armed = 0;
++      }
++      rw.page = XW_PAGE_MAIN; assert(xw_choose(&rw, &rc, XW_RESET_SAVE) == 0); }
++    /* Texture filtering on both Advanced pages (one value), Standard by default, Standard > Sharp 4x > Sharp 8x, on restart */
++    { XwState tw; memset(&tw, 0, sizeof tw); LgXrSettings tc = LG_XR_SETTINGS_DEFAULT;
++      world_mode_resolve(&tc, 0, 1, 0, &tw.eff, NULL);
++      int tr[XW_ROWS_MAX], tn = xw_page_rows(&tw, &tc, tr);
++      assert(!has(tr, tn, XW_ROW(XW_ANISO)) && tc.aniso == 0 && tw.eff.aniso == 0);
++      tw.page = XW_PAGE_CLASSIC; tn = xw_page_rows(&tw, &tc, tr); assert(has(tr, tn, XW_ROW(XW_ANISO)));
++      xw_items(&tw, &tc, it); assert(!strcmp(it[XW_ANISO].label, "Texture filtering") && !strcmp(it[XW_ANISO].value, "Standard"));
++      assert(xw_choose(&tw, &tc, XW_ANISO) == XP_SAVE && tc.aniso == 4);
++      xw_items(&tw, &tc, it); assert(!strcmp(it[XW_ANISO].value, "Sharp 4x (on restart)"));
++      tw.page = XW_PAGE_IMMERSIVE; tn = xw_page_rows(&tw, &tc, tr); assert(has(tr, tn, XW_ROW(XW_ANISO)));
++      assert(xw_choose(&tw, &tc, XW_ANISO) == XP_SAVE && tc.aniso == 8);
++      tw.eff.aniso = 8; xw_items(&tw, &tc, it); assert(!strcmp(it[XW_ANISO].value, "Sharp 8x"));
++      assert(xw_choose(&tw, &tc, XW_ANISO) == XP_SAVE && tc.aniso == 0);
++      xw_items(&tw, &tc, it); assert(!strcmp(it[XW_ANISO].value, "Standard (on restart)"));
++      tc.aniso = 16; assert(xw_choose(&tw, &tc, XW_ANISO) == XP_SAVE && tc.aniso == 0);        /* 16 (env / hand edit) -> 8 nearest -> Standard */
++      tc.aniso = 2; assert(xw_choose(&tw, &tc, XW_ANISO) == XP_SAVE && tc.aniso == 4);
++      xw_restore_defaults(&tc, 1); assert(tc.aniso == 4);                                      /* Restore defaults keeps it */
++      tw.pins = 1u << WM_ANISO; tw.eff.aniso = 16;
++      xw_items(&tw, &tc, it); assert(!strcmp(it[XW_ANISO].value, "Sharp 16x (env.txt)"));
++      assert(xw_choose(&tw, &tc, XW_ANISO) == 0 && tc.aniso == 4); }
+     /* a mode button on an Advanced page: that mode's page */
+     w.pins = 0; w.running = 0; w.page = XW_PAGE_CLASSIC; c.world_mode = 0;
+     fx = xw_choose(&w, &c, XW_MODE_VR); assert((fx & XP_SAVE) && c.world_mode == 1 && w.page == XW_PAGE_IMMERSIVE);

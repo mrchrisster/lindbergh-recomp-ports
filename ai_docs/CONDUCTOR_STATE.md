@@ -278,3 +278,22 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   default On?, a name for the save ("noname" now), lose path untested.
   Headset never appeared on adb this session: the combined T13-T17 smoke run
   is still owed; nothing installed (headset has T12 9dd8505).
+
+## 2026-11-12 14:15 (conductor, after the usage-limit reset)
+- Another client worked 10:46-11:21 and left UNCOMMITTED work (safety copies
+  committed now): submodule +566 lines - anisotropic filtering row ("Sharp"),
+  save name (`save_name`, LINDBERGH_VT3_SAVE_NAME), LINDBERGH_VT3_LOSE ->
+  `ai_docs/wip/uncommitted-2026-11-12-aniso-savename-lindberghrecomp.diff`;
+  `lose` scene in vt3-repro.sh -> `...-lose-scene-script.diff`; launcher icon
+  candidates (`quest/tools/vt3_icon.py`, 5 PNGs replaced with the "headset"
+  candidate, `ai_docs/wip/vt3-icon-notes.md`, ~/Desktop/Claude/vt3-icon/).
+- **Owner's decisions:**
+  - **Keep the app free of game data so it stays releasable: YES.** Ship only
+    recompiled code + original art; anything of Sega's is read at run time
+    from the player's own game files.
+  - **Launcher icon:** simply "VT3" with a tennis ball behind it, shaded in a
+    similar way to the game (original drawing; replaces the headset candidate).
+  - **Loading screen:** the game's own Virtua Tennis 3 logo from the start
+    screen, read at start-up from the player's data, with "VR" added; a simple
+    small controller layout underneath; minimal fonts and style, on brand.
+- Quest smoke runs owed (headset away): T13-T17 combined, then T16 save run.

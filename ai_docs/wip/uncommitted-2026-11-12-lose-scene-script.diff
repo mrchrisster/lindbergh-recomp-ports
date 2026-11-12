@@ -1,0 +1,71 @@
+diff --git a/scripts/vt3-repro.sh b/scripts/vt3-repro.sh
+index bc62358..12380d4 100755
+--- a/scripts/vt3-repro.sh
++++ b/scripts/vt3-repro.sh
+@@ -16,6 +16,9 @@
+ #   prize         1P wins every point from 40-0, so the match is won in two points
+ #                 and the result slate's prize-money counter rolls (its
+ #                 digits vanish on the Quest). Frames every 20
++#   lose          the mirror of prize: 1P loses every point from 0-40, so the
++#                 match is lost in two points - continue screen, game over,
++#                 ranking / name entry. Frames every 60
+ #
+ # The menus are driven by script (coin, start, Z through the selects, Enter
+ # on court select); the jump itself is LINDBERGH_VT3_ROUND / _POINTS /
+@@ -32,12 +35,14 @@
+ #        then stops the app, undoes the override and empties env.txt.
+ # Both pin Classic mode, replays, point cutaways and arcade overlays on
+ # unless the caller sets LINDBERGH_VT3_IMMERSIVE / _REPLAYS / _VT3_CUTAWAYS /
+-# _ARCADE_OVERLAYS (empty: the headset's vr.cfg decides).
++# _ARCADE_OVERLAYS (empty: the headset's vr.cfg decides), and Save progress
++# off (LINDBERGH_VT3_SAVE=0) so a test never writes the player's save - set
++# LINDBERGH_VT3_SAVE=1 with LINDBERGH_VT3_SAVE_FILE=<scratch> to test it.
+ set -euo pipefail
+ 
+ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+-usage() { sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
++usage() { sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+ 
+ SCENE="${1:-}"; WHERE="${2:-}"
+ [ -n "$SCENE" ] && [ -n "$WHERE" ] || usage
+@@ -52,8 +57,10 @@ case "$SCENE" in
+     replay)      JUMP="LINDBERGH_FORCE_REPLAY=1" ;;
+     prize)       JUMP="LINDBERGH_VT3_WIN=1
+ LINDBERGH_VT3_POINTS=3,0"; SHOT_FROM=1900 SHOT_EVERY=20 ;;
++    lose)        JUMP="LINDBERGH_VT3_LOSE=1
++LINDBERGH_VT3_POINTS=0,3"; SHOT_FROM=1900 SHOT_EVERY=60 ;;
+     splitreplay) JUMP="LINDBERGH_VT3_SPLIT=1"; SHOT_FROM=2400 SHOT_EVERY=20 ;;
+-    *)           die "unknown scene '$SCENE' (tournament3, round<N>, forty, replay, splitreplay, prize)" ;;
++    *)           die "unknown scene '$SCENE' (tournament3, round<N>, forty, replay, splitreplay, prize, lose)" ;;
+ esac
+ JUMP="$JUMP
+ LINDBERGH_VT3_LOG=1
+@@ -65,7 +72,8 @@ LINDBERGH_AUTOSTART=1"
+ PINNED="LINDBERGH_VT3_IMMERSIVE=${LINDBERGH_VT3_IMMERSIVE-0}
+ LINDBERGH_REPLAYS=${LINDBERGH_REPLAYS-1}
+ LINDBERGH_VT3_CUTAWAYS=${LINDBERGH_VT3_CUTAWAYS-1}
+-LINDBERGH_ARCADE_OVERLAYS=${LINDBERGH_ARCADE_OVERLAYS-1}"
++LINDBERGH_ARCADE_OVERLAYS=${LINDBERGH_ARCADE_OVERLAYS-1}
++LINDBERGH_VT3_SAVE=${LINDBERGH_VT3_SAVE-0}"
+ JUMP="$JUMP
+ $PINNED"
+ 
+@@ -81,7 +89,7 @@ keys() {
+ 
+ # LINDBERGH_* already in our environment, as NAME=value lines
+ passthrough() { env | grep '^LINDBERGH_' | grep -v '^LINDBERGH_KEYS=' |
+-                grep -Ev '^LINDBERGH_(VT3_IMMERSIVE|REPLAYS|VT3_CUTAWAYS|ARCADE_OVERLAYS)=' || true; }
++                grep -Ev '^LINDBERGH_(VT3_IMMERSIVE|REPLAYS|VT3_CUTAWAYS|ARCADE_OVERLAYS|VT3_SAVE)=' || true; }
+ 
+ mkdir -p "$OUT"
+ case "$WHERE" in
+@@ -89,7 +97,7 @@ mac)
+     GAME="${3:-}"; SECS="${4:-120}"
+     [ -n "$GAME" ] || die "mac needs the game folder: $0 $SCENE mac /path/to/disk0"
+     while IFS= read -r l; do [ -n "$l" ] && export "$l"; done <<<"$JUMP"
+-    for v in LINDBERGH_VT3_IMMERSIVE LINDBERGH_REPLAYS LINDBERGH_VT3_CUTAWAYS LINDBERGH_ARCADE_OVERLAYS; do
++    for v in LINDBERGH_VT3_IMMERSIVE LINDBERGH_REPLAYS LINDBERGH_VT3_CUTAWAYS LINDBERGH_ARCADE_OVERLAYS LINDBERGH_VT3_SAVE; do
+         [ -n "${!v}" ] || unset "$v"; done      # empty: left to vr.cfg (the desktop reads env only)
+     export LINDBERGH_KEYS="$(keys mac)"
+     # never on screen, never taking focus or the speakers (LINDBERGH_HEADLESS=0 to watch)
