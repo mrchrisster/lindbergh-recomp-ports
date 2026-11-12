@@ -35,6 +35,15 @@ only).** The T3-T5 WIP is back in the working tree on top of it (unchanged
 from `ai_docs/wip/`). Rule learnt: anything queued for the GL thread must
 come from the game's main thread.
 
+## Evening 2026-11-11 (T3-T5 worker) - read HANDOFF 3.1 first entry
+- T5 LOD bias COMMITTED (submodule 8004564, outer c07bad8), not yet in an
+  installed build. T4 per-eye mask BROKEN on the Quest (shadows vanish), T3:
+  fp 180 is not the sky backdrop - both uncommitted in `ai_docs/wip/`.
+- Testing stopped on controller input (possibly worn). Installed: the
+  committed fix build (fade8ac + 373c5ae), env.txt 0, vr.cfg the owner's.
+- Owed: rerun from HANDOFF 3.1 when the owner frees the headset (skip-bisect
+  `scratchpad/q4.sh`, T4 debug, T5 build regression + install).
+
 ## Headset (check first)
 `adb shell wc -c /sdcard/VirtuaTennis3/env.txt` must be 0; the installed APK may
 be an unregressed test build (fade8ac or later). Last known-good APK copy:
