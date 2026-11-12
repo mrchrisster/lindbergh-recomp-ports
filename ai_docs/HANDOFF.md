@@ -174,6 +174,10 @@ committed submodule (or keep the `fade8ac` APK) before handing back.
   match starts rounds 0-2 100 s; results `/tmp/vt3q/X/R_*`). Owner's vr.cfg
   unchanged after his worn session. If cut off: check `R_*` logs, then
   `adb shell am force-stop org.lindbergh.vt3.vr`, empty env.txt.
+  R_imm PASSED: Gamesetmatch 3264 -> Stats 3352 -> Load 3953 (601), Stats
+  7524 -> Load 8124 (600), round 3 to Stats 11679; black only 0-1, 1085-6,
+  1947-8, 3955-6, 8127-8 (the game's own); no FATAL / WARNING / watchdog;
+  the sky line and the one `[glq] job ... handed` line present.
 - **Sky worker, group 2 (2026-11-11 night) - sky COMMITTED, regression
   of it still owed; PAUSED for the conductor.** Submodule `9d68719` (sky
   dome fix + test switches; T4 left out, kept as
