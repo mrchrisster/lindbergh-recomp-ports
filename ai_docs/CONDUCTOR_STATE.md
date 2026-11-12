@@ -97,3 +97,19 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - After sky: T4 shadow mask debug, rounds 1/2 stadium checks, gl4es mv_copy,
   GPU page faults, live switch steps 2-8, scoreboards, cameras. Push to
   `fork` only on the owner's word.
+
+## 2026-11-11 22:55 (conductor status check)
+- **Sky: DONE, confirmed by the owner worn.** Pushed to `fork`: submodule
+  9d68719, outer 1f3ec0f.
+- T7 near-end crowd cards: parked by the owner.
+- T8 (owner's worn reports on 9d68719: Classic top-down frame at match
+  start; Immersive "image in image" before each serve): fixes written, test
+  runs good, **NOT committed, regression NOT run** - worker cut off 20:55.
+  Code in the submodule working tree = `ai_docs/wip/t8-flat-and-fade-lindberghrecomp.diff`.
+  **Installed APK is that unregressed T8 test build**; env.txt 0 bytes.
+- Research written (uncommitted until this commit):
+  `ai_docs/research/card-reader-top-bar.md` - recommended fix: answer card
+  R/W OFF (`backup::getCard_rw_1p_use/_2p_use` = -1). Not implemented.
+- Next: (1) T8 regression both modes -> commit -> install; (2) card reader
+  bar fix; (3) T4 shadow mask; then gl4es mv_copy, GPU page faults, live
+  switch 2-8, scoreboards, cameras.
