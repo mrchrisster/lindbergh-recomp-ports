@@ -168,6 +168,9 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **T8b worker, step 11 - conductor's go (owner: headset off, controllers
+  down).** T8+T9 test build installed, device vt3.log removed, seq4.sh
+  RUNNING again (`/tmp/vt3q/T8b/seq4.out`, `SEQ4_DONE` / `INPUT_SEEN`).
 - **T8b worker, step 10 - STOPPED AGAIN on real controller input
   (~23:47 MST, headset `Awake`).** B1's log (`/tmp/vt3q/T8b/B1/vt3.log`) has
   buttons 0x9001 / 0x8001 / 0x10000 / 0x10010 from frame 1204 - not the
