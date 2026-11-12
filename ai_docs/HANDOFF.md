@@ -168,6 +168,15 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T19 step 4 (macOS) PASSED.** Headless `prize` Classic
+  (`/tmp/vt3t19/classic`) and Immersive (`/tmp/vt3t19/imm`), 330 s each:
+  `[solib] libCg.so read from .../vt3_Lindbergh/../lib/libCg.so (2170374
+  bytes, SHA-256 verified), 6721 relocations applied`, shaders compile, full
+  match flow (Load..Gamesetmatch, Stats, next round) rounds 1-4, no crash.
+  Error path, exit 1 before anything starts: missing (`LINDBERGH_SOLIB_DIR`
+  empty dir, and the real file renamed then restored - SHA rechecked),
+  wrong file (libCgGL.so as libCg.so: "that file is 251074 bytes").
+  Next: Quest APK build + byte check.
 - **2026-11-12 T19 step 2-3: code done (uncommitted in the submodule; safety
   diffs `ai_docs/wip/t19-libcg-*.diff`).** solib.py now writes
   `recomp_solib_relocs.c` (6,721 relocations, file size/SHA, image SHA) +
