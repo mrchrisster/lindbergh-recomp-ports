@@ -168,6 +168,12 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 T13/T14 COMMITTED locally - macOS-verified, Quest smoke run
+  OWED** (submodule `66ce3ff`; not installed - the headset is off; installed
+  is still T12 `9dd8505`). Owed smoke run (combined with T15 when granted):
+  `adb pull /sdcard/VirtuaTennis3/vt3_Lindbergh/vr.cfg /tmp/vt3q/T13/vr.cfg.before; adb install -r /tmp/vt3q/T13/VirtuaTennis3VR_t13.apk;`
+  `OUT=/tmp/vt3q/T13/S LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_VT3_REPLAY_VIEW=camera LINDBERGH_VT3_CUTAWAY_VIEW=camera LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_VT3_CAMMODE_LOG=2 LINDBERGH_VT3_CUTLOG=1 LINDBERGH_XR_FIXED_HEAD=1 LINDBERGH_GAME_SHOT=2640,4,0,2900 LINDBERGH_SHOT_BOTH=1 scripts/vt3-repro.sh replay quest 130`
+  (watcher on real input; then cmp vr.cfg, env.txt 0; a point start window: GAME_SHOT=<StartLoop-40>,1,0,<+40>)
 - **2026-11-12 T13 worker, step 2 - macOS verified, T14 cause found and
   eased; waiting for the headset.** macOS: replay type cycle, 17 Camera-view
   shots (all 7 types + close-ups), the target's player in view every time;

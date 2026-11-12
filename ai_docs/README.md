@@ -121,6 +121,12 @@ working on its area):
 
 ## Done (see the backlog's Done list for the full set)
 
+- 2026-11-12 **T13 / T14 - macOS-verified, Quest smoke run OWED** (submodule
+  `66ce3ff`; guide section 8 "Camera view reframed ..."): Camera view framed
+  like the broadcast shot (moved toward the target, fixed per shot), rows Off
+  / Flat screen / Camera view, Camera height default Medium; the point-start
+  court camera snap eased over 60 frames. Smoke command: HANDOFF 3.1 top.
+
 - 2026-11-12 **T12: owner's menu changes** (guide section 8 "Panel and
   viewpoint, T12"): Classic / VR buttons on top of every page, "Immersive"
   shown as "VR", Camera closer / Step back rows removed (fixed 20 m / 5 m),

@@ -219,3 +219,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   disappears too quickly"). Worker told to capture it every-frame in the T13
   smoke run (strip: ~/Desktop/Claude/vt3-bugs/point_start_glitch.png) and fix
   if small.
+
+## 2026-11-12 ~10:00 (T13/T14 worker)
+- T13 + T14 committed locally (submodule 66ce3ff): macOS-verified, **Quest
+  smoke run OWED** (headset off; not installed; installed = T12 9dd8505).
+  T14 cause: StartLoop snaps the court camera ~10 m nearer / 3 m lower then
+  glides back (TV hides it with a cross-fade) - now eased. Next: T15 (card
+  reader bar), macOS only.
