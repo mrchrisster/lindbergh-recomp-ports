@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 item 6 (defaults) COMMITTED, macOS unit tests green.** Submodule
+  13f9291: `LG_XR_SETTINGS_DEFAULT` msaa 2, aniso 4, imm_shadow 4096
+  (`xr_settings.h`); `xw_restore_defaults` also resets aniso (row on both
+  Advanced pages); msaa (main page) untouched by Restore. Desktop: msaa
+  env-only as before, aniso 4 / Immersive shadow 4096 by default. Tests
+  test_world_mode / test_xr_settings / test_xr_world_panel / test_xr_panel:
+  34 OK. GPU headroom: no earlier headset `[gputime]` with msaa 2 + aniso 4 +
+  4096 exists (T17's aa4 run was never made) - owner's worn judgement only
+  until the combined run of this session measures it. Quest run owed
+  (combined with items 1-5/7).
 - **2026-11-12 ~23:45 T23 mask default ON, installed.** Submodule 02c86c8
   (on b8ddc4c): `LINDBERGH_VT3_MASK` unset = per-eye ground shadow mask in
   Immersive (arbprog.c `vt3_mask_unit`, stereo.c `mask_on`), `=0` the old

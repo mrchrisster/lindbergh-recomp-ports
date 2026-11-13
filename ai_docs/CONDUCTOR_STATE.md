@@ -352,3 +352,9 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 ## 2026-11-12 ~23:45 (T23 worker done)
 - Per-eye ground shadow mask ON by default in Immersive: lindberghrecomp 02c86c8 (both trees pin it); build installed (launch-checked only). env.txt empty, vr.cfg the owner's, app stopped. Nothing pushed.
 - Open from T23: GL_ROBUST test needs an EGL_EXT_create_context_robustness path (SDL's request refused on the Quest) before C can be answered.
+
+## 2026-11-13 (build/headset worker: owner's six items + item 7)
+- Item 6 done (submodule 13f9291): defaults msaa 2, aniso 4, immersive.shadow
+  4096; Restore defaults resets Texture filtering too. Unit tests green.
+  GPU evidence: owner's worn judgement only so far; the combined headset run
+  logs `[gputime]`.
