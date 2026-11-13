@@ -168,6 +168,11 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~19:50 T21 done: committed build INSTALLED** (submodule
+  bc8f1c3, `/tmp/vt3q/T21/VirtuaTennis3VR_T21.apk`); vr.cfg byte-identical
+  (cmp), owner's vt3_save.bin unchanged (cmp), startup_seconds put back to 18,
+  env.txt 0 B, R1's game shots removed from the headset, app stopped. Owner's
+  logs kept as `/sdcard/VirtuaTennis3/vt3_owner_session3.log`.
 - **2026-11-12 ~19:45 T21 COMMITTED (submodule bc8f1c3) - APK
   `/tmp/vt3q/T21/VirtuaTennis3VR_T21.apk`.** Headset run R1 (diag build:
   replay scene, Camera view, every frame of replay 1 + close-up,
