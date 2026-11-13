@@ -168,6 +168,24 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 item 6 widened (owner via conductor) COMMITTED, macOS unit tests
+  green (86 + 4 new).** The global default change of 13f9291 is undone;
+  VT3's defaults are per game: `xr_settings_vt3_defaults` via
+  `LgGameProfile.vr.xr_defaults` (games/vt3/src/host.c), applied by
+  `xr_settings_defaults()` (host_xr.c cfg_load, world_mode_init headset,
+  world_mode_resolve, xr_settings_load fallback, xw_restore_defaults). One
+  row "Replays and reaction cams" per page (both old keys written equal; replays
+  key wins on a differing old file), 3D choice labelled "VR" (`vr` also read).
+  Panel pictures `~/Desktop/Claude/vt3-view/panel_{0,1,2,2vr}_item6.png`.
+  Owner's vr.cfg reads back byte for byte (unit test). Quest run owed
+  (combined). Label "Replays and reaction cams" (owner's wording; fits: VR
+  page `~/Desktop/Claude/vt3-view/panel_2vr_item6.png`), submodule 4122e16.
+  macOS `prize` flow (Immersive, env pins = the row's values; FLOWLOG,
+  `/tmp/vt3w13/p_{off,flat,vr}`): Off - `point cutaway left out` ->
+  Changeend, `big-point serve close-up left out`, Pass -> Gamesetmatch 3302
+  -> Stats 3392 -> Load 3993, next round; Flat - Winlose 2413, Replay 3309,
+  Gamesetmatch 3392 -> Stats 3482 -> Load 4083; VR - Winlose 2548, Replay
+  3145, Gamesetmatch 3212 -> Stats 3302 -> Load 3903. Three rounds each.
 - **2026-11-13 item 6 (defaults) COMMITTED, macOS unit tests green.** Submodule
   13f9291: `LG_XR_SETTINGS_DEFAULT` msaa 2, aniso 4, imm_shadow 4096
   (`xr_settings.h`); `xw_restore_defaults` also resets aniso (row on both
@@ -1736,8 +1754,12 @@ boards may hide the far stadium board. Never classify by lens alone
 place on the GL thread with the queued camera.
 
 ## 6. Owner's decisions this session
-- Replays and Point cutaways stay **two separate panel rows**. In Immersive
-  both are off for now (the defaults; the owner's vr.cfg already has them off).
+- ~~Replays and Point cutaways stay two separate panel rows~~ - **reversed
+  2026-11-13**: one row "Replays and reaction cams" per mode page (VR: Off / Flat
+  screen / VR, default Flat screen; Classic: On / Off, default On); the 3D
+  choice is labelled "VR".
+- 2026-11-13: VT3's defaults are the owner's headset settings (VR mode first,
+  guide 7.5.1 "Defaults"); other games keep the runtime's.
 - Push to `fork` only after the owner confirms worn.
 - Working style asked for: a conductor plans and checks; each task goes to its
   own Opus 5.5 worker; one worker at a time on the headset and build dirs;

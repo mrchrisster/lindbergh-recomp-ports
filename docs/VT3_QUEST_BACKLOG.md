@@ -118,13 +118,18 @@ and asked that all progress and research be written to the docs.
       from upstream) - replace or drop before a release; the splash's and
       icon's text is rendered from Apple system fonts (DIN, Avenir Next) -
       swap for OFL fonts before a public release.
-- [x] **Defaults = the owner's worn settings** (2026-11-13, owner: "anti aliasing
-      and shadows look great now. make current settings default"): Anti-aliasing
-      2x, Texture filtering Sharp 4x, VR Shadow quality Very high 4096 for a
-      fresh install or a vr.cfg without the keys (stored values kept); Restore
-      defaults also resets Texture filtering. Submodule 13f9291. GPU cost: the
-      owner's worn judgement plus the `[gputime]` numbers of the 2026-11-13
-      headset run (HANDOFF 3.1).
+- [x] **Defaults = the owner's headset settings, VT3 only** (2026-11-13, owner:
+      "make current settings default", then "all settings currently in
+      headset"): VR mode first, Replays and reaction cams Flat screen, overlays hidden
+      (both modes), shadows 4096 (VR), anti-aliasing 2x, texture filtering 4x,
+      120 Hz, foveation high, screen 2.5 m, HUD 10, frame counter off, coins
+      automatic, save on - for a fresh install, missing keys and Restore
+      defaults; other games keep theirs (per-game hook, guide 7.5.1
+      "Defaults"). GPU cost: the owner's worn judgement plus the `[gputime]`
+      of the 2026-11-13 headset run (HANDOFF 3.1).
+- [x] **Replays and reaction cams: one row** (2026-11-13, owner; reverses "two
+      separate rows"): VR Off / Flat screen / VR, Classic On / Off; the 3D
+      choice labelled "VR" (was "Camera view"; vr.cfg still `camera`).
 - [x] **Texture filtering row** ("Standard / Sharp 4x / Sharp 8x", both
       Advanced pages, on restart; vr.cfg `aniso`, `LINDBERGH_ANISO`) -
       anisotropic filtering of the game's mipmapped textures (court lines,

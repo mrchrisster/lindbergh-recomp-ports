@@ -358,3 +358,6 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   4096; Restore defaults resets Texture filtering too. Unit tests green.
   GPU evidence: owner's worn judgement only so far; the combined headset run
   logs `[gputime]`.
+- Item 6 widened: VT3-only defaults = the owner's headset settings (VR first;
+  other games unchanged), one row "Replays and reaction cams", 3D choice labelled
+  "VR". Committed; unit tests green; Quest run owed.

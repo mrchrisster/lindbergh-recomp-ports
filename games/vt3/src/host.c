@@ -7,6 +7,7 @@
 
 #include "game_profile.h"
 #include "lindbergh_rt.h"
+#include "xr_settings.h"
 
 /* The game's screens are usr...Loop objects whose exec() runs once a frame
  * (a parent - usrMenuLoop, usrAcLoop, usrAdvLoop - runs its current child, so
@@ -57,6 +58,7 @@ static const LgGameProfile k_profile = {
         .gl_thread = 1,
         .menu_states = k_menu_states,
         .play_states = k_play_states,
+        .xr_defaults = xr_settings_vt3_defaults,   /* VR first, the owner's Quest 3 settings (2026-11-13) */
     },
 };
 
