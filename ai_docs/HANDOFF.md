@@ -168,6 +168,25 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~22:40 T21c: loading bar CAUSE FOUND and fixed (submodule
+  d9fa89e).** Run P3 (room lit) cold-start screencaps (`/tmp/vt3q/T22/P3_cap3_half.png`
+  at ~2 s: the panel cut off just below SETTINGS, no line, no ball;
+  `P3_cap4_half.png` / `P3_cap5_left.png` 2-4 s later: whole panel, dark
+  track, yellow fill and ball). Screencap does capture the quad layers (the
+  start-up screen is quads only). Cause: splash_init's 1220 row uploads into
+  the static swapchain image were released to the compositor without a
+  glFinish - the driver sent the first rows and held the rest (the panel's
+  bottom, the atlas's line colour cell and ball) until a later flush, which
+  on a cold start comes seconds late. Fix: gl.Finish() before
+  xrReleaseSwapchainImage. A cold-start check of the fix (`/tmp/vt3q/T22/c2`)
+  hit "Finding position in room" again - fix NOT yet seen on the headset.
+  Replay HUD (8c00191) proven in P3: REPLAY plate from (0.70,0.35) to
+  (0.67,0.39) of the eye picture, both players in the replay
+  (`/tmp/vt3q/T22/replay_hud_before_after.png`, `P3_replay_sheet.png`,
+  `P3_both.png`); replay/close-up ends clean. Installed: d9fa89e build
+  (`/tmp/vt3q/T22/VirtuaTennis3VR_T21c.apk`); vr.cfg identical, env.txt 0,
+  startup_seconds 18, app stopped. README showcase pictures (not committed):
+  `~/Desktop/Claude/vt3-github/` (6 + contact sheet).
 - **2026-11-12 ~21:35 T21b proof run P2 also blocked:** before launch the
   headset showed passthrough with no dialog (`/tmp/vt3q/T22/pre2_s.png`), but
   each of the 3 launches brought up "Finding position in room" (vrshell
