@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~21:30 T21b (loading bar, replay plates).** Loading bar: the
+  owner's 20:16 first launch after the T21 install logs the line layer from
+  frame 1 (`frame 1, 3 layers ... line 4%`, 14% at 2.5 s, 28% at 5 s, the
+  game's frame at 7.3 s, off at 17.8 s) - the layer is submitted; cause NOT
+  found. A cold start here (`/tmp/vt3q/T22/c1`) cannot be seen: the dark room
+  puts up "Finding position in room" over every screencap. Needs the owner's
+  description (panel shown? the 'loading' word, the dark track, the ball?) or
+  a lit room for a screencap. Replay plates: the head-locked HUD screen is
+  the court camera's width (corners ~30 deg out); during a replay / close-up
+  in Camera view it is drawn 1/1.6 as wide (submodule 8c00191,
+  `LINDBERGH_VT3_REPLAY_HUD`). APK `/tmp/vt3q/T22/VirtuaTennis3VR_T21b.apk`
+  installed; proof run P1 (replay scene, RVSHOT=2, both eyes) running.
 - **2026-11-12 ~19:50 T21 done: committed build INSTALLED** (submodule
   bc8f1c3, `/tmp/vt3q/T21/VirtuaTennis3VR_T21.apk`); vr.cfg byte-identical
   (cmp), owner's vt3_save.bin unchanged (cmp), startup_seconds put back to 18,
