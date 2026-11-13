@@ -43,16 +43,28 @@ and asked that all progress and research be written to the docs.
       screen-sized mask copied from one eye at 1360x768 (it looks the same
       with the shadow map at 1024 or 4096). A per-eye, full-resolution mask
       with soft edges is written but not yet tried on the headset.
-- [ ] gl4es multiview patch (`quest/gl4es.patch`, `multiview.c`): `mv_copy[64]`
+      2026-11-12: why it lost the shadows found in the code and fixed
+      (the twin was read at a negative height - its empty bottom row - in
+      both eyes; the right eye's layer was copied by a blit the Quest's
+      driver ignores). Committed off by default (`LINDBERGH_VT3_MASK=1`
+      turns it on); one headset run owed, then the owner to judge it worn.
+- [x] gl4es multiview patch (`quest/gl4es.patch`, `multiview.c`): `mv_copy[64]`
       keeps a `gltexture_t*` after `glDeleteTextures` frees it - a dangling
       read in `mv_framebuffer_left`, the texture's two-layer array leaked, the
       slot never freed (found 2026-11-11 reading the code; no symptom tied to
-      it yet).
+      it yet). Fixed 2026-11-12: a deleted texture gives back its slot and
+      its array (`mv_texture_deleted`); host test
+      `quest/tools/gl4es_multiview_test.sh`.
 - [ ] GPU page faults on the Quest (`kgsl-3d0: GPU PAGE FAULT ... FAULTING
       BLOCK: UCHE: BR_SP` in logcat, ~900 a second, rate-limited) in every VT3
       run, from the boot screens (frame ~1070, right after `fragment program
       21/22 ... units 0x8000 compare depth`) on, Classic and Immersive: a shader
-      reading outside its memory. Nothing visibly wrong; not looked into.
+      reading outside its memory. Nothing visibly wrong. 2026-11-12: the
+      translated programs 21/22 (and vertex 2/4/6) index nothing - only
+      constant indices, one plain 2D read; the faulting block is the shader
+      core's own loads (uniform blocks / arrays), the addresses random.
+      Test switch `LINDBERGH_GL_ROBUST=1` (a robust-access context) to tell
+      a buffer read from a texture descriptor; one headset run owed.
 - [ ] Confirm worn (fixed in `1b1988b`, not yet tried by the owner):
       "button A is slice and button B is not mapped" -> now trigger top
       spin, A / X slice, B / Y lob; "quick 1 s camera changes after every

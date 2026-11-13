@@ -168,6 +168,30 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:05 T23 step C + headset plan (no adb used).** C: fp 21/22
+  and vp 2/4/6 translated GLSL read on macOS (`LINDBERGH_ARB_DUMP=1`,
+  `/tmp/vt3q/T23/mac_fp/vt3.log`): constant indices only, fp 22 one plain
+  `texture2D(s2_0)` (TEX, not TXP - so the 0x8000/0x8001 compare mask never
+  changes its code), fp 21 colour only; the only run-time indexing in the
+  game's programs is the skinning vps 135-177 (clamped, match only). The
+  0x8000 = a depth / compare texture left bound on unit 15 by the game in the
+  menus, read by no program. The faulting block is the shader core's own
+  loads (UCHE client SP: uniform blocks / arrays), addresses random 46-49
+  bit values in clusters 0x80 apart (`/tmp/vt3q/T22/logcat.txt`, 1470
+  faults). Checked and ruled out: the gl4es_MV block binding after a
+  program-binary load (fill_program sets it), the matrix ring's range.
+  Switch committed (submodule 01b320c): `LINDBERGH_GL_ROBUST=1` makes the
+  context with robust buffer access (fallback without; `[window] robust
+  buffer access context: ...` line). APK with A+B+C:
+  `/tmp/vt3q/T23/VirtuaTennis3VR_T23.apk`. **Headset owed (ask first; one
+  ~2 min smoke run per change):** H1 T4 `OUT=$R/T23_mask LINDBERGH_VT3_MASK=1
+  LINDBERGH_VT3_IMMERSIVE=1 LINDBERGH_REPLAYS=0 LINDBERGH_VT3_CUTAWAYS=0
+  LINDBERGH_ARCADE_OVERLAYS=0 LINDBERGH_GAME_SHOT=2300,1,1,2301
+  LINDBERGH_SHOT_BOTH=1 LINDBERGH_GL_ROBUST=1 scripts/vt3-repro.sh prize
+  quest 130` with `adb logcat -c` before and `adb logcat -d | grep -c 'GPU
+  PAGE FAULT'` after (baseline ~900/s): pass = both players' ground shadows
+  in both eye shots, the two mask log lines; fault count tells C. (If the
+  owner wants them apart: robust off in H1, a second run for C.)
 - **2026-11-12 ~23:00 T23 step B1: T4 per-eye mask - cause found (code), fixed,
   opt-in, NOT run on the headset.** Two faults in the WIP: (1) arbprog.c read
   `lg_mask(-u_scr.xy)` while stereo.c/upload() set u_scr = (-1/ew, +1/eh): y
