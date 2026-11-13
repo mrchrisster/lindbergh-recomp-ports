@@ -168,6 +168,12 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:10 T23 done (commits, nothing pushed):** submodule
+  b8ef66f (T4) -> 01b320c (robust switch) -> b8ddc4c (the parallel worker's
+  tests commit b347611 cherry-picked on top: it had been made on b8ef66f in
+  virtuatennis3-vr's submodule; both trees now pin b8ddc4c, unit tests 82 OK).
+  Old tree 13f0f4f, 40b7182, d149a53, d1c5cc1; virtuatennis3-vr aed5b39,
+  83c3396, 7b955d9, 096527b. Headset run H1 (entry below) owed.
 - **2026-11-12 ~23:05 T23 step C + headset plan (no adb used).** C: fp 21/22
   and vp 2/4/6 translated GLSL read on macOS (`LINDBERGH_ARB_DUMP=1`,
   `/tmp/vt3q/T23/mac_fp/vt3.log`): constant indices only, fp 22 one plain
