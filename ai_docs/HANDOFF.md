@@ -168,6 +168,23 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~17:05 headset worker (T20): committed build INSTALLED for the
+  owner, no test runs (conductor: owner said "install now").** Installed
+  `/tmp/vt3q/T19/VirtuaTennis3VR_T19_libcg_from_player.apk` (byte-identical
+  to `quest/VirtuaTennis3VR.apk`; no source file newer than it, tree clean =
+  submodule 1addfc1 + outer 1db0343/a883ff8). Headset `lib/libCg.so` present,
+  2,170,374 B, SHA-256 da2f7604...736c. Owner's idle game (last input frame
+  44307) force-stopped; his vt3.log kept as `/sdcard/VirtuaTennis3/vt3_owner_session2.log`
+  and `/tmp/vt3q/T20/owner_vt3.log`. vr.cfg backup `/tmp/vt3q/T20/vr.cfg.before`
+  (sha1 dc1c662e...), unchanged (cmp); env.txt 0 B; app stopped. Combined
+  T13-T19 smoke run and T16 save run STILL OWED. Prepared: mac reference
+  (replay scene, Immersive, Camera views; `/tmp/vt3q/T20/macref`): StartLoop
+  1898, ReplayLoop 2948, WinloseLoop 3032, StartLoop 3122, so Quest run 1 =
+  `LINDBERGH_GAME_SHOT=2930,1,0,3175 LINDBERGH_SHOT_BOTH=1` (replay +
+  close-up + point start +-40, every frame); helper with input watcher and
+  splash screencaps: scratchpad `t20run.sh <name> <scene> <secs>`. Note: the
+  mac run logs every Camera-view shot as `players in view 0/2, the target's
+  player OUT OF VIEW` - check against the Quest shots (T13 said in view).
 - **2026-11-12 T19 COMMITTED (submodule 1addfc1 + outer) - libCg.so is no
   longer in the app; macOS-verified, Quest smoke run OWED.** Sizes: mac
   `build-mac/vt3` 70,181,888 -> 68,052,576 B; APK libmain.so 74,052,080 ->
