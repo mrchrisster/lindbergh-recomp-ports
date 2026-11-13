@@ -1,0 +1,181 @@
+diff --git a/src/runtime/arbprog.c b/src/runtime/arbprog.c
+index 35d8387..c845a6a 100644
+--- a/src/runtime/arbprog.c
++++ b/src/runtime/arbprog.c
+@@ -3365,6 +3365,14 @@ int arb_note_projection(const float *proj, const float *view)
+             took = 1;
+         }
+     }
++    {   /* LINDBERGH_VT3_PROJLOG=1: each camera noted - its near / far planes and lens (diagnostic) */
++        static int pl = -1; extern unsigned g_frame;
++        if (pl < 0) { const char *v = getenv("LINDBERGH_VT3_PROJLOG"); pl = v && *v == '1'; }
++        if (pl) fprintf(stderr, "[proj] frame %u: took %d near %.2f far %.1f lens %.2f eye %.0f %.0f %.0f feeding %d\n", g_frame, took,
++                        proj[11] / (proj[10] - 1), proj[11] / (proj[10] + 1), proj[5],
++                        -(view[0] * view[3] + view[4] * view[7] + view[8] * view[11]), -(view[1] * view[3] + view[5] * view[7] + view[9] * view[11]),
++                        -(view[2] * view[3] + view[6] * view[7] + view[10] * view[11]), g_vt3_feeding);
++    }
+     for (int i = 0; i < g_noted_n; i++) if (!memcmp(g_noted_proj[i], proj, 64)) return took;
+     memcpy(g_noted_proj[g_noted_next], proj, 64);
+     g_noted_next = (g_noted_next + 1) % 4; if (g_noted_n < 4) g_noted_n++;
+diff --git a/src/runtime/stereo.c b/src/runtime/stereo.c
+index d17fe30..eaad945 100644
+--- a/src/runtime/stereo.c
++++ b/src/runtime/stereo.c
+@@ -580,12 +580,29 @@ void stereo_vt3_view(unsigned mode, const float *view, int cut, const float *pro
+     }
+     if (mode != g_rv.mode_seen) { g_rv.mode_seen = mode; g_rv.mode_frame = g_frame; }
+     const int stale = g_frame == g_rv.mode_frame;     /* (measured: one frame) */
++    /* T21: a replay's or close-up's end - the game names the next camera mode a
++     * few frames before it moves the camera (measured on macOS: 2-3 frames of
++     * the old camera after the mode change, the end dip held exactly 3): those
++     * frames, drawn as the court, showed the replay's long lens round the head
++     * for a moment wherever the dip came a frame late (the Quest's GL thread).
++     * While the camera has not cut (moved under 1 m and 5 degrees a frame - a
++     * replay camera still panning; 6 frames at most) the shot goes on as it
++     * was; the end dip starts on the first frame of the new camera. */
++    int k = rv_kind(mode), was = g_rv.active, kept = 0;
++    {   static int keep_n; static unsigned keep_at;      /* frames kept (a close-up notes its camera twice a frame) */
++        float d2 = 0, dt = 0;
++        for (int i = 0; i < 3; i++) { d2 += (pos[i] - g_rv.last_pos[i]) * (pos[i] - g_rv.last_pos[i]); dt += fwd[i] * g_rv.last_fwd[i]; }
++        if (was && !k && g_rv.have_last && (keep_n < 6 || keep_at == g_frame) && d2 < 10.0f * 10.0f && dt > 0.996f) {
++            k = was; mode = g_rv.mode; kept = 1;
++            if (keep_at != g_frame) { keep_at = g_frame; keep_n++; }
++            if (rv_log()) fprintf(stderr, "[rview] frame %u: camera not cut yet - the shot kept (%d)\n", g_frame, keep_n);
++        } else keep_n = 0;
++    }
+     if ((mode == 1 || mode == 2) && !stale) {   /* the court camera: the anchor, until a replay or close-up */
+         memcpy(g_rv.anchor, V, sizeof V);
+         g_rv.anchor_up[0] = view[1]; g_rv.anchor_up[1] = view[5]; g_rv.anchor_up[2] = view[9];
+         g_rv.anchor_ok = 1;
+     }
+-    int k = rv_kind(mode), was = g_rv.active;
+     if (k == LG_VIEW_WORLD && !g_rv.anchor_ok) {
+         static int told; if (!told++) fprintf(stderr, "[rview] frame %u: no court view seen yet - camera mode %u shown as before\n", g_frame, mode);
+         k = 0;
+@@ -604,14 +621,14 @@ void stereo_vt3_view(unsigned mode, const float *view, int cut, const float *pro
+         static int follow = -1;
+         if (follow < 0) { const char *v = getenv("LINDBERGH_VT3_REPLAY_FOLLOW"); follow = v && *v == '1'; }
+         const int start = was != k || mode != g_rv.mode;
+-        int shot = start || cut || !g_rv.have_last || (g_frame - g_rv.mode_frame == 1 && g_rv.shot_frame != g_frame);
+-        if (!shot) {
++        int shot = !kept && (start || cut || !g_rv.have_last || (g_frame - g_rv.mode_frame == 1 && g_rv.shot_frame != g_frame));
++        if (!shot && !kept) {
+             float d2 = 0, dt = 0;
+             for (int i = 0; i < 3; i++) { d2 += (pos[i] - g_rv.last_pos[i]) * (pos[i] - g_rv.last_pos[i]); dt += fwd[i] * g_rv.last_fwd[i]; }
+             shot = d2 > 100.0f * 100.0f || dt < 0.94f;   /* 10 m or 20 degrees in a frame: a cut */
+         }
+         float d = 0, de = 0;
+-        if (shot || follow)
++        if (shot || (follow && !kept))
+             rv_frame_shot(mode, pos, fwd, target, proj ? proj[5] : 0, pl, npl, g_rv.shot_eye, g_rv.shot_dir, &d, &de);
+         float L[16];
+         rv_look_at(g_rv.shot_eye, g_rv.shot_dir, L);
+@@ -670,6 +687,24 @@ void stereo_vt3_view(unsigned mode, const float *view, int cut, const float *pro
+     if (rv_log() && (mode == 6 || mode == 7))
+         fprintf(stderr, "[rview] frame %u: mode %u view %d eye %.0f %.0f %.0f fwd %.2f %.2f %.2f\n",
+                 g_frame, mode, k, pos[0], pos[1], pos[2], fwd[0], fwd[1], fwd[2]);
++    {   /* LINDBERGH_VT3_RVSHOT=<n>: a game shot of every frame of the first n
++         * replays / close-ups drawn in Camera view or the world, and of the
++         * 30 frames after each, each logged with its mode and dip
++         * (diagnostic: player models gone in a replay, the glitch at its end) */
++        static int segs = -2, seg, after; extern volatile int g_game_shot_req;
++        if (segs == -2) { const char *v = getenv("LINDBERGH_VT3_RVSHOT"); segs = v && *v ? atoi(v) : 0; }
++        if (segs > 0) {
++            if (k && !was) seg++;
++            if (!k && was) after = 30;
++            const int in = k && seg <= segs;
++            if (in || (after > 0 && seg <= segs)) {
++                if (!in) after--;
++                g_game_shot_req = 1;
++                fprintf(stderr, "[rvshot] frame %u: mode %u view %d stale %d dip %.2f glide %d eye %.0f %.0f %.0f fwd %.2f %.2f %.2f\n",
++                        g_frame, mode, k, stale, rv_fade_alpha(), g_rv.glide, pos[0], pos[1], pos[2], fwd[0], fwd[1], fwd[2]);
++            }
++        }
++    }
+     g_rv.active = k; g_rv.mode = mode;
+     memcpy(g_rv.last_pos, pos, sizeof pos); memcpy(g_rv.last_fwd, fwd, sizeof fwd); g_rv.have_last = 1;
+     g_proj_dirty = 1;
+diff --git a/src/runtime/xr_settings.h b/src/runtime/xr_settings.h
+index 2d72592..2d146ba 100644
+--- a/src/runtime/xr_settings.h
++++ b/src/runtime/xr_settings.h
+@@ -41,7 +41,8 @@ typedef struct {
+     int msaa;                   /* "msaa 0|2|4": anti-aliasing samples of the eyes' framebuffer (VR and
+                                  * Classic on the headset; 0 off, today's); applies on the next start */
+     int save;                   /* "save on|off": Save progress - 1P's card record kept in vt3_save.bin
+-                                 * (Virtua Tennis 3, both modes; default off); applies on the next start */
++                                 * (Virtua Tennis 3, both modes; default on since T21 - absent = on, an
++                                 * explicit "save off" stays off); applies on the next start */
+     int aniso;                  /* "aniso 0|2|4|8|16": anisotropic filtering of the game's mipmapped world
+                                  * textures (Texture filtering Standard / Sharp 4x / Sharp 8x; 0 = the
+                                  * game's own filtering); applies on the next start */
+@@ -68,7 +69,7 @@ typedef struct {
+  * 2048, Camera height Medium (+1 m; T13). (The stands' stretch,
+  * "immersive.stand_y", is gone: an old file's key is ignored and not written back.) */
+ #define LG_XR_SETTINGS_DEFAULT {1.0f,3.0f,15.0f,LG_XR_NATIVE_HEIGHT,LG_XR_NATIVE_WIDTH,120,0,LASER_ON,1,0,1,1,0,0,1,3,1,1, \
+-                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,0,0,LG_XR_SAVE_NAME_DEFAULT}
++                                0,1024,1,0,0,0,200,50,LG_SKY_STADIUM,2048,10,0,1,0,1,0,LG_XR_SAVE_NAME_DEFAULT}
+ /* Save progress's record name (save_name): Virtua Tennis 3's name entry
+  * takes up to 10 characters; letters and digits only (the font's, and one
+  * vr.cfg token) */
+diff --git a/tests/test_world_mode.py b/tests/test_world_mode.py
+index 42eb96a..a578c9e 100644
+--- a/tests/test_world_mode.py
++++ b/tests/test_world_mode.py
+@@ -136,7 +136,8 @@ int main(int argc, char **argv) {
+     def test_antialiasing(self):
+         m = lambda cfg=None, env=None: self.run_wm(cfg, env, args=("1", "msaa"))[0].split(" | ")[1]
+         sv = lambda cfg=None, env=None: self.run_wm(cfg, env, args=("1", "msaa"))[0].split(" | ")[2]
+-        self.assertEqual(sv(), "0 0 0")                                                  # Save progress off by default (T16)
++        self.assertEqual(sv(), "1 0 1")                                                  # Save progress on by default (T21; was off, T16)
++        self.assertEqual(sv("save off\n"), "0 0 0")                                       # an explicit off stays off
+         self.assertEqual(sv("save on\n"), "1 0 1")
+         self.assertEqual(sv("mode immersive\nsave on\n"), "1 0 1")                       # one value for both modes
+         self.assertEqual(sv("save on\n", {"LINDBERGH_VT3_SAVE": "0"}), "0 1 0")
+diff --git a/tests/test_xr_settings.py b/tests/test_xr_settings.py
+index 29f7aab..5b49782 100644
+--- a/tests/test_xr_settings.py
++++ b/tests/test_xr_settings.py
+@@ -58,7 +58,7 @@ int main(void) {
+ 
+     MODE_KEYS={"mode":"classic","classic.shadow":"1024","classic.cutaways":"on","immersive.replays":"off",
+                "immersive.overlays":"off","immersive.cutaways":"off","immersive.sky":"stadium","immersive.shadow":"2048",
+-               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0","save":"off",
++               "immersive.height":"10","classic.card_notice":"off","language":"english","msaa":"0","save":"on",
+                "aniso":"0","save_name":"PLAYER"}
+ 
+     @staticmethod
+diff --git a/tests/test_xr_world_panel.py b/tests/test_xr_world_panel.py
+index e8ef1b5..6a18b32 100644
+--- a/tests/test_xr_world_panel.py
++++ b/tests/test_xr_world_panel.py
+@@ -158,21 +158,21 @@ int main(void) {
+       aw.pins = 1u << WM_MSAA; aw.eff.msaa = 2;
+       xw_items(&aw, &ac, it); assert(!strcmp(it[XW_MSAA].value, "2x (env.txt)"));
+       assert(xw_choose(&aw, &ac, XW_MSAA) == 0 && ac.msaa == 0); }
+-    /* Save progress on both Advanced pages (one value), Off by default, on restart; not on the main page (T16) */
++    /* Save progress on both Advanced pages (one value), On by default (T21), on restart; not on the main page (T16) */
+     { XwState sw; memset(&sw, 0, sizeof sw); LgXrSettings sc = LG_XR_SETTINGS_DEFAULT;
+       world_mode_resolve(&sc, 0, 1, 0, &sw.eff, NULL);
+       int sr[XW_ROWS_MAX], sn = xw_page_rows(&sw, &sc, sr);
+-      assert(!has(sr, sn, XW_ROW(XW_SAVE)) && sc.save == 0 && sw.eff.save == 0);
++      assert(!has(sr, sn, XW_ROW(XW_SAVE)) && sc.save == 1 && sw.eff.save == 1);
+       sw.page = XW_PAGE_CLASSIC; sn = xw_page_rows(&sw, &sc, sr); assert(has(sr, sn, XW_ROW(XW_SAVE)));
+-      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].label, "Save progress") && !strcmp(it[XW_SAVE].value, "Off"));
+-      assert(xw_choose(&sw, &sc, XW_SAVE) == XP_SAVE && sc.save == 1);
+-      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "On (on restart)"));
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].label, "Save progress") && !strcmp(it[XW_SAVE].value, "On"));
++      assert(xw_choose(&sw, &sc, XW_SAVE) == XP_SAVE && sc.save == 0);
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "Off (on restart)"));
+       sw.page = XW_PAGE_IMMERSIVE; sn = xw_page_rows(&sw, &sc, sr); assert(has(sr, sn, XW_ROW(XW_SAVE)));
+-      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "On (on restart)"));          /* the same value on VR's page */
+-      xw_restore_defaults(&sc, 1); xw_restore_defaults(&sc, 0); assert(sc.save == 1);             /* Restore defaults keeps it */
++      xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "Off (on restart)"));         /* the same value on VR's page */
++      xw_restore_defaults(&sc, 1); xw_restore_defaults(&sc, 0); assert(sc.save == 0);             /* Restore defaults keeps it */
+       sw.pins = 1u << WM_SAVE; sw.eff.save = 0;
+       xw_items(&sw, &sc, it); assert(!strcmp(it[XW_SAVE].value, "Off (env.txt)"));
+-      assert(xw_choose(&sw, &sc, XW_SAVE) == 0 && sc.save == 1); }
++      assert(xw_choose(&sw, &sc, XW_SAVE) == 0 && sc.save == 0); }
+     /* Reset save below Save progress on both Advanced pages: pull twice (like Restore defaults), an action - nothing stored */
+     { XwState rw; memset(&rw, 0, sizeof rw); LgXrSettings rc = LG_XR_SETTINGS_DEFAULT, before;
+       world_mode_resolve(&rc, 0, 1, 0, &rw.eff, NULL);
