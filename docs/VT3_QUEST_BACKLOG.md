@@ -46,8 +46,9 @@ and asked that all progress and research be written to the docs.
       2026-11-12: why it lost the shadows found in the code and fixed
       (the twin was read at a negative height - its empty bottom row - in
       both eyes; the right eye's layer was copied by a blit the Quest's
-      driver ignores). Committed off by default (`LINDBERGH_VT3_MASK=1`
-      turns it on); one headset run owed, then the owner to judge it worn.
+      driver ignores). Headset run T23 H1 (2026-11-12): both players'
+      shadows right in both eyes - now ON by default in Immersive
+      (`LINDBERGH_VT3_MASK=0` = the old 1360x768 path); the owner to judge it worn.
 - [x] gl4es multiview patch (`quest/gl4es.patch`, `multiview.c`): `mv_copy[64]`
       keeps a `gltexture_t*` after `glDeleteTextures` frees it - a dangling
       read in `mv_framebuffer_left`, the texture's two-layer array leaked, the

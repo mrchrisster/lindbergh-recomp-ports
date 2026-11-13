@@ -348,3 +348,7 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Unattended launch: works when the headset is on vrshell HomeActivity (Asleep is fine) - vt3-repro.sh unchanged sequence started the game on launch 1. The 23:25 failures: launch held by HorizonOS while tracking was lost (window placement timeout + Guardian interstitial for our package; START itself accepted, no BAL block). Prompt cleared by itself with the headset asleep within ~3 min. Recipe in README "Guardian ... and unattended runs"; vt3-repro.sh now detects it and sleeps the headset 60 s between tries.
 - H1: B (T4 per-eye ground shadow mask) PASS in both eyes (crops ~/Desktop/Claude/vt3-shadows/). C: robust context REFUSED by EGL (EGL_BAD_ATTRIBUTE) - no result on the fault type; faults still present (rate-limited 10 lines/5 s). Details: lindbergh-recomp-ports HANDOFF 3.1 top.
 - Next (this worker): mask default ON in Immersive (LINDBERGH_VT3_MASK=0 = old path), commit, build, install, launch check.
+
+## 2026-11-12 ~23:45 (T23 worker done)
+- Per-eye ground shadow mask ON by default in Immersive: lindberghrecomp 02c86c8 (both trees pin it); build installed (launch-checked only). env.txt empty, vr.cfg the owner's, app stopped. Nothing pushed.
+- Open from T23: GL_ROBUST test needs an EGL_EXT_create_context_robustness path (SDL's request refused on the Quest) before C can be answered.

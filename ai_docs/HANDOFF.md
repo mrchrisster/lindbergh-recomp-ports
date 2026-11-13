@@ -168,6 +168,15 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:45 T23 mask default ON, installed.** Submodule 02c86c8
+  (on b8ddc4c): `LINDBERGH_VT3_MASK` unset = per-eye ground shadow mask in
+  Immersive (arbprog.c `vt3_mask_unit`, stereo.c `mask_on`), `=0` the old
+  1360x768 path. macOS build + rt selftest OK, Quest build OK; APK
+  `/tmp/vt3q/T23/D/VirtuaTennis3VR_02c86c8.apk` installed (md5 checked).
+  Launch check only (no run, env.txt empty, owner's vr.cfg = Immersive):
+  vt3.log within 4 s, process up, force-stopped. env.txt 0 B, vr.cfg
+  byte-identical. Both trees pin 02c86c8. Owner to judge the ground shadows
+  worn. NOT pushed.
 - **2026-11-12 ~23:35 T23 H1 DONE (unattended, Guardian not up).** Headset
   Asleep on vrshell HomeActivity, no Guardian dialog: the unchanged
   `vt3-repro.sh` sequence (prox_close + KEYCODE_WAKEUP until Awake, am start)
