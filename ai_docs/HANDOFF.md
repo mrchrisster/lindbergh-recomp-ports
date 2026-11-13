@@ -168,6 +168,23 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~17:30 T21 worker (in progress, UNCOMMITTED in the submodule):**
+  (1) Save progress default On (xr_settings.h; tests updated; macOS prize run
+  `/tmp/vt3q/T21/mac2`: `save on (default)`, fresh record PLAYER, written at
+  the judge). (3) replay / close-up end: the game names the next camera mode
+  2-3 frames before it moves the camera; those frames were drawn as the court
+  through the replay's long lens, hidden only by the 3-frame end dip exactly
+  (macOS) - now the shot is kept while the camera has not cut (<1 m, <5 deg a
+  frame, 6 frames max) and the end dip starts on the new camera
+  (`[rview] ... camera not cut yet - the shot kept`). Diagnostics added:
+  `LINDBERGH_VT3_RVSHOT=<n>` (game shot of every frame of the first n Camera
+  view segments + 30 after, `[rvshot]` lines), `LINDBERGH_VT3_PROJLOG=1`.
+  Headset idle (owner's game, last input frame 4564): owner's log copied to
+  `/sdcard/VirtuaTennis3/vt3_owner_session3.log`, vr.cfg `/tmp/vt3q/T21/vr.cfg.before`,
+  his `vt3_save.bin` backed up `/tmp/vt3q/T21/owner_vt3_save.bin` (sha1 776e11c1).
+  Diag APK installed, ONE run `R1` (replay scene, Camera view, RVSHOT=3,
+  splash screencaps) running. Items 2 (players vanish) and 4 (no bar on first
+  launch) open.
 - **2026-11-12 ~17:10 T20 (Mac only): "players in view 0/2, OUT OF VIEW" was
   a LOG fault on macOS, not a regression or scene change.** `rv_players_seen`
   (stereo.c) tests against the eye's field `g_tan`, which only the XR host
