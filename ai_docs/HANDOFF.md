@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~21:40 T21b: proof run P1 did NOT start** - a Guardian
+  setup flow is up on the headset (vrshell GuardianSetupFlow; "Finding
+  position in room" in the dark), three launches came to nothing; needs
+  someone in the headset. Replay-HUD change and loading bar both unproven
+  on the headset. State: committed build 8c00191 installed, app stopped,
+  vr.cfg byte-identical, env.txt 0 B, startup_seconds 18. Owner's log kept
+  as `/sdcard/VirtuaTennis3/vt3_owner_session4.log`. To prove later (one
+  run, ~2 min, room lit): `LINDBERGH_VT3_IMMERSIVE=1
+  LINDBERGH_VT3_REPLAY_VIEW=camera LINDBERGH_VT3_CUTAWAY_VIEW=camera
+  LINDBERGH_VT3_FLOWLOG=1 LINDBERGH_VT3_RVSHOT=2 LINDBERGH_SHOT_BOTH=1
+  LINDBERGH_XR_FIXED_HEAD=1 LINDBERGH_GAME_SHOT=99999,1 scripts/vt3-repro.sh
+  replay quest 110` plus screencaps in the first 10 s for the splash.
 - **2026-11-12 ~21:30 T21b (loading bar, replay plates).** Loading bar: the
   owner's 20:16 first launch after the T21 install logs the line layer from
   frame 1 (`frame 1, 3 layers ... line 4%`, 14% at 2.5 s, 28% at 5 s, the
