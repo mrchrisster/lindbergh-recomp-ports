@@ -168,6 +168,19 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:25 T23 H1 retried under the Guardian prompt (owner: the
+  prompt does not block): the game did NOT start.** Installed
+  `/tmp/vt3q/T23/VirtuaTennis3VR_T23.apk` (runtime = b8ddc4c: 01b320c..b8ddc4c
+  changes tests only; mask off by default), vt3-repro prize quest with
+  MASK=1 GL_ROBUST=1: 3 launches (prox_close + wake only), no vt3.log; logcat
+  shows ActivityTaskManager START for VirtuaTennis3VR but **no process was
+  ever started** (no "Start proc", no SDL/LIBGL lines) while
+  GuardianDialogActivity ("Finding position in room") is resumed. So no
+  shots, no B result, no C fault count (0 faults in logcat = nothing drew).
+  The GAME_SHOT-under-Guardian note likely holds only for a game already
+  running when the prompt comes up. After: app stopped (no pid), env.txt 0 B,
+  vr.cfg byte-identical (`/tmp/vt3q/T23/H1/vr.cfg.before|after`), the
+  b8ddc4c-equivalent build stays installed. Logs `/tmp/vt3q/T23/H1/`.
 - **2026-11-12 ~23:12 T23 headset run H1 (granted) NOT started: "Finding
   position in room" is up** (com.oculus.guardian GuardianDialogActivity top
   resumed; screencap `/tmp/vt3q/T23/H1/pre.png` - room dark). Stopped before
