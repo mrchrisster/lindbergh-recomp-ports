@@ -58,7 +58,7 @@ working on its area):
 
 ## How to test
 
-- A Guardian / 'Finding position in room' prompt does not block unattended runs — use LINDBERGH_GAME_SHOT; just don't turn Guardian off.
+- A Guardian / 'Finding position in room' prompt that comes up while the game runs (or the headset sleeps) does not stop an unattended run — use LINDBERGH_GAME_SHOT. With the dialog already open, a fresh launch may not start the app at all (2026-11-12, T23 H1: no process) — then the run has to wait for the prompt to be cleared in the headset. Never turn Guardian off.
 - Quest build: `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ANDROID_NDK=$HOME/Library/Android/sdk/ndk/28.2.13676358 sh quest/build.sh vt3 > /tmp/qb.log; grep error: /tmp/qb.log; adb install -r quest/VirtuaTennis3VR.apk`
   ("1 errors" in the log is the old target-SDK lint notice; the APK is built.)
 - macOS build: `ninja -C build-mac`. Game data: `~/code/quest_games/vt3`.
