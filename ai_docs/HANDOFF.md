@@ -168,6 +168,36 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:35 T23 H1 DONE (unattended, Guardian not up).** Headset
+  Asleep on vrshell HomeActivity, no Guardian dialog: the unchanged
+  `vt3-repro.sh` sequence (prox_close + KEYCODE_WAKEUP until Awake, am start)
+  started the game on launch 1. Why the 23:25 launches failed (logcat
+  `/tmp/vt3q/T23/H1/logcat.txt`): START was accepted (`BAL_ALLOW_PERMISSION
+  result code=0`, so not a background-start block), but HorizonOS holds the
+  launch in `VolumetricWindowManagerServiceImpl: Timeout while requesting
+  window placement` while Guardian's ClientMgr sends
+  `sendExtendedInterstitialBroadcast ... packageName=org.lindbergh.vt3.vr,
+  secondsSinceDetection=2515..` every 5 s (tracking lost = "Finding position
+  in room"); `AppHealthMonitor: appLaunchFailureBroadcastReceived` follows.
+  The process is never forked until tracking comes back.
+  **B (T4 per-eye mask) PASS:** `[arbprog] ground shadow mask read per eye on
+  unit 15` and `[stereo] frame 1949: ground shadow mask per eye, 2064x2208 x2`
+  present; frame 2300 both eyes: near player's shadow full and smooth, far
+  player's and line judges' shadows present, both eyes
+  (`~/Desktop/Claude/vt3-shadows/near_both.png`, `far_both.png`,
+  `full_f2300_left|right.png`; shots `/tmp/vt3q/T23_mask/png/`). No old shot at
+  the same frame/resolution exists to compare.
+  **C:** `[window] robust context refused (Could not create EGL context ...
+  EGL_BAD_ATTRIBUTE) - made without` - the Quest's EGL refuses SDL's robust
+  request, so H1 ran WITHOUT robust access and says nothing about the fault
+  type. Faults: 231 lines in 130 s = the kernel's 10 lines / 5 s rate limit
+  (same as T22's 1471), first at app start - still present; logcat line
+  counts cannot measure the rate. (SDL asks EGL_CONTEXT_FLAGS_KHR robust bit,
+  which KHR_create_context allows for desktop GL only; GLES needs
+  EGL_EXT_create_context_robustness `EGL_CONTEXT_OPENGL_ROBUST_ACCESS_EXT` -
+  more than a one-liner, not attempted.) After: env.txt 0 B, vr.cfg
+  byte-identical (`/tmp/vt3q/T23/H1b/vr.cfg.before|after`), app stopped.
+  Logs `/tmp/vt3q/T23/H1b/` (full logcat stream). Next: mask made default.
 - **2026-11-12 ~23:25 T23 H1 retried under the Guardian prompt (owner: the
   prompt does not block): the game did NOT start.** Installed
   `/tmp/vt3q/T23/VirtuaTennis3VR_T23.apk` (runtime = b8ddc4c: 01b320c..b8ddc4c

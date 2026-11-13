@@ -58,7 +58,29 @@ working on its area):
 
 ## How to test
 
-- A Guardian / 'Finding position in room' prompt that comes up while the game runs (or the headset sleeps) does not stop an unattended run — use LINDBERGH_GAME_SHOT. With the dialog already open, a fresh launch may not start the app at all (2026-11-12, T23 H1: no process) — then the run has to wait for the prompt to be cleared in the headset. Never turn Guardian off.
+- **Guardian / 'Finding position in room' and unattended runs** (2026-11-12,
+  T23 H1). A prompt that comes up while the game runs (or the headset sleeps)
+  does not stop a run - use LINDBERGH_GAME_SHOT. A *fresh launch* while
+  tracking is lost does not start the app: `am start` is accepted
+  (`START u0 ... (BAL_ALLOW_PERMISSION) result code=0` - not a background
+  start block), but HorizonOS holds the launch
+  (`VolumetricWindowManagerServiceImpl: Timeout while requesting window
+  placement`, Guardian `ClientMgr: sendExtendedInterstitialBroadcast ...
+  packageName=org.lindbergh.vt3.vr, secondsSinceDetection=N` every 5 s,
+  `AppHealthMonitor: appLaunchFailureBroadcastReceived`) and never forks the
+  process. **Recipe:** check first - `adb shell dumpsys activity activities |
+  grep ResumedActivity`; vrshell `HomeActivity` (headset may be Asleep) is
+  fine: `scripts/vt3-repro.sh <scene> quest <secs>` as is (prox_close +
+  KEYCODE_WAKEUP until Awake, am start) started the game on the first launch
+  (T23 H1, 23:30). If `GuardianDialogActivity` is resumed, launching again
+  is useless; leave the headset asleep (the script's exit sends
+  `automation_disable`) and check again a few minutes later - after the
+  23:25 failure it had cleared by itself by 23:28 (headset asleep, nobody
+  touched it). The script now says which case it hit and lets the headset
+  sleep 60 s between tries when the prompt is up. Earlier runs "got through"
+  because the game was already running when the prompt came up, or tracking
+  was fine at launch. A dark room makes it likelier (P2, T22: waking brought
+  it up). Never turn Guardian off, never send input to the dialog.
 - Quest build: `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ANDROID_NDK=$HOME/Library/Android/sdk/ndk/28.2.13676358 sh quest/build.sh vt3 > /tmp/qb.log; grep error: /tmp/qb.log; adb install -r quest/VirtuaTennis3VR.apk`
   ("1 errors" in the log is the old target-SDK lint notice; the APK is built.)
 - macOS build: `ninja -C build-mac`. Game data: `~/code/quest_games/vt3`.

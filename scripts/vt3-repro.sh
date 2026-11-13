@@ -149,8 +149,16 @@ quest)
             sleep 2
         done
         [ -n "$started" ] && break
-        if adb logcat -d 2>/dev/null | grep -q GuardianDialogActivity; then
-            echo "vt3-repro: a Guardian boundary prompt is up - it needs someone to confirm it in the headset" >&2
+        # Tracking lost ("Finding position in room"): HorizonOS accepts the
+        # start but holds it (window placement times out, Guardian sends its
+        # interstitial for our package) and never forks the process. The
+        # prompt can clear by itself with the headset left asleep, so it is
+        # left asleep for 60 s before the next try. Never turn Guardian off.
+        if adb logcat -d 2>/dev/null | grep -qE "GuardianDialogActivity|sendExtendedInterstitialBroadcast.*$PKG"; then
+            echo "vt3-repro: launch $try held by the Guardian prompt (tracking lost) - letting the headset sleep 60 s" >&2
+            adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+            adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable >/dev/null 2>&1 || true
+            [ "$try" -lt 3 ] && sleep 60
         fi
         echo "vt3-repro: launch $try came to nothing (no $LOG after 40 s), trying again" >&2
     done

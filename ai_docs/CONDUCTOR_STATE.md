@@ -343,3 +343,8 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   replay; (4) start-up loading bar missing on the first launch. Same worker.
 - **Owner confirmed worn (T21 build bc8f1c3): "All good"** - replays keep the players, no replay-end flash, loading bar shows, save on by default. Not yet pushed: lindberghrecomp 43b712d, bc8f1c3 (fork vt3-quest at 1addfc1); virtuatennis3-vr 631ecce, 561aa44.
 - Correction: owner says item 4 (loading bar missing on first launch) is NOT solved on bc8f1c3; worker diagnosing from his log + up to 3 cold starts. Push waits until this is fixed.
+
+## 2026-11-12 ~23:35 (T23 H1 build/headset worker)
+- Unattended launch: works when the headset is on vrshell HomeActivity (Asleep is fine) - vt3-repro.sh unchanged sequence started the game on launch 1. The 23:25 failures: launch held by HorizonOS while tracking was lost (window placement timeout + Guardian interstitial for our package; START itself accepted, no BAL block). Prompt cleared by itself with the headset asleep within ~3 min. Recipe in README "Guardian ... and unattended runs"; vt3-repro.sh now detects it and sleeps the headset 60 s between tries.
+- H1: B (T4 per-eye ground shadow mask) PASS in both eyes (crops ~/Desktop/Claude/vt3-shadows/). C: robust context REFUSED by EGL (EGL_BAD_ATTRIBUTE) - no result on the fault type; faults still present (rate-limited 10 lines/5 s). Details: lindbergh-recomp-ports HANDOFF 3.1 top.
+- Next (this worker): mask default ON in Immersive (LINDBERGH_VT3_MASK=0 = old path), commit, build, install, launch check.
