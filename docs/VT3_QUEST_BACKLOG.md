@@ -127,6 +127,9 @@ and asked that all progress and research be written to the docs.
       defaults; other games keep theirs (per-game hook, guide 7.5.1
       "Defaults"). GPU cost: the owner's worn judgement plus the `[gputime]`
       of the 2026-11-13 headset run (HANDOFF 3.1).
+- [x] **Camera height stayed High back at the near end** (2026-11-13, owner's
+      item 4): the end is re-read every point (guide 8). macOS-verified over
+      three far/near cycles; Quest run owed; tie-breaks not run.
 - [x] **Start-up screen typography** (2026-11-13, owner: "skip the note between
       the controllers ... still looks clunky. make VR appear smaller"): one
       open-licence face (Inter, OFL, `quest/tools/fonts/`), a small lime "VR"

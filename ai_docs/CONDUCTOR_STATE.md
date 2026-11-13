@@ -366,3 +366,4 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
   coin with Coins Automatic (stick click continues). Quest run owed.
 - Item 5 committed: start-up screen in Inter (OFL, bundled), small solid VR tag,
   shared LOB/SLICE legend, no note; renders in ~/Desktop/Claude/vt3-splash/.
+- Item 4 committed (92b6f7b): far-end height decided per point. macOS ok.

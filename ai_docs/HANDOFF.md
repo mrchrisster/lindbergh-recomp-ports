@@ -168,6 +168,10 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 item 4 COMMITTED (submodule 92b6f7b), macOS-verified**
+  (`/tmp/vt3w13/far_win2`: near/far/near/far/near/far/near over three
+  matches, round0 + WIN). `prize` is no test for it (1P never reaches the
+  far end there). Quest run owed (combined).
 - **2026-11-13 item 5 COMMITTED (outer only): start-up screen redone.**
   `quest/tools/vt3_splash.py` rewritten (layouts B/C and the Apple fonts
   dropped; Inter 3.019 variable, OFL 1.1, bundled `quest/tools/fonts/Inter.ttf`
