@@ -168,6 +168,18 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 item 5 COMMITTED (outer only): start-up screen redone.**
+  `quest/tools/vt3_splash.py` rewritten (layouts B/C and the Apple fonts
+  dropped; Inter 3.019 variable, OFL 1.1, bundled `quest/tools/fonts/Inter.ttf`
+  + `OFL.txt`, SHA-256 9ee35efa...; lettering rendered into splash_art.c, the
+  font is not in the app). Size scale: tag 58 px high (cap ~30, ~45 % of the
+  logo's lettering), action labels 26 px caps +8 % tracking, names 20 px,
+  LOADING 15 px caps +30 %. `--tag solid|outline` (solid committed, my
+  recommendation: it reads better at 2 m). Runtime unchanged (`lg_splash_vr_at`
+  4, -70: the tag's foot on "Tennis"'s baseline). Pictures (owner's eyes only,
+  with the game's logo): `~/Desktop/Claude/vt3-splash/BEFORE_{panel,headset}.png`,
+  `AFTER_solid_*`, `AFTER_outline_*`, `AFTER_solid_fallback_no_game_files.png`.
+  Not yet seen in the headset.
 - **2026-11-13 items 1-3 COMMITTED (submodule 024359e + outer host.c),
   macOS-verified, Quest run owed (combined).** Guide 8 "Flat or world by the
   camera's mode ...". Evidence `/tmp/vt3w13/{rep_before,rep_after,lose_after2,

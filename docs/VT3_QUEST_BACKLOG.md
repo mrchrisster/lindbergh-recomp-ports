@@ -127,6 +127,12 @@ and asked that all progress and research be written to the docs.
       defaults; other games keep theirs (per-game hook, guide 7.5.1
       "Defaults"). GPU cost: the owner's worn judgement plus the `[gputime]`
       of the 2026-11-13 headset run (HANDOFF 3.1).
+- [x] **Start-up screen typography** (2026-11-13, owner: "skip the note between
+      the controllers ... still looks clunky. make VR appear smaller"): one
+      open-licence face (Inter, OFL, `quest/tools/fonts/`), a small lime "VR"
+      tag standing on the logo's baseline, LOB / SLICE as one legend between the
+      controllers, outer labels on a grid with level leaders, LOADING tied to
+      the bar; the note is gone. Owner to judge worn.
 - [x] **Game over / continue screens flat in VR; no stray 3D replays; continue
       works with Coins Automatic** (2026-11-13, owner's items 1-3; guide 8):
       end screens and the attract's screens are menu states; flat/world by

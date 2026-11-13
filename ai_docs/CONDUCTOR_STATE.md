@@ -364,3 +364,5 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Items 1-3 committed (submodule 024359e): end/attract screens flat, flat by
   camera mode (0 stray world frames in macOS replay runs, was ~2500), continue
   coin with Coins Automatic (stick click continues). Quest run owed.
+- Item 5 committed: start-up screen in Inter (OFL, bundled), small solid VR tag,
+  shared LOB/SLICE legend, no note; renders in ~/Desktop/Claude/vt3-splash/.
