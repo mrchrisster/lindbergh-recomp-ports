@@ -168,28 +168,41 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
-- **2026-11-13 item 7 (split ghost with anti-aliasing) - fix BUILT, headset run
-  in progress (UNCOMMITTED; safety diff `ai_docs/wip/item7-split-msaa-pane-clear-lindberghrecomp.diff`).**
-  Mechanism (macOS draw log of a split frame with the clear log now showing
-  the scissor, `/tmp/vt3w14/mac_split5`, frame 2430): each pane is drawn as a
-  frame of its own - colour+stencil clear 0x4400 of the WHOLE screen (no
-  scissor), 14 planar shadow draws (whole viewport), whole-screen copy = that
-  pane's ground shadow mask (Quest texture 45), depth-only clear of its half
-  (0,0 / 680,0 680x768, scissor on), the pane, DOF copies 34/33. The second
-  pane's 0x4400 is a flat-frame colour clear after eye draws, so stereo.c drops
-  its colour (the left pane must stay; the game's own composite of it is left
-  out) - the right pane's mask copy takes the right half as left, i.e. the
-  multisampled contents restored after the left pane's copies (resolves),
-  which are undefined: one tile (x 50-75 %, y 50-100 % = one 516x1104 bin of
-  the 2064x2208 eye) came back holding the left pane squeezed 2x across; the
-  mask took it; ground/walls (shadow receivers only - the players are clean)
-  show it dark. Fix (stereo.c `pane_note` / `pane_clear_rest`): anti-aliasing
-  on, a dropped colour clear in a frame that has had part-screen depth-only
-  clears clears the colour outside those panes (one scissored glClear, no
-  extra pass). Off: `LINDBERGH_PANE_CLEAR=0`; msaa 0: no new GL call.
-  Also: texture filtering log rate-limited (hle_gl_posix.c; the old test
-  printed every plain set once one mip set was seen). macOS build, 86 unit
-  tests, gl4es mock test OK; macOS `lose` + split run fine.
+- **2026-11-13 item 7 (split-screen ghost) FIXED and COMMITTED: submodule
+  6a95ff5, build INSTALLED (`/tmp/vt3q/T25/VirtuaTennis3VR_6a95ff5.apk`).**
+  The R1/R2 diagnosis ("MSAA-only") was wrong: R2 had a single split frame
+  with a bright left pane, which hides the ghost. Mechanism (macOS draw log
+  with the clear log now printing the scissor, `/tmp/vt3w14/mac_split5` f2430):
+  each pane is drawn as its own frame - colour+stencil clear 0x4400 of the
+  WHOLE screen (no scissor), 14 planar shadow draws over the WHOLE viewport,
+  whole-screen copy = that pane's ground shadow mask (Quest texture 45), then
+  a depth-only clear of its half (0,0 / 680,0 680x768, scissor on) and the
+  pane, whose ground reads the mask PANE-LOCAL (0..1 across the pane = across
+  the whole copy). stereo.c's flat-frame rule drops the second pane's colour
+  clear (it would wipe the left pane; the game's own restore composite is left
+  out), so the right pane's mask still held the left pane in its left half ->
+  the right pane's x 50-75 % showed the left pane squeezed 2x, dark (shadow
+  receivers only). Two wrong fixes tried on the headset first: S2 (anti-aliasing
+  on, colour cleared in the right half before the mask copy) and S3 (rest of a
+  split frame single-sampled) - ghost unchanged both times, which disproved the
+  MSAA theory. Fix (stereo.c `pane_note`, `pane_prelude_begin/_end`): when such
+  a clear is dropped while the panes drawn so far leave part of the screen,
+  the clear + shadows + mask copy go to the side target (side_pass, now at
+  least the game's size, 1360x768, 1:1 copy) until the pane's depth-only clear
+  (or a framebuffer bind, or the frame's end); the eyes keep the left pane.
+  VT3 only (world_mode_capable), any anti-aliasing (Classic and VR are the same
+  flat path); `LINDBERGH_PANE_PRELUDE=0` = before. Headset S4 (owner's vr.cfg,
+  msaa 2, `lose` + `LINDBERGH_VT3_SPLIT=1`, `/tmp/vt3q/T25/S4`): split frames
+  2540-2615 clean in both eyes, right player's ground shadow present; rally
+  frames untouched by construction (the prelude needs a part-screen pane clear
+  in the frame) and S1 2440 looked like R1. GPU (unworn, 60 Hz pacing, split
+  window without game shots): 5.4 ms avg (90 % 8.3, worst 9.8) vs R1 5.4 (7.5,
+  9.0); rally 4.0-4.1 ms. Texture filtering log now first of each kind, then
+  every 5000th (hle_gl_posix.c). Strip:
+  `~/Desktop/Claude/vt3-bugs/split_screen_fixed.png` (R1 before | S4 left | S4
+  right). Not checked: Classic worn, end-of-game split ("GAME 1P 1-0", did not
+  occur), the gl4es mock test does not cover stereo.c. After the runs: env.txt
+  0 B, vr.cfg byte-identical, app stopped.
 - **2026-11-13 Quest runs R1 + R2 done; build 92b6f7b INSTALLED**
   (`/tmp/vt3q/T24/VirtuaTennis3VR_92b6f7b.apk`; outer 529ce17 / 104d28d).
   R1 (`lose` + `LINDBERGH_VT3_SPLIT=1`, the owner's vr.cfg, 170 s,
