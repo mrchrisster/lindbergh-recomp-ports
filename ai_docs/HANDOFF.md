@@ -168,6 +168,10 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~17:10: T19 APK installed for the owner's worn test, no smoke
+  run done; the owed checks remain** (combined T13-T19 run, T16 save run;
+  plan and frame numbers in the entry below). Owner wearing the headset: no
+  adb until he hands it back.
 - **2026-11-12 ~17:05 headset worker (T20): committed build INSTALLED for the
   owner, no test runs (conductor: owner said "install now").** Installed
   `/tmp/vt3q/T19/VirtuaTennis3VR_T19_libcg_from_player.apk` (byte-identical
