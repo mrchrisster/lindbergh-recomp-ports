@@ -334,3 +334,10 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - **Published PUBLIC: github.com/mrchrisster/virtuatennis3-vr** (VT3-only, fresh history, MIT, no game files; README states the port is built against `vt3_Lindbergh_HD` and does not emulate/answer the dongle). Owner decided public ("up to the user to supply the game file").
 - Pushed lindberghrecomp fork `vt3-quest` 9d68719..1addfc1 (T8-T19 runtime) - needed by the new repo submodule.
 - From now on VT3 work lands in virtuatennis3-vr; this repo stays for the other games.
+
+## 2026-11-12 evening (owner's worn test of the T19 build)
+- Installed T19 (submodule 1addfc1) for the owner, no smoke run. Camera-view
+  "out of view" log was a macOS-only log fault (fixed 43b712d, not installed).
+- **T21 (owner):** (1) Save progress ON by default; (2) player models sometimes
+  vanish during a replay; (3) a one-frame camera glitch at the end of a
+  replay; (4) start-up loading bar missing on the first launch. Same worker.
