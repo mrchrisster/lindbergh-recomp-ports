@@ -367,3 +367,6 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Item 5 committed: start-up screen in Inter (OFL, bundled), small solid VR tag,
   shared LOB/SLICE legend, no note; renders in ~/Desktop/Claude/vt3-splash/.
 - Item 4 committed (92b6f7b): far-end height decided per point. macOS ok.
+- Quest R1/R2 done, build 92b6f7b installed, env.txt 0, vr.cfg identical, app
+  stopped. Item 7 diagnosed (MSAA-only ghost), not fixed. GPU 4.0-4.3 ms avg
+  with msaa 2/aniso 4/4096 (unworn).

@@ -168,6 +168,39 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 Quest runs R1 + R2 done; build 92b6f7b INSTALLED**
+  (`/tmp/vt3q/T24/VirtuaTennis3VR_92b6f7b.apk`; outer 529ce17 / 104d28d).
+  R1 (`lose` + `LINDBERGH_VT3_SPLIT=1`, the owner's vr.cfg, 170 s,
+  `/tmp/vt3q/T24/R1`): `[world] ... msaa 2 (vr.cfg) ... aniso 4`, 2x granted,
+  splash logo + VR tag read; flat log: replays / reaction cams / serve close-up
+  / stats / continue flat; 1 world frame at the first frame of each new mode
+  (the game's first frame of a mode still draws the old court camera - not a
+  stray scene); continue: ContinueLoop 3953 -> Gameinit 4202 on a Start at
+  4200 (this headset's backup already holds credits; the Start presses at
+  +7 and +127 frames were ignored by the screen). The automatic continue coin
+  could NOT be seen unworn (no controller frames while the session is not
+  focused: `[cab] coins` stayed 1) - owner to check worn. Far end: `lose`
+  never puts 1P at the far end (forced scores), only near decisions logged.
+  GPU with msaa 2 + aniso 4 + shadow 4096 (unworn, 60 Hz pacing, game shots
+  in 2440-2580): match 4.0-4.3 ms average (90% 4.1-6.5), 5.3 ms / worst 9.9
+  over the split + shots window; the first match frames 2.7 ms. Budget at
+  120 Hz 8.3 ms. **Item 7 (split ghost): MSAA-dependent.** R1 (msaa 2):
+  every split frame shows the left pane's picture, dark and see-through, in
+  the right pane's lower-left quarter (x 50-75 %, y 50-100 %:
+  `~/Desktop/Claude/vt3-bugs/split_screen_quest_msaa2_ghost_sheet.png`); R2
+  (same scene, `LINDBERGH_MSAA=0`, 75 s, `/tmp/vt3q/T24/R2`): clean right pane
+  (`split_screen_quest_msaa2_vs_msaa0.png`; a different random shot). Copies in
+  a split frame (COPY_LOG): whole-screen 1360x768 into textures 45, 34, 33,
+  45, 45 - each a mid-frame read of the multisampled eyes (implicit resolve);
+  the pane draws after a resolve start from undefined / stale multisample
+  tiles. NOT FIXED. Options: drop to single-sampled for split frames is not
+  possible per frame; candidates - after each mid-frame copy re-seed the
+  multisampled tiles (draw the resolved layer back, or glInvalidate +
+  full-viewport redraw), or keep the copies' resolve out of split frames.
+  Workaround for the owner now: Anti-aliasing Off. Texture filtering's
+  `[gl] texture filtering: ... plain set back to 1` line now prints ~100
+  times a run (on by default): rate-limit later. After both runs: env.txt 0 B,
+  vr.cfg byte-identical, app stopped.
 - **2026-11-13 item 4 COMMITTED (submodule 92b6f7b), macOS-verified**
   (`/tmp/vt3w13/far_win2`: near/far/near/far/near/far/near over three
   matches, round0 + WIN). `prize` is no test for it (1P never reaches the

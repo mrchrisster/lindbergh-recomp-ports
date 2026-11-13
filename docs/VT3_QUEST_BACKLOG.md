@@ -127,6 +127,10 @@ and asked that all progress and research be written to the docs.
       defaults; other games keep theirs (per-game hook, guide 7.5.1
       "Defaults"). GPU cost: the owner's worn judgement plus the `[gputime]`
       of the 2026-11-13 headset run (HANDOFF 3.1).
+- [ ] **Split screen: left pane ghosted into the right pane with anti-aliasing
+      on** (owner, 2026-11-13, item 7): Quest R1 (2x) shows it in every split
+      frame, R2 (Off) not - the mid-frame screen copies resolve the
+      multisampled eyes between the panes (HANDOFF 3.1). Workaround: AA Off.
 - [x] **Camera height stayed High back at the near end** (2026-11-13, owner's
       item 4): the end is re-read every point (guide 8). macOS-verified over
       three far/near cycles; Quest run owed; tie-breaks not run.
