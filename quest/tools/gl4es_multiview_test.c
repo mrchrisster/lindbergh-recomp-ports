@@ -24,7 +24,13 @@ void* gles;
 GLenum get_texture_min_filter(gltexture_t* t, glsampler_t* s) { (void)t; (void)s; return GL_LINEAR; }
 GLenum get_texture_wrap_s(gltexture_t* t, glsampler_t* s) { (void)t; (void)s; return GL_REPEAT; }
 GLenum get_texture_wrap_t(gltexture_t* t, glsampler_t* s) { (void)t; (void)s; return GL_REPEAT; }
-gltexture_t* gl4es_getTexture(GLenum target, GLuint texture) { (void)target; (void)texture; return NULL; }
+static gltexture_t* registry[2];     // what gl4es_getTexture finds (copy_layers)
+gltexture_t* gl4es_getTexture(GLenum target, GLuint texture)
+{
+    (void)target;
+    for(int i = 0; i < 2; i++) if(registry[i] && registry[i]->texture == texture) return registry[i];
+    return NULL;
+}
 char* gl4es_inplace_replace(char* b, int* n, const char* s, const char* d) { (void)n; (void)s; (void)d; return b; }
 char* gl4es_inplace_replace_simple(char* b, int* n, const char* s, const char* d) { (void)n; (void)s; (void)d; return b; }
 
@@ -50,6 +56,9 @@ static GLboolean m_IsEnabled(GLenum e) { (void)e; return 0; }
 static int blits;
 static void m_Blit(GLint a, GLint b, GLint c, GLint d, GLint e, GLint f, GLint g, GLint h, GLbitfield m, GLenum fl)
 { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; (void)h; (void)m; (void)fl; blits++; }
+static int copies3d, copied_layer[2];
+static void m_CopyTexSubImage3D(GLenum t, GLint lv, GLint x, GLint y, GLint z, GLint sx, GLint sy, GLsizei w, GLsizei h)
+{ (void)t; (void)lv; (void)x; (void)y; (void)sx; (void)sy; (void)w; (void)h; copies3d++; if(z >= 0 && z < 2) copied_layer[z]++; }
 static void nop(void) {}
 
 void* proc_address(void* lib, const char* name)
@@ -63,6 +72,7 @@ void* proc_address(void* lib, const char* name)
     if(!strcmp(name, "glGetError")) return (void*)m_GetError;
     if(!strcmp(name, "glIsEnabled")) return (void*)m_IsEnabled;
     if(!strcmp(name, "glBlitFramebuffer")) return (void*)m_Blit;
+    if(!strcmp(name, "glCopyTexSubImage3D")) return (void*)m_CopyTexSubImage3D;
     return (void*)nop;      // every other entry point: nothing to check
 }
 
@@ -128,6 +138,21 @@ int main(void)
     CHECK(blits == before + 1 && mv_copy_slots_used() == 1 && live_count() == 1, "the other texture kept");
     delete_tex(b);
     CHECK(mv_copy_slots_used() == 0 && live_count() == 0, "all given back");
+
+    // both eyes into a 2D texture's own array (the per-eye shadow mask): each
+    // layer by glCopyTexSubImage3D, never a blit (a blit into layer 1 writes
+    // nothing on the Quest's driver); the array goes when the texture does
+    gltexture_t* eyes = new_tex(60, 200, 100), *twin = new_tex(61, 200, 100);
+    mv_attach(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, eyes, 50, 0x84F5 /* GL_TEXTURE_RECTANGLE_ARB: no copy-back slot */);
+    CHECK(eyes->mvarray && mv_copy_slots_used() == 0, "eyes' array");
+    registry[0] = eyes; registry[1] = twin;
+    before = blits;
+    CHECK(gl4es_multiview_copy_layers(60, 61), "copy_layers");
+    CHECK(blits == before && copies3d == 2 && copied_layer[0] == 1 && copied_layer[1] == 1, "layers copied by CopyTexSubImage3D: blits %d, copies %d", blits - before, copies3d);
+    CHECK(twin->mvarray && twin->mv_layered, "twin's array");
+    registry[0] = registry[1] = NULL;
+    delete_tex(twin); delete_tex(eyes);
+    CHECK(live_count() == 0, "arrays after copy_layers: %d", live_count());
 
     printf("gl4es multiview slots: OK (%d copy-backs)\n", blits);
     free(glstate);

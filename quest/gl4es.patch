@@ -539,10 +539,10 @@ index fe69266e..eb8864a4 100644
      if(tex->data)
 diff --git a/src/gl/multiview.c b/src/gl/multiview.c
 new file mode 100644
-index 00000000..aa031e33
+index 00000000..f5b7b6bc
 --- /dev/null
 +++ b/src/gl/multiview.c
-@@ -0,0 +1,904 @@
+@@ -0,0 +1,917 @@
 +// multiview.c - both eyes of a VR headset in one pass (see multiview.h).
 +//
 +// Shaders: what gl4es makes of every shader is GLSL ES 1.00, and multiview
@@ -609,6 +609,7 @@ index 00000000..aa031e33
 +    GLboolean (*IsEnabled)(GLenum);
 +    void (*ReadPixels)(GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void*);
 +    void (*TexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const void*);
++    void (*CopyTexSubImage3D)(GLenum, GLint, GLint, GLint, GLint, GLint, GLint, GLsizei, GLsizei);
 +    void (*FramebufferTextureMultiviewOVR)(GLenum, GLenum, GLuint, GLint, GLint, GLsizei);
 +    void (*FramebufferTextureMultisampleMultiviewOVR)(GLenum, GLenum, GLuint, GLint, GLsizei, GLint, GLsizei);   // optional
 +    GLuint (*GetUniformBlockIndex)(GLuint, const GLchar*);
@@ -656,7 +657,7 @@ index 00000000..aa031e33
 +    L(TexStorage3D) L(FramebufferTextureMultiviewOVR) L(GetUniformBlockIndex) L(UniformBlockBinding)
 +    L(BindBufferRange) L(GenBuffers) L(BindBuffer) L(BufferData) L(BufferSubData) L(MapBufferRange) L(UnmapBuffer) L(GenTextures)
 +    L(DeleteTextures) L(BindTexture) L(ActiveTexture) L(TexParameteri) L(GetIntegerv) L(Enable) L(Disable)
-+    L(TexImage3D) L(TexSubImage3D) L(FenceSync) L(ClientWaitSync) L(DeleteSync)
++    L(TexImage3D) L(TexSubImage3D) L(CopyTexSubImage3D) L(FenceSync) L(ClientWaitSync) L(DeleteSync)
 +    L(GetError) L(BlitFramebuffer) L(FramebufferTexture2D) L(IsEnabled) L(GenFramebuffers) L(DeleteFramebuffers) L(BindFramebuffer) L(FramebufferTextureLayer) L(ReadPixels)
 +#undef L
 +    if(strstr(ext, "GL_EXT_buffer_storage")) *(void**)&mv.BufferStorageEXT = proc_address(gles, "glBufferStorageEXT");
@@ -1199,24 +1200,36 @@ index 00000000..aa031e33
 +    if(!a) return 0;
 +    d->mv_layered = 1;
 +    int w = s->mv_w < d->mv_w ? s->mv_w : d->mv_w, h = s->mv_h < d->mv_h ? s->mv_h : d->mv_h;
-+    GLuint fb[2] = {0, 0};
-+    GLint read = 0, draw = 0;
++    GLint act = GL_TEXTURE0;
++    mv.GetIntegerv(GL_ACTIVE_TEXTURE, &act);
++    int unit = act - GL_TEXTURE0;
++    if(unit < 0 || unit >= MV_UNITS) return 0;
++    GLuint prev = mv_bound[unit];
++    GLuint fb = 0;
++    GLint read = 0;
 +    mv.GetIntegerv(0x8CAA /*GL_READ_FRAMEBUFFER_BINDING*/, &read);
-+    mv.GetIntegerv(0x8CA6 /*GL_DRAW_FRAMEBUFFER_BINDING*/, &draw);
-+    mv.GenFramebuffers(2, fb);
++    mv.GenFramebuffers(1, &fb);
++    mv.BindFramebuffer(GL_READ_FRAMEBUFFER, fb);
 +    int scissor = mv.IsEnabled(GL_SCISSOR_TEST);
 +    if(scissor) mv.Disable(GL_SCISSOR_TEST);
++    bind_array(unit, a);
++    // each layer by glCopyTexSubImage3D: a glBlitFramebuffer into layer 1 of
++    // an array (a framebuffer layer attachment) writes nothing on the Quest's
++    // driver - layer 0 copied, layer 1 kept what it had, no error (as
++    // host_xr.c's held frame found)
 +    for(int l = 0; l < 2; l++) {
-+        mv.BindFramebuffer(GL_READ_FRAMEBUFFER, fb[0]);
 +        mv.FramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, s->mvarray, 0, l);
-+        mv.BindFramebuffer(GL_DRAW_FRAMEBUFFER, fb[1]);
-+        mv.FramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, a, 0, l);
-+        mv.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
++        mv.CopyTexSubImage3D(GL_TEXTURE_2D_ARRAY_, 0, 0, 0, l, 0, 0, w, h);
 +    }
++    bind_array(unit, prev);
 +    if(scissor) mv.Enable(GL_SCISSOR_TEST);
 +    mv.BindFramebuffer(GL_READ_FRAMEBUFFER, read);
-+    mv.BindFramebuffer(GL_DRAW_FRAMEBUFFER, draw);
-+    mv.DeleteFramebuffers(2, fb);
++    mv.DeleteFramebuffers(1, &fb);
++    if(mv_check) {
++        static int shown;
++        GLenum e = mv.GetError();
++        if(e && shown++ < 10) printf("LIBGL: multiview: both eyes into texture %u's array (%dx%d): error %#x\n", d->texture, w, h, e);
++    }
 +    return 1;
 +}
 +

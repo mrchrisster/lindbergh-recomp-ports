@@ -168,6 +168,16 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:00 T23 step B1: T4 per-eye mask - cause found (code), fixed,
+  opt-in, NOT run on the headset.** Two faults in the WIP: (1) arbprog.c read
+  `lg_mask(-u_scr.xy)` while stereo.c/upload() set u_scr = (-1/ew, +1/eh): y
+  came out negative, the twin was read at its clamped bottom row (no shadow)
+  in both eyes - the vanished shadows; now `lg_mask(vec2(-u_scr.x, u_scr.y))`.
+  (2) `gl4es_multiview_copy_layers` blitted into layer 1 (T8: writes nothing
+  on the Quest driver) - now glCopyTexSubImage3D per layer (gl4es.patch;
+  host test covers it). Unused `arb_fp_local` dropped. Still opt-in
+  `LINDBERGH_VT3_MASK=1`. macOS build, unit tests, gl4es test, Quest APK
+  build OK. Safety diff `ai_docs/wip/t4-mask-fix-lindberghrecomp.diff`.
 - **2026-11-12 ~22:55 T23 worker (A gl4es slots, B T4 mask, C page faults),
   step A1:** gl4es fix in `../deps/gl4es` (multiview.c `mv_texture_deleted`,
   called from `gl4es_glDeleteTextures` and glstate.c `free_texture`: copy-back
