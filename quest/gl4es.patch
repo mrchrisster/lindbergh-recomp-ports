@@ -517,12 +517,32 @@ index b0f02993..2daf81c9 100644
      if(attachment>=GL_COLOR_ATTACHMENT0 && attachment<(GL_COLOR_ATTACHMENT0+hardext.maxcolorattach) && tex) {
          gltexture_t *bound = glstate->texture.bound[0/*glstate->texture.active*/][ENABLED_TEX2D];
          if((hardext.npot==1 || hardext.npot==2) && (!tex->actual.wrap_s || !tex->actual.wrap_t || !wrap_npot(tex->actual.wrap_s) || !wrap_npot(tex->actual.wrap_t))) {
+diff --git a/src/gl/glstate.c b/src/gl/glstate.c
+index fe69266e..eb8864a4 100644
+--- a/src/gl/glstate.c
++++ b/src/gl/glstate.c
+@@ -7,6 +7,7 @@
+ #include "glstate.h"
+ #include "init.h"
+ #include "loader.h"
++#include "multiview.h"
+ #include "oldprogram.h"
+ 
+ glstate_t *glstate = NULL;
+@@ -46,6 +47,7 @@ static void free_texture(gltexture_t *tex)
+     LOAD_GLES(glDeleteTextures);
+     if(!tex || !gles_glDeleteTextures)
+         return;
++    mv_texture_deleted(tex);    // multiview: its array, its copy-back slot
+     if(tex->glname)
+         gles_glDeleteTextures(1, &tex->glname);
+     if(tex->data)
 diff --git a/src/gl/multiview.c b/src/gl/multiview.c
 new file mode 100644
-index 00000000..331ee50c
+index 00000000..aa031e33
 --- /dev/null
 +++ b/src/gl/multiview.c
-@@ -0,0 +1,879 @@
+@@ -0,0 +1,904 @@
 +// multiview.c - both eyes of a VR headset in one pass (see multiview.h).
 +//
 +// Shaders: what gl4es makes of every shader is GLSL ES 1.00, and multiview
@@ -930,6 +950,31 @@ index 00000000..331ee50c
 +    if(any) {   // as gl4es had it
 +        mv.BindFramebuffer(GL_FRAMEBUFFER, fb ? fb : glstate->fbo.mainfbo_fbo);
 +    }
++}
++
++// A texture deleted (gl4es_glDeleteTextures, or the context's texture list
++// freed): its array goes with it, and no copy-back slot keeps pointing at the
++// freed record - mv_framebuffer_left read it after the free, the two-layer
++// array leaked and the slot was never given back (64 of them, then "too many
++// 2D textures drawn into").
++void mv_texture_deleted(gltexture_t* tex)
++{
++    if(!tex) return;
++    for(int i = 0; i < MV_COPIES; i++)
++        if(mv_copy[i].tex == tex) { mv_copy[i].tex = NULL; mv_copy[i].fb = 0; mv_copy[i].attachment = 0; }
++    if(tex->mvarray) {
++        for(int u = 0; u < MV_UNITS; u++) if(mv_bound[u] == tex->mvarray) mv_bound[u] = 0;
++        if(mv.DeleteTextures) mv.DeleteTextures(1, &tex->mvarray);
++        tex->mvarray = 0; tex->mv_w = tex->mv_h = 0;
++    }
++}
++
++// the copy-back slots in use (tests)
++int mv_copy_slots_used(void)
++{
++    int n = 0;
++    for(int i = 0; i < MV_COPIES; i++) n += mv_copy[i].tex != NULL;
++    return n;
 +}
 +
 +// A rectangle texture given its pixels (a lookup table, say, not a render
@@ -1404,10 +1449,10 @@ index 00000000..331ee50c
 +}
 diff --git a/src/gl/multiview.h b/src/gl/multiview.h
 new file mode 100644
-index 00000000..4d88d7f1
+index 00000000..bea291f1
 --- /dev/null
 +++ b/src/gl/multiview.h
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,58 @@
 +#ifndef _GL4ES_MULTIVIEW_H_
 +#define _GL4ES_MULTIVIEW_H_
 +
@@ -1456,6 +1501,8 @@ index 00000000..4d88d7f1
 +void  mv_program_linked(GLuint glprog);
 +int   mv_attach(GLenum target, GLenum attachment, gltexture_t* tex, GLuint fb, GLenum textarget);
 +void  mv_framebuffer_left(GLuint fb);
++void  mv_texture_deleted(gltexture_t* tex);   // before gl4es frees a texture: its array and copy-back slot
++int   mv_copy_slots_used(void);
 +void  mv_realize_arrays(void);
 +extern double gl4es_drawprof[4];
 +extern int gl4es_drawprof_on;
@@ -2174,7 +2221,7 @@ index 25d2d742..9368a06e 100644
          if(level) {
              noerrorShim();
 diff --git a/src/gl/texture_params.c b/src/gl/texture_params.c
-index 96e07205..4f94125a 100644
+index 96e07205..306469b4 100644
 --- a/src/gl/texture_params.c
 +++ b/src/gl/texture_params.c
 @@ -1,4 +1,5 @@
@@ -2235,7 +2282,15 @@ index 96e07205..4f94125a 100644
              case GL_GENERATE_MIPMAP:
                  if(globals4es.automipmap==3)
                      return; // no mipmap, so no need to generate any
-@@ -861,7 +889,7 @@ void realize_textures(int drawing) {
+@@ -397,6 +425,7 @@ void APIENTRY_GL4ES gl4es_glDeleteTextures(GLsizei n, const GLuint *textures) {
+                     if(found)
+                         glstate->bound_changed = a+1;
+                 }
++                mv_texture_deleted(tex);    // multiview: its array, its copy-back slot
+                 gles_glDeleteTextures(1, &tex->glname);
+                 // check if renderbuffer where associeted
+                 if(tex->binded_fbo) {
+@@ -861,7 +890,7 @@ void realize_textures(int drawing) {
  #endif
      for (int i=0; i<glstate->bound_changed; i++) {
          // get highest priority texture unit
@@ -2244,7 +2299,7 @@ index 96e07205..4f94125a 100644
          int tgt = ENABLED_TEX2D; // default to TEX2D
          if(IS_TEX3D(tmp))
              tgt = ENABLED_TEX3D;
-@@ -941,6 +969,7 @@ void realize_textures(int drawing) {
+@@ -941,6 +970,7 @@ void realize_textures(int drawing) {
          realize_1texture(target, i, tex, glstate->samplers.sampler[i]);
      }
      glstate->bound_changed = 0;

@@ -168,6 +168,13 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~22:55 T23 worker (A gl4es slots, B T4 mask, C page faults),
+  step A1:** gl4es fix in `../deps/gl4es` (multiview.c `mv_texture_deleted`,
+  called from `gl4es_glDeleteTextures` and glstate.c `free_texture`: copy-back
+  slot cleared, array deleted, `mv_bound` cleared); `quest/gl4es.patch`
+  regenerated (applies on 1891af32); host test `quest/tools/gl4es_multiview_test.{c,sh}`
+  (mock driver + ASan: passes; fails with the hook disabled). libGL.a rebuilt,
+  Quest build running (`/tmp/vt3q/T23/qbA.log`). Not committed yet.
 - **2026-11-12 ~22:40 T21c: loading bar CAUSE FOUND and fixed (submodule
   d9fa89e).** Run P3 (room lit) cold-start screencaps (`/tmp/vt3q/T22/P3_cap3_half.png`
   at ~2 s: the panel cut off just below SETTINGS, no line, no ball;
