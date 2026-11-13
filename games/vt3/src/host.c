@@ -29,6 +29,18 @@ static const char *const k_menu_states[] = {
     "_ZN15usrItemGearLoop4execEv", "_ZN16usrItemMedalLoop4execEv", "_ZN20usrItemPlaystyleLoop4execEv",
     "_ZN16usrGearcolorLoop4execEv", "_ZN15usrCardEditLoop4execEv",
     "_ZN15usrAdvTitleLoop4execEv", "_ZN17usrAdvRankingLoop4execEv", "_ZN21usrAdvRankingLoadLoop4execEv",
+    /* 2026-11-13 (owner: "on the game over screen the stadium is above you in
+     * 3d and the background is black"): the arcade's end screens are its own
+     * TV pictures - game over (camera mode 0xd), the ending's game over, to be
+     * continued, the ending and the staff roll - shown flat like Classic */
+    "_ZN17usrAcGameoverLoop4execEv", "_ZN23usrAcEndingGameoverLoop4execEv", "_ZN22usrAcTobecontinuedLoop4execEv",
+    "_ZN15usrAcEndingLoop4execEv", "_ZN18usrAcStaffrollLoop4execEv",
+    /* ...and the attract's screens round its demo match: logos, the rating
+     * notice, the movie, how to play, the player intro and the loads (the
+     * demo match itself, usrAdvDemoplayLoop, stays a play state: the court) */
+    "_ZN18usrAdvSegaLogoLoop4execEv", "_ZN17usrAdvAdxLogoLoop4execEv", "_ZN16usrAdvRatingLoop4execEv",
+    "_ZN15usrAdvMovieLoop4execEv", "_ZN19usrAdvHowtoplayLoop4execEv", "_ZN23usrAdvHowtoplayLoadLoop4execEv",
+    "_ZN21usrAdvPlayerintroLoop4execEv", "_ZN25usrAdvPlayerintroLoadLoop4execEv", "_ZN22usrAdvDemoplayLoadLoop4execEv",
     NULL,
 };
 static const char *const k_play_states[] = {

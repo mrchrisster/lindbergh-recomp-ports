@@ -127,6 +127,11 @@ and asked that all progress and research be written to the docs.
       defaults; other games keep theirs (per-game hook, guide 7.5.1
       "Defaults"). GPU cost: the owner's worn judgement plus the `[gputime]`
       of the 2026-11-13 headset run (HANDOFF 3.1).
+- [x] **Game over / continue screens flat in VR; no stray 3D replays; continue
+      works with Coins Automatic** (2026-11-13, owner's items 1-3; guide 8):
+      end screens and the attract's screens are menu states; flat/world by
+      camera mode; a coin when the continue screen opens, stick click = Start.
+      macOS-verified, Quest run owed.
 - [x] **Replays and reaction cams: one row** (2026-11-13, owner; reverses "two
       separate rows"): VR Off / Flat screen / VR, Classic On / Off; the 3D
       choice labelled "VR" (was "Camera view"; vr.cfg still `camera`).

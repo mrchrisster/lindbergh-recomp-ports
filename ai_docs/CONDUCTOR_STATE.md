@@ -361,3 +361,6 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - Item 6 widened: VT3-only defaults = the owner's headset settings (VR first;
   other games unchanged), one row "Replays and reaction cams", 3D choice labelled
   "VR". Committed; unit tests green; Quest run owed.
+- Items 1-3 committed (submodule 024359e): end/attract screens flat, flat by
+  camera mode (0 stray world frames in macOS replay runs, was ~2500), continue
+  coin with Coins Automatic (stick click continues). Quest run owed.

@@ -168,6 +168,11 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 items 1-3 COMMITTED (submodule 024359e + outer host.c),
+  macOS-verified, Quest run owed (combined).** Guide 8 "Flat or world by the
+  camera's mode ...". Evidence `/tmp/vt3w13/{rep_before,rep_after,lose_after2,
+  cont_sameframe,cont_auto}` (`strays.py` summary there). Item 4 (far-end
+  height per point) is in the working tree only, being verified.
 - **2026-11-13 checkpoint after the usage-limit cut (UNCOMMITTED code, safety
   diffs `ai_docs/wip/item1-3-flatrule-lindberghrecomp.diff`, `item1-5-outer.diff`).**
   Item 1: games/vt3/src/host.c menu states + usrAcGameover / EndingGameover /
