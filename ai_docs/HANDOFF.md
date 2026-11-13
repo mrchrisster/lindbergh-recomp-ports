@@ -168,6 +168,13 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~23:12 T23 headset run H1 (granted) NOT started: "Finding
+  position in room" is up** (com.oculus.guardian GuardianDialogActivity top
+  resumed; screencap `/tmp/vt3q/T23/H1/pre.png` - room dark). Stopped before
+  any change, as the rule says: nothing installed (the installed build is
+  still the previous one, d9fa89e per the T21c entry), app not started,
+  env.txt 0 B, vr.cfg not touched, battery 100%. Needs someone in the
+  headset (lights on) before H1 can run; H1 as planned below.
 - **2026-11-12 ~23:10 T23 done (commits, nothing pushed):** submodule
   b8ef66f (T4) -> 01b320c (robust switch) -> b8ddc4c (the parallel worker's
   tests commit b347611 cherry-picked on top: it had been made on b8ef66f in
