@@ -341,3 +341,4 @@ turning the head, frame rate at 72/90/120 Hz, the new stands and sky.
 - **T21 (owner):** (1) Save progress ON by default; (2) player models sometimes
   vanish during a replay; (3) a one-frame camera glitch at the end of a
   replay; (4) start-up loading bar missing on the first launch. Same worker.
+- **Owner confirmed worn (T21 build bc8f1c3): "All good"** - replays keep the players, no replay-end flash, loading bar shows, save on by default. Not yet pushed: lindberghrecomp 43b712d, bc8f1c3 (fork vt3-quest at 1addfc1); virtuatennis3-vr 631ecce, 561aa44.
