@@ -168,6 +168,23 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 checkpoint after the usage-limit cut (UNCOMMITTED code, safety
+  diffs `ai_docs/wip/item1-3-flatrule-lindberghrecomp.diff`, `item1-5-outer.diff`).**
+  Item 1: games/vt3/src/host.c menu states + usrAcGameover / EndingGameover /
+  Tobecontinued / Ending / Staffroll and the attract's SegaLogo / AdxLogo /
+  Rating / Movie / Howtoplay(+Load) / Playerintro(+Load) / DemoplayLoad loops
+  (flat). macOS stereo `lose` (`/tmp/vt3w13/lose_after`): Continue 0xb flat,
+  Gameover 0xd flat 308 frames. Item 3: stereo.c `vt3_mode_flat` (flat/world by
+  camera mode: 1/2 world; 6/7 the row's view; 4/5/8/9 flat unless the row is
+  VR; others the lens rule; `LINDBERGH_VT3_FLATRULE=0` old rule) held each frame
+  (`vt3_cur`), `LINDBERGH_VT3_FLATLOG=1` (`[flat] frames A-B (N): camera mode M`).
+  macOS `replay` scene, desktop stereo, rows flat: before (FLATRULE=0) mode 6
+  ReplayLoop 1575 frames world in 8 replays, mode 7 Winlose 813 world in 9,
+  mode 5 serve close-up 120 world; after: all flat (6: 1618, 7: 936, 5: 121).
+  Item 5: vt3_splash.py rewritten (Inter OFL bundled in quest/tools/fonts/ with
+  OFL.txt; note between controllers removed; small VR tag; grid labels);
+  renders `~/Desktop/Claude/vt3-splash/{BEFORE,AFTER_solid,AFTER_outline}_*`.
+  splash_art.c NOT regenerated yet. Not built for the Quest.
 - **2026-11-13 item 6 widened (owner via conductor) COMMITTED, macOS unit tests
   green (86 + 4 new).** The global default change of 13f9291 is undone;
   VT3's defaults are per game: `xr_settings_vt3_defaults` via
