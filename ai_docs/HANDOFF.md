@@ -168,6 +168,12 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~21:35 T21b proof run P2 also blocked:** before launch the
+  headset showed passthrough with no dialog (`/tmp/vt3q/T22/pre2_s.png`), but
+  each of the 3 launches brought up "Finding position in room" (vrshell
+  GuardianDialogActivity, room too dark; screencaps `/tmp/vt3q/T22/P2_caps.png`)
+  and the app never started (no vt3.log). Stopped, not worked around. State:
+  build 8c00191 installed, app stopped, vr.cfg byte-identical, env.txt 0 B.
 - **2026-11-12 ~21:40 T21b: proof run P1 did NOT start** - a Guardian
   setup flow is up on the headset (vrshell GuardianSetupFlow; "Finding
   position in room" in the dark), three launches came to nothing; needs
