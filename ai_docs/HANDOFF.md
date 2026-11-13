@@ -168,6 +168,20 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~17:10 T20 (Mac only): "players in view 0/2, OUT OF VIEW" was
+  a LOG fault on macOS, not a regression or scene change.** `rv_players_seen`
+  (stereo.c) tests against the eye's field `g_tan`, which only the XR host
+  sets (`stereo_set_eye`); on macOS stereo never starts, `g_tan` is all 0, so
+  every shot logged out of view. The framing itself (`rv_frame_shot`)
+  already falls back to a 90-degree eye (tan 1) - unaffected. Fix: the log
+  test uses the same fallback (submodule 43b712d; Quest unchanged: g_tan > 0
+  there). Rerun `/tmp/vt3q/T20/macref2`: shots 1-6 all "the target's player
+  in view" (1-2 of 2 players). Mac window shows the game's flat camera, not
+  the VR eye (`/tmp/vt3q/T20/mac_camera_view_3440_3520.png`). Outer pins: old
+  tree 57a4b9a, virtuatennis3-vr 631ecce. APK (NOT installed):
+  `/tmp/vt3q/T20/VirtuaTennis3VR_T20_inview_log.apk`. Note: rally lengths
+  differ run to run (first ReplayLoop 2948 vs 2488) - read the window for
+  Quest run 1's shots from the run's own FLOWLOG, not from the mac numbers.
 - **2026-11-12 ~17:10: T19 APK installed for the owner's worn test, no smoke
   run done; the owed checks remain** (combined T13-T19 run, T16 save run;
   plan and frame numbers in the entry below). Owner wearing the headset: no
