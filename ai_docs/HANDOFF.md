@@ -168,6 +168,26 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-12 ~19:45 T21 COMMITTED (submodule bc8f1c3) - APK
+  `/tmp/vt3q/T21/VirtuaTennis3VR_T21.apk`.** Headset run R1 (diag build:
+  replay scene, Camera view, every frame of replay 1 + close-up,
+  `/tmp/vt3q/T21/R1`, sheets `/tmp/vt3q/T21/sheet_r1.png`, `ends.png`):
+  (2) players vanish = the game's own model culling, `TScene::Scene::
+  entryModelPacket` -> `TScene::Frustum::intersect(const Model&)` against the
+  replay camera's 8-17 deg lens (drawView builds it from camera+0x118); the
+  player left that narrow picture (frame 2514 of replay 2463-2542) and was
+  dropped, his planar shadow stayed. Fix: hook returns inside while a replay
+  / close-up is in Camera view or the world (+10 frames); macOS: ~60-80 more
+  models a replay frame (`[cull] ... models` with LINDBERGH_VT3_CULLLOG=1);
+  `LINDBERGH_VT3_MODEL_CULL=1` keeps the game's test. Not headset-checked.
+  (3) end glitch: the shot-kept fix was in R1 - replay->close-up and
+  close-up->court frames clean (2541-2548, 2627-2642). (1) Save on by default.
+  (4) splash line: cause NOT pinned (every log shows the line layer from
+  frame ~2); hardening: line drawn from frame 1 (min 4%), expected time
+  clamped 8-60 s, a start > 90 s not stored, log line every 300 frames shows
+  the line %, and `[xr] splash: not shown - ...session was not running` if
+  the splash is skipped. Owner to re-check; if still missing, his vt3.log
+  splash lines tell which.
 - **2026-11-12 ~17:30 T21 worker (in progress, UNCOMMITTED in the submodule):**
   (1) Save progress default On (xr_settings.h; tests updated; macOS prize run
   `/tmp/vt3q/T21/mac2`: `save on (default)`, fresh record PLAYER, written at
