@@ -168,6 +168,28 @@ halves the rate). If any T-run fails, `adb install -r` a build of the
 committed submodule (or keep the `fade8ac` APK) before handing back.
 
 **Checkpoint log (build worker, newest first):**
+- **2026-11-13 item 7 (split ghost with anti-aliasing) - fix BUILT, headset run
+  in progress (UNCOMMITTED; safety diff `ai_docs/wip/item7-split-msaa-pane-clear-lindberghrecomp.diff`).**
+  Mechanism (macOS draw log of a split frame with the clear log now showing
+  the scissor, `/tmp/vt3w14/mac_split5`, frame 2430): each pane is drawn as a
+  frame of its own - colour+stencil clear 0x4400 of the WHOLE screen (no
+  scissor), 14 planar shadow draws (whole viewport), whole-screen copy = that
+  pane's ground shadow mask (Quest texture 45), depth-only clear of its half
+  (0,0 / 680,0 680x768, scissor on), the pane, DOF copies 34/33. The second
+  pane's 0x4400 is a flat-frame colour clear after eye draws, so stereo.c drops
+  its colour (the left pane must stay; the game's own composite of it is left
+  out) - the right pane's mask copy takes the right half as left, i.e. the
+  multisampled contents restored after the left pane's copies (resolves),
+  which are undefined: one tile (x 50-75 %, y 50-100 % = one 516x1104 bin of
+  the 2064x2208 eye) came back holding the left pane squeezed 2x across; the
+  mask took it; ground/walls (shadow receivers only - the players are clean)
+  show it dark. Fix (stereo.c `pane_note` / `pane_clear_rest`): anti-aliasing
+  on, a dropped colour clear in a frame that has had part-screen depth-only
+  clears clears the colour outside those panes (one scissored glClear, no
+  extra pass). Off: `LINDBERGH_PANE_CLEAR=0`; msaa 0: no new GL call.
+  Also: texture filtering log rate-limited (hle_gl_posix.c; the old test
+  printed every plain set once one mip set was seen). macOS build, 86 unit
+  tests, gl4es mock test OK; macOS `lose` + split run fine.
 - **2026-11-13 Quest runs R1 + R2 done; build 92b6f7b INSTALLED**
   (`/tmp/vt3q/T24/VirtuaTennis3VR_92b6f7b.apk`; outer 529ce17 / 104d28d).
   R1 (`lose` + `LINDBERGH_VT3_SPLIT=1`, the owner's vr.cfg, 170 s,
